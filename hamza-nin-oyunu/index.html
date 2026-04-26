@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Mini Brawl Arena</title>
+<style>
+body { margin:0; background:#111; overflow:hidden; font-family:Arial; }
+canvas { display:block; margin:auto; background:#222; }
+#menu {
+  position:absolute;
+  width:100%;
+  top:40%;
+  text-align:center;
+}
+button {
+  padding:10px;
+  margin:5px;
+  font-size:16px;
+}
+</style>
+</head>
+<body>
+
+<div id="menu"></div>
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = 900;
+canvas.height = 500;
+
+// KARAKTERLER
+const characters = [
+  {name:"Tank", hp:200, speed:2, damage:10, fireRate:30, ulti:"shield"},
+  {name:"Hızlı", hp:90, speed:4, damage:8, fireRate:20, ulti:"dash"},
+  {name:"Sniper", hp:80, speed:2.5, damage:25, fireRate:50, ulti:"bigShot"},
+  {name:"Deli", hp:120, speed:3, damage:15, fireRate:10, ulti:"rage"},
+  {name:"Doktor", hp:110, speed:2.5, damage:10, fireRate:25, ulti:"heal"}
+];
+
+let player;
+let bullets = [];
+let enemies = [];
+let keys = {};
+let ultiReady = false;
+
+// MENÜ
+const menu = document.getElementById("menu");
+characters.forEach((c,i)=>{
+  let btn = document.createElement("button");
+  btn.innerText = c.name;
+  btn.onclick = ()=>startGame(i);
+  menu.appendChild(btn);
+});
+
+function startGame(i){
+  menu.style.display="none";
+  let c = characters[i];
+
+  player = {
+    x:450,y:250,
+    r:18,
+    hp:c.hp,
+    maxHp:c.hp,
+    speed:c.speed,
+    damage:c.damage,
+    fireRate:c.fireRate,
+    ulti:c.ulti,
+    shootTimer:0
+  };
+}
+
+// KONTROL
+document.addEventListener("keydown", e=>{
+  keys[e.key]=true;
+  if(e.key==="q") useUlti();
+});
+document.addEventListener("keyup", e=>keys[e.key]=false);
+
+// DÜŞMAN
+setInterval(()=>{
+  if(!player) return;
+  enemies.push({
+    x:Math.random()*900,
+    y:Math.random()*500,
+    r:16,
+    hp:40
+  });
+},1500);
+
+// ULTI
+function useUlti(){
+  if(!player) return;
+
+  switch(player.ulti){
+    case "dash":
+      player.x += 100;
+      break;
+    case "heal":
+      player.hp += 40;
+      if(player.hp>player.maxHp) player.hp=player.maxHp;
+      break;
+    case "bigShot":
+      bullets.push({
+        x:player.x,
+        y:player.y,
+        dx:5, dy:0,
+        size:10,
+        damage:50
+      });
+      break;
+    case "rage":
+      player.damage += 10;
+      setTimeout(()=>player.damage-=10,3000);
+      break;
+    case "shield":
+      player.hp += 30;
+      break;
+  }
+}
+
+// UPDATE
+function update(){
+  if(!player) return;
+
+  // HAREKET
+  if(keys["w"]) player.y -= player.speed;
+  if(keys["s"]) player.y += player.speed;
+  if(keys["a"]) player.x -= player.speed;
+  if(keys["d"]) player.x += player.speed;
+
+  // ATEŞ
+  player.shootTimer++;
+  if(player.shootTimer > player.fireRate){
+    let target = enemies[0];
+    if(target){
+      let angle = Math.atan2(target.y-player.y, target.x-player.x);
+
+      bullets.push({
+        x:player.x,
+        y:player.y,
+        dx:Math.cos(angle)*6,
+        dy:Math.sin(angle)*6,
+        damage:player.damage,
+        size:4
+      });
+    }
+    player.shootTimer=0;
+  }
+
+  // MERMİ
+  bullets.forEach((b,i)=>{
+    b.x += b.dx;
+    b.y += b.dy;
+
+    enemies.forEach((e,ei)=>{
+      let d = Math.hypot(b.x-e.x,b.y-e.y);
+      if(d < e.r){
+        e.hp -= b.damage;
+        bullets.splice(i,1);
+      }
+    });
+  });
+
+  // DÜŞMAN
+  enemies.forEach((e,i)=>{
+    let ang = Math.atan2(player.y-e.y, player.x-e.x);
+    e.x += Math.cos(ang)*1.2;
+    e.y += Math.sin(ang)*1.2;
+
+    let d = Math.hypot(player.x-e.x, player.y-e.y);
+    if(d < player.r){
+      player.hp -= 0.3;
+    }
+
+    if(e.hp<=0) enemies.splice(i,1);
+  });
+}
+
+// DRAW
+function draw(){
+  ctx.clearRect(0,0,900,500);
+
+  if(!player) return;
+
+  ctx.fillStyle="cyan";
+  ctx.beginPath();
+  ctx.arc(player.x,player.y,player.r,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle="yellow";
+  bullets.forEach(b=>{
+    ctx.beginPath();
+    ctx.arc(b.x,b.y,b.size,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  ctx.fillStyle="red";
+  enemies.forEach(e=>{
+    ctx.beginPath();
+    ctx.arc(e.x,e.y,e.r,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  // HP
+  ctx.fillStyle="red";
+  ctx.fillRect(10,10,200,10);
+  ctx.fillStyle="lime";
+  ctx.fillRect(10,10,(player.hp/player.maxHp)*200,10);
+
+  ctx.fillStyle="white";
+  ctx.fillText("Q = Ulti",10,40);
+}
+
+// LOOP
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+
+</body>
+</html>
