@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Siber Şehir: Drone Operasyonu</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Courier New', Courier, monospace;
+            color: #00ffcc;
+        }
+        canvas {
+            display: block;
+            box-shadow: 0 0 20px #00ffcc;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            text-shadow: 0 0 5px #00ffcc;
+        }
+        .msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: none;
+        }
+        button {
+            background: transparent;
+            color: #00ffcc;
+            border: 2px solid #00ffcc;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #00ffcc;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <h1>SIBER SEHIR: KARGO</h1>
+        <p>Skor: <span id="score">0</span></p>
+        <p>Kontrol: Yön Tuşları / WASD</p>
+    </div>
+
+    <div id="gameOver" class="msg">
+        <h2 style="color: #ff0055;">SISTEM KESINTISI!</h2>
+        <p>Drone hasar aldı.</p>
+        <button onclick="resetGame()">YENIDEN BASLAT</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const gameOverEl = document.getElementById('gameOver');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Oyun Değişkenleri
+        let score = 0;
+        let gameActive = true;
+        let obstacles = [];
+        let frame = 0;
+
+        const player = {
+            x: 100,
+            y: canvas.height / 2,
+            w: 30,
+            h: 20,
+            speed: 5,
+            dy: 0,
+            dx: 0,
+            gravity: 0.1,
+            thrust: -0.4
+        };
+
+        const keys = {};
+
+        window.addEventListener('keydown', e => keys[e.code] = true);
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        function createObstacle() {
+            let gap = 200;
+            let minHeight = 50;
+            let height = Math.floor(Math.random() * (canvas.height - gap - minHeight)) + minHeight;
+            
+            obstacles.push({
+                x: canvas.width,
+                y: 0,
+                w: 50,
+                h: height,
+                type: 'top'
+            });
+            
+            obstacles.push({
+                x: canvas.width,
+                y: height + gap,
+                w: 50,
+                h: canvas.height - height - gap,
+                type: 'bottom'
+            });
+        }
+
+        function resetGame() {
+            score = 0;
+            obstacles = [];
+            player.y = canvas.height / 2;
+            player.dy = 0;
+            gameActive = true;
+            gameOverEl.style.display = 'none';
+            scoreEl.innerText = score;
+            animate();
+        }
+
+        function update() {
+            if (!gameActive) return;
+
+            // Hareket Kontrolü
+            if (keys['ArrowUp'] || keys['KeyW']) player.dy += player.thrust;
+            if (keys['ArrowDown'] || keys['KeyS']) player.dy += 0.2;
+            if (keys['ArrowLeft'] || keys['KeyA']) player.x -= player.speed;
+            if (keys['ArrowRight'] || keys['KeyD']) player.x += player.speed;
+
+            player.dy += player.gravity;
+            player.y += player.dy;
+
+            // Sınır Kontrolü
+            if (player.y + player.h > canvas.height || player.y < 0) gameActive = false;
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.w > canvas.width) player.x = canvas.width - player.w;
+
+            // Engeller
+            if (frame % 100 === 0) createObstacle();
+
+            obstacles.forEach((obs, index) => {
+                obs.x -= 3;
+
+                // Çarpışma Testi
+                if (
+                    player.x < obs.x + obs.w &&
+                    player.x + player.w > obs.x &&
+                    player.y < obs.y + obs.h &&
+                    player.y + player.h > obs.y
+                ) {
+                    gameActive = false;
+                }
+
+                if (obs.x + obs.w < 0) {
+                    if (obs.type === 'top') {
+                        score++;
+                        scoreEl.innerText = score;
+                    }
+                    obstacles.splice(index, 1);
+                }
+            });
+
+            if (!gameActive) gameOverEl.style.display = 'block';
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Drone Çizimi (Neon Yeşil)
+            ctx.fillStyle = '#00ffcc';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00ffcc';
+            ctx.fillRect(player.x, player.y, player.w, player.h);
+            
+            // Pervane detayı
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(player.x - 5, player.y - 2, 10, 2);
+            ctx.fillRect(player.x + player.w - 5, player.y - 2, 10, 2);
+
+            // Engel Çizimi (Neon Pembe/Mor)
+            ctx.fillStyle = '#ff0055';
+            ctx.shadowColor = '#ff0055';
+            obstacles.forEach(obs => {
+                ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                // Bina detayı
+                ctx.strokeStyle = '#330011';
+                ctx.strokeRect(obs.x + 5, obs.y + 5, obs.w - 10, obs.h - 10);
+            });
+
+            ctx.shadowBlur = 0;
+        }
+
+        function animate() {
+            if (!gameActive) return;
+            update();
+            draw();
+            frame++;
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Pencere boyutu değişince uyarla
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
