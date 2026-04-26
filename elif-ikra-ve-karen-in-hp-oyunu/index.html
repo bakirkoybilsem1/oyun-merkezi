@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Harry Potter: Quidditch Chase (Final Fix)</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #0a0f0a; font-family: sans-serif; color: white; }
+        canvas { display: block; background: #1a331a; }
+        .overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; width: 80%; max-height: 50vh; overflow-y: auto; padding: 20px; }
+        .card { background: #222; border: 2px solid #444; padding: 10px; text-align: center; cursor: pointer; border-radius: 8px; }
+        .card.selected { border-color: #ffd700; background: #333; }
+        .card.locked { opacity: 0.5; }
+        .btn { background: #ffd700; color: black; border: none; padding: 15px 40px; font-size: 1.1rem; cursor: pointer; border-radius: 5px; margin-top: 20px; font-weight: bold; }
+        #hud { position: absolute; top: 10px; left: 10px; font-size: 1.2rem; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<div id="hud" style="display:none">🏆 Kupalar: <span id="c-cups">0</span> | ⏱️ Süre: <span id="c-time">0</span></div>
+
+<div id="save-scr" class="overlay">
+    <h2>⚡ Büyücü Dünyasına Giriş</h2>
+    <p>Kayıt sistemi kontrol ediliyor...</p>
+    <div id="save-btns" style="display:none">
+        <button class="btn" onclick="startApp(true)">Kayıttan Devam Et</button>
+        <button class="btn" style="background:#666" onclick="startApp(false)">Sıfırdan Başla</button>
+    </div>
+</div>
+
+<div id="sel-scr" class="overlay" style="display:none">
+    <h2 id="sel-title">Kaçacak Karakteri Seç</h2>
+    <div class="grid" id="grid"></div>
+    <button class="btn" onclick="confirmSelection()">Seçimi Onayla</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const CHARS = [
+    { n: "Harry Potter", i: "⚡", c: "#ff0000", f: true },
+    { n: "Hermione", i: "📚", c: "#e066ff", f: true },
+    { n: "Voldemort", i: "🐍", c: "#ffffff", f: true },
+    { n: "Ron Weasley", i: "🍗", c: "#ffa500", f: false },
+    { n: "Dumbledore", i: "🧙‍♂️", c: "#add8e6", f: false },
+    { n: "Snape", i: "🧪", c: "#2f4f4f", f: false },
+    { n: "Draco Malfoy", i: "🍏", c: "#a2ff00", f: false },
+    { n: "Bellatrix", i: "🖤", c: "#330000", f: false },
+    { n: "Sirius Black", i: "🐾", c: "#708090", f: false },
+    { n: "Hagrid", i: "🐉", c: "#8b4513", f: false },
+    { n: "Dobby", i: "🧦", c: "#d2b48c", f: false }
+];
+
+let data = { cups: 0, unlocked: ["Harry Potter", "Hermione", "Voldemort"] };
+let p = { x: 0, y: 0, char: null }, e = { x: 0, y: 0, char: null };
+let state = "player_sel", selected = null, active = false, startT = 0, keys = {};
+
+// GİRİŞ VE KAYIT ÇÖZÜMÜ
+window.onload = () => {
+    try {
+        const saved = localStorage.getItem('hp_game_v1');
+        if (saved) {
+            document.getElementById('save-btns').style.display = 'block';
+        } else { startApp(false); }
+    } catch (e) { startApp(false); } // Kayıt izni yoksa direkt başla
+};
+
+function startApp(load) {
+    if (load) data = JSON.parse(localStorage.getItem('hp_game_v1'));
+    document.getElementById('save-scr').style.display = 'none';
+    showMenu();
+}
+
+function showMenu() {
+    document.getElementById('sel-scr').style.display = 'flex';
+    const grid = document.getElementById('grid'); grid.innerHTML = '';
+    CHARS.forEach(c => {
+        const isU = data.unlocked.includes(c.n);
+        const div = document.createElement('div');
+        div.className = `card ${!isU ? 'locked' : ''}`;
+        div.innerHTML = `<div style="font-size:2rem">${c.i}</div><b>${c.n}</b><br>${isU ? 'SEÇ' : '50 🏆'}`;
+        div.onclick = () => {
+            if (!isU) {
+                if (data.cups >= 50) {
+                    data.cups -= 50; data.unlocked.push(c.n); showMenu();
+                } else alert("Yetersiz Kupa!");
+            } else {
+                document.querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
+                div.classList.add('selected'); selected = c;
+            }
+        };
+        grid.appendChild(div);
+    });
+}
+
+function confirmSelection() {
+    if (!selected) return;
+    if (state === "player_sel") {
+        p.char = selected; state = "enemy_sel"; selected = null;
+        document.getElementById('sel-title').innerText = "Kovalayan Karakteri Seç";
+        showMenu();
+    } else {
+        e.char = selected; run();
+    }
+}
+
+function run() {
+    document.getElementById('sel-scr').style.display = 'none';
+    document.getElementById('hud').style.display = 'block';
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    p.x = canvas.width/2; p.y = canvas.height/2; e.x = 50; e.y = 50;
+    active = true; startT = Date.now();
+    requestAnimationFrame(tick);
+}
+
+window.onkeydown = (ev) => keys[ev.code] = true;
+window.onkeyup = (ev) => keys[ev.code] = false;
+
+function tick() {
+    if (!active) return;
+    ctx.fillStyle = "#1a331a"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    
+    // Saha çizgileri
+    ctx.strokeStyle = "rgba(255,255,255,0.1)"; ctx.strokeRect(20,20,canvas.width-40,canvas.height-40);
+
+    let sec = Math.floor((Date.now() - startT)/1000);
+    document.getElementById('c-cups').innerText = data.cups;
+    document.getElementById('c-time').innerText = sec;
+
+    // Hareket
+    if (keys['ArrowUp'] || keys['KeyW']) p.y -= 6;
+    if (keys['ArrowDown'] || keys['KeyS']) p.y += 6;
+    if (keys['ArrowLeft'] || keys['KeyA']) p.x -= 6;
+    if (keys['ArrowRight'] || keys['KeyD']) p.x += 6;
+
+    // AI
+    e.x += (p.x - e.x) * 0.02; e.y += (p.y - e.y) * 0.02;
+
+    // Bitiş (30sn)
+    if (sec >= 30) {
+        ctx.fillStyle = "white";
+        for(let i=0; i<canvas.height; i+=40) ctx.fillRect(canvas.width-50, i, 50, 20);
+        if (p.x > canvas.width-50) {
+            active = false; data.cups += 20; 
+            try { localStorage.setItem('hp_game_v1', JSON.stringify(data)); } catch(e){}
+            alert("KAZANDIN! +20 Kupa"); location.reload();
+        }
+    }
+
+    // Çizim
+    draw(e); draw(p);
+
+    // Çarpışma
+    if (Math.hypot(p.x - e.x, p.y - e.y) < 40) {
+        active = false; alert("YAKALANDIN!"); location.reload();
+    }
+    requestAnimationFrame(tick);
+}
+
+function draw(obj) {
+    ctx.save();
+    ctx.translate(obj.x, obj.y);
+    // Süpürge
+    ctx.strokeStyle = "#4b2e00"; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(-30, 10); ctx.lineTo(30, 0); ctx.stroke();
+    // Işık
+    ctx.fillStyle = obj.char.c; ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.fill();
+    // İkon
+    ctx.fillStyle = "white"; ctx.font = "20px Arial"; ctx.textAlign = "center";
+    ctx.fillText(obj.char.i, 0, 7);
+    ctx.restore();
+}
+</script>
+</body>
+</html>
