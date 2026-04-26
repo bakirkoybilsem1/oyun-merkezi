@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patates Clicker - Ultimate Edition</title>
+    <style>
+        body { background-color: #f0e68c; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; user-select: none; overflow: hidden; }
+        #game-container { text-align: center; background: white; padding: 30px; border-radius: 30px; box-shadow: 0 15px 40px rgba(0,0,0,0.15); width: 380px; position: relative; }
+        #potato { font-size: 100px; cursor: pointer; transition: transform 0.05s; margin: 10px 0; display: inline-block; }
+        #potato:active { transform: scale(0.8); }
+        .stats { font-size: 28px; font-weight: bold; color: #5d4037; margin-bottom: 5px; }
+        .info-bar { display: flex; justify-content: space-around; background: #fdfae5; padding: 10px; border-radius: 15px; font-size: 13px; margin: 10px 0; border: 1px solid #e6db74; }
+        
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .btn { border: none; padding: 12px; font-weight: bold; border-radius: 50px; cursor: pointer; transition: 0.3s; color: white; text-transform: uppercase; font-size: 12px; }
+        .btn-market { background-color: #ff9800; }
+        .btn-parkour { background-color: #2196f3; }
+        .btn-contest { background-color: #9c27b0; grid-column: span 2; margin-top: 5px; }
+        .btn:hover { transform: scale(1.05); opacity: 0.9; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+
+        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; }
+        #modal-window { background: white; width: 95%; max-width: 550px; max-height: 85vh; border-radius: 25px; padding: 25px; position: relative; overflow-y: auto; }
+        
+        /* MARKET DÜZENİ */
+        .market-section { margin-bottom: 20px; text-align: left; }
+        .market-section h3 { border-bottom: 2px solid #eee; padding-bottom: 5px; color: #5d4037; font-size: 16px; margin-bottom: 10px; }
+        .market-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; background: #fffcf0; border-radius: 15px; border: 1px solid #ffe082; }
+        .market-item b { font-size: 14px; display: block; color: #333; }
+        .buy-btn { background: #8bc34a; color: white; border: none; padding: 8px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .buy-btn:disabled { background: #cfd8dc; cursor: not-allowed; }
+
+        /* YARIŞMA ALANI */
+        #contest-area { text-align: center; padding: 20px; }
+        #contest-potato { font-size: 50px; cursor: pointer; transition: font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: inline-block; min-height: 200px; line-height: 200px; }
+        #contest-potato:active { transform: scale(0.9); }
+        .contest-info { margin-top: 20px; font-weight: bold; color: #9c27b0; font-size: 18px; }
+        #contest-timer { color: #f44336; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+
+        /* PARKUR ALANI */
+        #parkour-canvas { background: #e0f7fa; border: 4px solid #00acc1; display: none; margin: 15px auto; position: relative; overflow: hidden; width: 500px; height: 350px; border-radius: 10px; }
+        .wall, .bot { position: absolute; background: #b71c1c; }
+        .bot { background: #ff5722; border-radius: 50%; width: 14px; height: 14px; }
+        #player { position: absolute; font-size: 24px; z-index: 10; }
+        #finish { position: absolute; background: #4caf50; width: 60px; height: 60px; right: 0; bottom: 0; color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
+
+        #toast { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 15px 30px; border-radius: 50px; transition: 0.5s; z-index: 2000; border: 2px solid #ff9800; }
+        #toast.show { bottom: 30px; }
+    </style>
+</head>
+<body>
+
+    <audio id="click-sound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3" preload="auto"></audio>
+    <audio id="reward-sound" src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" preload="auto"></audio>
+
+    <div id="toast">🎁 <span id="toast-msg"></span></div>
+
+    <div id="game-container">
+        <h1>🥔 Patates Clicker</h1>
+        <div class="stats"><span id="potato-count">0</span></div>
+        <div class="info-bar">
+            <span>Saniye: <b id="per-second">0</b></span>
+            <span>Tık Gücü: <b id="click-power-display">1</b></span>
+        </div>
+        <div id="potato" onclick="clickPotato()">🥔</div>
+        <div class="btn-group">
+            <button class="btn btn-market" onclick="openMarket()">🛒 MARKET</button>
+            <button class="btn btn-parkour" onclick="startParkour()">🏃 PARKUR</button>
+            <button class="btn btn-contest" onclick="openContest()">🏆 PATATES BÜYÜTME YARIŞMASI</button>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <div id="modal-window">
+            <span style="position:absolute; top:15px; right:20px; cursor:pointer; font-size:28px; color: #999;" onclick="closeModal()">×</span>
+            <h2 id="modal-title" style="text-align:center; margin-top: 0; color: #5d4037;"></h2>
+            <div id="modal-content"></div>
+            <div id="parkour-canvas">
+                <div id="player">🥔</div>
+                <div id="finish">BİTİŞ</div>
+            </div>
+            <p id="timer-display" style="text-align:center; font-weight:bold; display:none; font-size: 18px; color: #2196f3;">Süre: 0.0s</p>
+        </div>
+    </div>
+
+    <script>
+        let potatoes = 0;
+        let clickPower = 1;
+        let totalPerSecond = 0;
+        let playerPos = { x: 10, y: 10 };
+        let isParkourActive = false;
+        let parkourStartTime = 0;
+        let botInterval;
+
+        // Yarışma değişkenleri
+        let contestSize = 50;
+        let contestClicks = 0;
+        let contestTimeLeft = 30;
+        let contestTimerInterval;
+
+        const items = [
+            { id: 'c1', name: '💪 Bronz Parmak', desc: 'Tık +1', cost: 25, power: 1, type: 'click', count: 0 },
+            { id: 'c2', name: '⚔️ Gümüş Elmas', desc: 'Tık +5', cost: 250, power: 5, type: 'click', count: 0 },
+            { id: 'c3', name: '🔱 Altın Balyoz', desc: 'Tık +25', cost: 1500, power: 25, type: 'click', count: 0 },
+            { id: 'c4', name: '🌌 Kozmik Dokunuş', desc: 'Tık +100', cost: 10000, power: 100, type: 'click', count: 0 },
+            { id: 'a1', name: '👨‍🌾 Çiftçi', desc: '+1/sn üretir', cost: 15, power: 1, type: 'auto', count: 0 },
+            { id: 'a2', name: '🚜 Patates Tarlası', desc: '+5/sn üretir', cost: 100, power: 5, type: 'auto', count: 0 },
+            { id: 'a3', name: '🏭 Cips Fabrikası', desc: '+20/sn üretir', cost: 600, power: 20, type: 'auto', count: 0 },
+            { id: 'a4', name: '🏰 Patates Şatosu', desc: '+100/sn üretir', cost: 3000, power: 100, type: 'auto', count: 0 },
+            { id: 'a5', name: '🚀 Uzay İstasyonu', desc: '+500/sn üretir', cost: 15000, power: 500, type: 'auto', count: 0 },
+            { id: 'a6', name: '🤖 Yapay Zeka', desc: '+2000/sn üretir', cost: 75000, power: 2000, type: 'auto', count: 0 }
+        ];
+
+        function playSfx(id) {
+            const sound = document.getElementById(id);
+            sound.currentTime = 0;
+            sound.play().catch(e => {});
+        }
+
+        function clickPotato() {
+            playSfx('click-sound');
+            potatoes += clickPower;
+            updateUI();
+        }
+
+        // --- MARKET ---
+        function openMarket() {
+            isParkourActive = false;
+            clearInterval(contestTimerInterval);
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('modal-title').innerText = '🛒 Patates Pazarı';
+            document.getElementById('parkour-canvas').style.display = 'none';
+            document.getElementById('timer-display').style.display = 'none';
+            
+            const content = document.getElementById('modal-content');
+            content.innerHTML = `
+                <div class="market-section">
+                    <h3>👆 Tıklama Geliştirmeleri</h3>
+                    <div id="click-items"></div>
+                </div>
+                <div class="market-section">
+                    <h3>⚙️ Otomatik Üretim</h3>
+                    <div id="auto-items"></div>
+                </div>`;
+            
+            const clickList = document.getElementById('click-items');
+            const autoList = document.getElementById('auto-items');
+
+            items.forEach((item, index) => {
+                const itemHTML = `
+                    <div class="market-item">
+                        <div><b>${item.name} <span style="color:#ff9800;">[x${item.count}]</span></b><small>${item.desc} | ${item.cost} 🥔</small></div>
+                        <button class="buy-btn" ${potatoes >= item.cost ? '' : 'disabled'} onclick="buyItem(${index})">AL</button>
+                    </div>`;
+                if (item.type === 'click') clickList.innerHTML += itemHTML;
+                else autoList.innerHTML += itemHTML;
+            });
+        }
+
+        function buyItem(index) {
+            const item = items[index];
+            if (potatoes >= item.cost) {
+                potatoes -= item.cost;
+                item.count++;
+                if (item.type === 'click') clickPower += item.power;
+                else totalPerSecond += item.power;
+                item.cost = Math.round(item.cost * 1.35);
+                updateUI();
+                openMarket();
+                playSfx('reward-sound');
+            }
+        }
+
+        // --- SÜRELİ YARIŞMA ---
+        function openContest() {
+            isParkourActive = false;
+            contestSize = 50;
+            contestClicks = 0;
+            contestTimeLeft = 30;
+            
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('modal-title').innerText = '🏆 Yarışma: Patatesi Büyüt!';
+            document.getElementById('parkour-canvas').style.display = 'none';
+            document.getElementById('timer-display').style.display = 'none';
+            
+            document.getElementById('modal-content').innerHTML = `
+                <div id="contest-area">
+                    <div id="contest-timer">Kalan Süre: 30s</div>
+                    <div id="contest-potato" onclick="growContestPotato()">🥔</div>
+                    <div class="contest-info">Tıklama: <span id="c-clicks">0</span> | Boyut: <span id="c-size">50</span>px</div>
+                </div>
+            `;
+
+            contestTimerInterval = setInterval(() => {
+                contestTimeLeft--;
+                if(document.getElementById('contest-timer')) {
+                    document.getElementById('contest-timer').innerText = `Kalan Süre: ${contestTimeLeft}s`;
+                }
+                if (contestTimeLeft <= 0) {
+                    endContest();
+                }
+            }, 1000);
+        }
+
+        function growContestPotato() {
+            if (contestTimeLeft <= 0) return;
+            contestClicks++;
+            contestSize += 2;
+            playSfx('click-sound');
+            
+            const p = document.getElementById('contest-potato');
+            p.style.fontSize = contestSize + 'px';
+            document.getElementById('c-clicks').innerText = contestClicks;
+            document.getElementById('c-size').innerText = contestSize;
+        }
+
+        function endContest() {
+            clearInterval(contestTimerInterval);
+            let finalReward = Math.round(contestClicks * (15 + totalPerSecond));
+            potatoes += finalReward;
+            
+            playSfx('reward-sound');
+            alert(`Yarışma Bitti! \nToplam Tıklama: ${contestClicks} \nÖdül: ${finalReward} 🥔`);
+            closeModal();
+            updateUI();
+        }
+
+        // --- PARKUR ---
+        function startParkour() {
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('modal-title').innerText = '🏃 Geniş Parkur';
+            document.getElementById('modal-content').innerHTML = '';
+            document.getElementById('parkour-canvas').style.display = 'block';
+            document.getElementById('timer-display').style.display = 'block';
+            playerPos = { x: 10, y: 10 };
+            isParkourActive = true;
+            parkourStartTime = Date.now();
+            generateLevel();
+            startBots();
+            updatePlayerUI();
+        }
+
+        function generateLevel() {
+            document.querySelectorAll('.wall, .bot').forEach(el => el.remove());
+            const walls = [{t:80, l:0, w:400, h:20}, {t:170, l:100, w:400, h:20}, {t:260, l:0, w:400, h:20}];
+            walls.forEach(w => {
+                const wall = document.createElement('div');
+                wall.className = 'wall';
+                wall.style.cssText = `top:${w.t}px; left:${w.l}px; width:${w.w}px; height:${w.h}px;`;
+                document.getElementById('parkour-canvas').appendChild(wall);
+            });
+            for(let i=0; i<3; i++) {
+                const bot = document.createElement('div');
+                bot.className = 'bot';
+                bot.id = 'bot-' + i;
+                document.getElementById('parkour-canvas').appendChild(bot);
+            }
+        }
+
+        function startBots() {
+            if(botInterval) clearInterval(botInterval);
+            botInterval = setInterval(() => {
+                if(!isParkourActive) return;
+                const time = Date.now() / 1500; 
+                document.querySelectorAll('.bot').forEach((bot, i) => {
+                    const movement = Math.sin(time + i) * 150 + 170; 
+                    bot.style.left = movement + 'px';
+                    bot.style.top = (125 + (i * 90)) + 'px';
+                    const br = bot.getBoundingClientRect();
+                    const pr = document.getElementById('player').getBoundingClientRect();
+                    if (!(pr.right < br.left || pr.left > br.right || pr.bottom < br.top || pr.top > br.bottom)) {
+                        playerPos = { x: 10, y: 10 };
+                        updatePlayerUI();
+                    }
+                });
+                const elapsed = ((Date.now() - parkourStartTime) / 1000).toFixed(1);
+                document.getElementById('timer-display').innerText = `Süre: ${elapsed}s`;
+            }, 30);
+        }
+
+        function updatePlayerUI() {
+            const p = document.getElementById('player');
+            p.style.top = playerPos.y + 'px'; p.style.left = playerPos.x + 'px';
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (!isParkourActive) return;
+            let s = 12, nx = playerPos.x, ny = playerPos.y;
+            if (e.key === 'ArrowUp') ny -= s; if (e.key === 'ArrowDown') ny += s;
+            if (e.key === 'ArrowLeft') nx -= s; if (e.key === 'ArrowRight') nx += s;
+            if (nx >= 0 && nx <= 470 && ny >= 0 && ny <= 320) {
+                let collided = false;
+                document.querySelectorAll('.wall').forEach(w => {
+                    const wr = { l: parseInt(w.style.left), r: parseInt(w.style.left) + parseInt(w.style.width), t: parseInt(w.style.top), b: parseInt(w.style.top) + parseInt(w.style.height) };
+                    if (nx < wr.r && nx + 24 > wr.l && ny < wr.b && ny + 24 > wr.t) collided = true;
+                });
+                if (!collided) { playerPos.x = nx; playerPos.y = ny; } 
+                else { playerPos = { x: 10, y: 10 }; }
+            }
+            if (playerPos.x > 430 && playerPos.y > 280) winParkour();
+            updatePlayerUI();
+        });
+
+        function winParkour() {
+            isParkourActive = false;
+            clearInterval(botInterval);
+            const finishTime = (Date.now() - parkourStartTime) / 1000;
+            let multiplier = finishTime < 15 ? 30 : (finishTime < 25 ? 15 : 5);
+            let gift = Math.round((500 + (totalPerSecond * 25)) * multiplier / 2);
+            potatoes += gift;
+            closeModal();
+            playSfx('reward-sound');
+            showToast(`Parkur Başarılı! +${gift} 🥔`);
+            updateUI();
+        }
+
+        function closeModal() { 
+            document.getElementById('overlay').style.display = 'none'; 
+            isParkourActive = false; 
+            clearInterval(botInterval); 
+            clearInterval(contestTimerInterval);
+        }
+        function showToast(msg) { const t = document.getElementById('toast'); document.getElementById('toast-msg').innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+        function updateUI() { document.getElementById('potato-count').innerText = Math.floor(potatoes); document.getElementById('per-second').innerText = totalPerSecond; document.getElementById('click-power-display').innerText = clickPower; }
+        setInterval(() => { potatoes += totalPerSecond; updateUI(); }, 1000);
+    </script>
+</body>
+</html>
