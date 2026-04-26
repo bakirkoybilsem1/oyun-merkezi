@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>BİLSEM Racer - Klasik Kuş Bakışı</title>
+    <style>
+        body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        #ui { position: absolute; top: 10px; width: 100%; font-size: 20px; color: #00ff00; font-weight: bold; pointer-events: none; display: flex; justify-content: space-around; text-shadow: 2px 2px 4px #000; z-index: 5; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
+        #pause-msg { position: absolute; top: 40%; font-size: 40px; color: yellow; display: none; z-index: 15; text-shadow: 3px 3px 0 #000; }
+        #shop { display: flex; gap: 10px; margin: 20px; }
+        .color-btn { width: 70px; height: 90px; border: 3px solid #444; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #222; }
+        .color-btn.selected { border-color: #fff; transform: scale(1.1); box-shadow: 0 0 15px #fff; }
+        .car-preview { width: 25px; height: 40px; border: 1px solid white; border-radius: 3px; }
+        button#startBtn { padding: 15px 40px; font-size: 20px; cursor: pointer; background: #2ecc71; color: white; border: none; border-radius: 50px; font-weight: bold; }
+        .price { margin-top: 5px; color: #f1c40f; font-size: 10px; }
+        canvas { background: #333; display: block; border-radius: 10px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div>SKOR: <span id="s">0</span></div>
+        <div>CÜZDAN: <span id="total">0</span></div>
+    </div>
+
+    <div id="pause-msg">OYUN DURAKLATILDI</div>
+
+    <div id="overlay">
+        <h1 id="title" style="color:#f1c40f;">BİLSEM GARAJ</h1>
+        <div id="shop">
+            <div class="color-btn selected" id="btn-#e74c3c" onclick="selectColor('#e74c3c', 0)"><div class="car-preview" style="background:#e74c3c;"></div><span class="price">AÇIK</span></div>
+            <div class="color-btn" id="btn-#3498db" onclick="selectColor('#3498db', 30)"><div class="car-preview" style="background:#3498db;"></div><span class="price">30 P.</span></div>
+            <div class="color-btn" id="btn-#2ecc71" onclick="selectColor('#2ecc71', 60)"><div class="car-preview" style="background:#2ecc71;"></div><span class="price">60 P.</span></div>
+            <div class="color-btn" id="btn-#f1c40f" onclick="selectColor('#f1c40f', 100)"><div class="car-preview" style="background:#f1c40f;"></div><span class="price">100 P.</span></div>
+        </div>
+        <p style="color: #aaa; margin-bottom: 20px;">Durdurmak için "P" tuşuna bas!</p>
+        <button id="startBtn" onclick="startGame()">YARIŞA BAŞLA</button>
+    </div>
+
+    <canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const overlay = document.getElementById("overlay");
+const pauseMsg = document.getElementById("pause-msg");
+
+canvas.width = 400;
+canvas.height = 600;
+
+let score = 0;
+let totalGold = parseInt(localStorage.getItem("bilsem_total_gold")) || 0;
+let unlockedColors = JSON.parse(localStorage.getItem("bilsem_unlocked_colors")) || ["#e74c3c"];
+let currentCarColor = localStorage.getItem("bilsem_car_color") || "#e74c3c";
+
+let carX = canvas.width / 2;
+let obstacles = [];
+let gameRunning = false;
+let isPaused = false;
+let roadOffset = 0;
+
+const keys = {};
+window.onkeydown = (e) => {
+    keys[e.code] = true;
+    if (e.code === "KeyP" && gameRunning) togglePause();
+};
+window.onkeyup = (e) => keys[e.code] = false;
+
+function togglePause() {
+    isPaused = !isPaused;
+    pauseMsg.style.display = isPaused ? "block" : "none";
+    if (!isPaused) update();
+}
+
+function updateShopUI() {
+    document.getElementById("total").innerText = totalGold;
+    unlockedColors.forEach(color => {
+        const btn = document.getElementById("btn-" + color);
+        if (btn) btn.querySelector(".price").innerText = "SAHİPSİN";
+    });
+    document.querySelectorAll(".color-btn").forEach(b => b.classList.remove("selected"));
+    const activeBtn = document.getElementById("btn-" + currentCarColor);
+    if(activeBtn) activeBtn.classList.add("selected");
+}
+
+function selectColor(color, price) {
+    if (unlockedColors.includes(color)) { currentCarColor = color; } 
+    else if (totalGold >= price) {
+        totalGold -= price; unlockedColors.push(color); currentCarColor = color;
+        localStorage.setItem("bilsem_total_gold", totalGold);
+        localStorage.setItem("bilsem_unlocked_colors", JSON.stringify(unlockedColors));
+    } else { alert("Puanın yetmiyor!"); return; }
+    localStorage.setItem("bilsem_car_color", currentCarColor);
+    updateShopUI();
+}
+
+function startGame() {
+    overlay.style.display = "none";
+    pauseMsg.style.display = "none";
+    score = 0; carX = canvas.width / 2; obstacles = []; 
+    gameRunning = true; isPaused = false;
+    update();
+}
+
+function drawDetailedCar(x, y, w, h, color, label) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x - w/2, y - h/2, w, h);
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(x - w/2 + 5, y - h/2 + 10, w - 10, 20); // Ön cam
+    ctx.fillStyle = "white";
+    ctx.fillRect(x - w/2 + 2, y - h/2 + 2, 8, 4); // Far
+    ctx.fillRect(x + w/2 - 10, y - h/2 + 2, 8, 4); // Far
+    if(label) {
+        ctx.fillStyle = "white"; ctx.font = "bold 9px Arial"; ctx.textAlign = "center";
+        ctx.fillText(label, x, y + 10);
+    }
+}
+
+function update() {
+    if (!gameRunning || isPaused) return;
+
+    if (keys["ArrowLeft"] && carX > 75) carX -= 7;
+    if (keys["ArrowRight"] && carX < 325) carX += 7;
+
+    roadOffset = (roadOffset + 8 + (score/15)) % 100;
+
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        obstacles[i].y += 5 + (score / 20);
+        
+        // Çarpışma
+        if (Math.abs(carX - obstacles[i].x) < 40 && Math.abs((canvas.height - 120) - obstacles[i].y) < 80) {
+            gameRunning = false;
+            totalGold += score;
+            localStorage.setItem("bilsem_total_gold", totalGold);
+            overlay.style.display = "flex";
+            document.getElementById("title").innerText = "KAZA! +" + score;
+            updateShopUI();
+            return;
+        }
+
+        if (obstacles[i].y > canvas.height + 100) {
+            obstacles.splice(i, 1);
+            score++;
+            document.getElementById("s").innerText = score;
+        }
+    }
+
+    // Engel oluşturma (Bitişik engel engelleme)
+    if (Math.random() < 0.02 && obstacles.filter(o => o.y < 150).length < 2) {
+        let possibleLanes = [100, 200, 300];
+        let activeTop = obstacles.filter(o => o.y < 150);
+        activeTop.forEach(o => {
+            possibleLanes = possibleLanes.filter(l => l !== o.x);
+        });
+        if(possibleLanes.length > 0) {
+            obstacles.push({ x: possibleLanes[Math.floor(Math.random()*possibleLanes.length)], y: -100 });
+        }
+    }
+
+    draw();
+    requestAnimationFrame(update);
+}
+
+function draw() {
+    ctx.fillStyle = "#1e7e34"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#34495e"; ctx.fillRect(50, 0, 300, canvas.height); // Yol
+
+    // Yol Çizgileri
+    ctx.strokeStyle = "white"; ctx.setLineDash([30, 30]);
+    ctx.lineDashOffset = -roadOffset; ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(150, 0); ctx.lineTo(150, canvas.height);
+    ctx.moveTo(250, 0); ctx.lineTo(250, canvas.height);
+    ctx.stroke(); ctx.setLineDash([]);
+
+    // Engeller
+    obstacles.forEach(o => drawDetailedCar(o.x, o.y, 50, 90, "#d35400", "TRAFİK"));
+
+    // Oyuncu
+    drawDetailedCar(carX, canvas.height - 120, 50, 90, currentCarColor, "BİLSEM");
+}
+
+updateShopUI();
+</script>
+</body>
+</html>
