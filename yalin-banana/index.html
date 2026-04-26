@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Backrooms - Entity is Following</title>
+    <style>
+        body { margin: 0; background: #000; color: #7a7a1d; font-family: 'Courier New', monospace; overflow: hidden; }
+        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        canvas { width: 90%; height: 85%; background: #0a0a05; image-rendering: pixelated; border: 2px solid #222; }
+        
+        #overlay-start {
+            position: absolute; width: 100%; height: 100%; background: #000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 5000; color: #ff0000; text-align: center;
+        }
+        button { padding: 20px 40px; font-size: 24px; cursor: pointer; background: #111; color: #ff0000; border: 2px solid #ff0000; font-weight: bold; }
+
+        #jumpscare-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000 url('https://i.ibb.co/L6S9C6V/scary-face.jpg') no-repeat center;
+            background-size: cover; display: none; z-index: 9999;
+        }
+
+        .hud { position: absolute; top: 10%; left: 6%; font-size: 14px; color: #555; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<div id="overlay-start">
+    <h1>DİKKAT: KAYIT BULUNDU</h1>
+    <p>Canavar seni duyabilir. Yaklaştığında fısıltıları dinle.</p>
+    <button onclick="startGame()">SİSTEMİ BAŞLAT</button>
+</div>
+
+<div id="game-container">
+    <canvas id="raycaster"></canvas>
+    <div class="hud">DURUM: IZLENIYORSUN | E: ARKA BAKIŞ</div>
+    <div id="jumpscare-screen"></div>
+</div>
+
+<audio id="snd-scream" src="https://actions.google.com/sounds/v1/horror/horror_ghostly_scream.ogg"></audio>
+<audio id="snd-whisper" src="https://actions.google.com/sounds/v1/horror/ambience_hum.ogg" loop></audio>
+
+<script>
+const canvas = document.getElementById('raycaster');
+const ctx = canvas.getContext('2d');
+const scScreen = document.getElementById('jumpscare-screen');
+const sndScream = document.getElementById('snd-scream');
+const sndWhisper = document.getElementById('snd-whisper');
+
+canvas.width = 400; canvas.height = 240;
+
+const map = [
+    [1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,1],
+    [1,0,1,1,0,1,1,1,0,1],
+    [1,0,0,0,0,0,0,1,0,1],
+    [1,1,1,0,1,1,0,1,0,1],
+    [1,0,0,0,0,1,0,0,0,1],
+    [1,0,1,1,0,1,1,1,0,1],
+    [1,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1]
+];
+
+let player = { x: 1.5, y: 1.5, dir: 0 };
+let monster = { x: 8.5, y: 7.5, speed: 0.008 }; // Canavarın başlangıç yeri ve hızı
+let keys = {};
+let gameRunning = false;
+let lookingBack = false;
+
+window.onkeydown = e => {
+    keys[e.key.toLowerCase()] = true;
+    if(e.key.toLowerCase() === 'e') lookingBack = true;
+};
+window.onkeyup = e => {
+    keys[e.key.toLowerCase()] = false;
+    if(e.key.toLowerCase() === 'e') lookingBack = false;
+};
+
+function startGame() {
+    document.getElementById('overlay-start').style.display = 'none';
+    gameRunning = true;
+    sndWhisper.play();
+    loop();
+}
+
+function updateMonster() {
+    // Basit Takip Yapay Zekası: Canavar her karede oyuncuya bir adım yaklaşır
+    let dx = player.x - monster.x;
+    let dy = player.y - monster.y;
+    let dist = Math.sqrt(dx*dx + dy*dy);
+    
+    // Canavar oyuncuya çok yakınsa Jumpscare!
+    if(dist < 0.5) {
+        triggerDeath();
+    }
+
+    monster.x += (dx / dist) * monster.speed;
+    monster.y += (dy / dist) * monster.speed;
+
+    // Uzaklığa göre fısıltı sesini artır (Basit volume kontrolü)
+    sndWhisper.volume = Math.max(0, Math.min(1, 1 - dist/8));
+}
+
+function triggerDeath() {
+    gameRunning = false;
+    scScreen.style.display = 'block';
+    sndScream.play();
+    document.body.style.animation = "shake 0.1s infinite";
+    setTimeout(() => location.reload(), 2500);
+}
+
+function loop() {
+    if(!gameRunning) return;
+
+    // Hareket Kontrolü
+    let moveS = 0.04;
+    let rotS = 0.05;
+    if(keys['w']) {
+        let nx = player.x + Math.cos(player.dir)*moveS;
+        let ny = player.y + Math.sin(player.dir)*moveS;
+        if(map[Math.floor(ny)][Math.floor(nx)] === 0) { player.x=nx; player.y=ny; }
+    }
+    if(keys['s']) {
+        let nx = player.x - Math.cos(player.dir)*moveS;
+        let ny = player.y - Math.sin(player.dir)*moveS;
+        if(map[Math.floor(ny)][Math.floor(nx)] === 0) { player.x=nx; player.y=ny; }
+    }
+    if(keys['a']) player.dir -= rotS;
+    if(keys['d']) player.dir += rotS;
+
+    // Ekranı Çiz
+    ctx.fillStyle = "#111"; ctx.fillRect(0,0,400,120); // Tavan
+    ctx.fillStyle = "#1a1a05"; ctx.fillRect(0,120,400,120); // Yer
+
+    let viewAngle = lookingBack ? player.dir + Math.PI : player.dir;
+
+    for(let i=0; i<400; i++) {
+        let rayA = (viewAngle - 0.5) + (i/400);
+        let d = 0;
+        let x = player.x, y = player.y;
+        let rayX = Math.cos(rayA), rayY = Math.sin(rayA);
+
+        while(d < 10) {
+            d += 0.05;
+            x += rayX * 0.05; y += rayY * 0.05;
+            if(map[Math.floor(y)][Math.floor(x)] === 1) break;
+        }
+
+        let h = 240 / (d * Math.cos(rayA - viewAngle));
+        let lum = Math.max(0, 160 - d * 22);
+        ctx.strokeStyle = `rgb(${lum}, ${lum-10}, ${lum-50})`;
+        ctx.beginPath(); ctx.moveTo(i, 120-h/2); ctx.lineTo(i, 120+h/2); ctx.stroke();
+    }
+
+    updateMonster();
+    requestAnimationFrame(loop);
+}
+
+// Shake CSS
+const style = document.createElement('style');
+style.innerHTML = `@keyframes shake { 0%{transform:translate(4px,4px)} 50%{transform:translate(-4px,-4px)} 100%{transform:translate(0,0)} }`;
+document.head.appendChild(style);
+</script>
+
+</body>
+</html>
