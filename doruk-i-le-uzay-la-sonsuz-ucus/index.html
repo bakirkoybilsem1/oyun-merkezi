@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Doruk ile Uzay: Sonsuz Uçuş</title>
+    <style>
+        :root {
+            --primary: #00d4ff; --secondary: #ff4d4d; --gold: #ffcc00; --bg: #010816;
+        }
+        body {
+            margin: 0; background: var(--bg); color: white;
+            font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh;
+            overflow: hidden;
+        }
+        #main-area {
+            flex: 1.2; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; border-right: 2px solid #1a202c;
+            background: radial-gradient(circle at center, #0a1931, #000);
+        }
+        #rocket-btn {
+            width: 220px; height: 220px; 
+            background: #1a202c; border-radius: 50%;
+            cursor: pointer; transition: 0.1s;
+            border: 5px solid var(--primary);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 80px; box-shadow: 0 0 30px var(--primary);
+        }
+        #rocket-btn:active { transform: scale(0.9); box-shadow: 0 0 50px var(--secondary); }
+        
+        #money-display { font-size: 60px; color: var(--gold); font-weight: 900; margin: 10px 0; }
+        #stats { font-size: 18px; color: #00ff88; margin-bottom: 20px; background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 20px; }
+
+        #shop-area {
+            flex: 1; background: #080c14; padding: 20px; overflow-y: auto;
+        }
+        .shop-item {
+            background: rgba(255,255,255,0.05); padding: 12px; margin-bottom: 10px;
+            border-radius: 12px; border: 1px solid #2d3748;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; transition: 0.2s;
+        }
+        .shop-item:hover:not(.locked) { background: rgba(0, 212, 255, 0.15); border-color: var(--primary); }
+        .shop-item.locked { opacity: 0.15; cursor: not-allowed; }
+        
+        .item-info h3 { margin: 0; font-size: 16px; color: var(--primary); }
+        .price { color: var(--gold); font-weight: bold; }
+        .power-info { color: #55ff55; font-size: 12px; font-weight: bold; }
+        .count { font-size: 24px; font-weight: bold; color: rgba(255,255,255,0.2); }
+
+        .floating-text {
+            position: absolute; color: white; font-weight: bold; pointer-events: none;
+            animation: moveUp 0.8s ease-out forwards; z-index: 100;
+        }
+        @keyframes moveUp { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-100px); opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <div id="main-area">
+        <h1 style="color:var(--secondary); margin-bottom:0; letter-spacing: 3px;">DORUK İLE UZAY</h1>
+        <div id="money-display">0 ₩</div>
+        <div id="stats">
+            🖱️ Tık: <span id="click-val">1</span> | 
+            🚀 Oto: <span id="auto-val">0</span>/sn
+        </div>
+        <div id="rocket-btn">🚀</div>
+        <p style="color:#666; margin-top:20px;">Hızlı tıkla, filonu geliştir!</p>
+    </div>
+
+    <div id="shop-area">
+        <h2 style="text-align:center; color: var(--primary);">🚀 HANGAR</h2>
+        <div id="shop-items"></div>
+    </div>
+
+<script>
+    let money = 0;
+    let clickPower = 1;
+    let autoPower = 0;
+
+    const vehicles = [
+        "Kağıt Uçak", "Pervaneli", "Planör", "Drone", "Cessna", "Helikopter", "Savaş Jeti", "Yolcu Uçağı", 
+        "Görünmez Jet", "Kargo Uçağı", "Atmosfer Roketi", "Uydu Taşıyıcı", "Falcon-9", "Ay Modülü", 
+        "Mars Gemisi", "Uzay İstasyonu", "İyon Roketi", "Plazma Motoru", "Yıldız Gemisi", "Galaktik Mekik",
+        "Kuvars Gemi", "Boyut Bükücü", "Işık Hızı", "Zaman Gemisi", "Doruk Prime", "Evrenin Sonu"
+    ];
+
+    const upgrades = [];
+    for(let i=0; i<50; i++) {
+        let name = vehicles[i % vehicles.length] + (i >= vehicles.length ? " Mk" + Math.floor(i/vehicles.length + 1) : "");
+        let type = (i % 3 === 0) ? "click" : "auto";
+        
+        // DENGE AYARI: Fiyatlar yavaş artar, güçler hızlı artar!
+        let basePrice = 10 * Math.pow(1.5, i); 
+        let basePower = (i + 1) * Math.pow(1.8, i); // Kazançlar çok daha güçlü
+
+        upgrades.push({
+            name: name,
+            price: basePrice,
+            power: Math.ceil(basePower),
+            type: type,
+            count: 0
+        });
+    }
+
+    function buy(idx) {
+        let item = upgrades[idx];
+        if(money >= item.price) {
+            money -= item.price;
+            item.count++;
+            if(item.type === "click") clickPower += item.power;
+            else autoPower += item.power;
+            
+            item.price *= 1.15; // Fiyat sadece %15 artar (Artık daha kolay!)
+            update();
+        }
+    }
+
+    function update() {
+        document.getElementById('money-display').innerText = Math.floor(money).toLocaleString() + " ₩";
+        document.getElementById('click-val').innerText = clickPower.toLocaleString();
+        document.getElementById('auto-val').innerText = autoPower.toLocaleString();
+        
+        const container = document.getElementById('shop-items');
+        container.innerHTML = '';
+        
+        upgrades.forEach((item, i) => {
+            // Sadece paranın %50'sine ulaşılan veya alınmış eşyalar görünür
+            if(money >= item.price * 0.4 || item.count > 0 || i < 3) {
+                const div = document.createElement('div');
+                div.className = `shop-item ${money < item.price ? 'locked' : ''}`;
+                div.onclick = () => buy(i);
+                div.innerHTML = `
+                    <div class="item-info">
+                        <h3>${item.name}</h3>
+                        <div class="power-info">${item.type === 'click' ? '🖱️ Tık' : '🚀 Oto'}: +${item.power.toLocaleString()}</div>
+                        <div class="price">${Math.floor(item.price).toLocaleString()} ₩</div>
+                    </div>
+                    <div class="count">${item.count}</div>
+                `;
+                container.appendChild(div);
+            }
+        });
+    }
+
+    document.getElementById('rocket-btn').onclick = (e) => {
+        money += clickPower;
+        update();
+        showText(e.clientX, e.clientY, "+" + clickPower);
+    };
+
+    function showText(x, y, txt) {
+        const div = document.createElement('div');
+        div.className = 'floating-text';
+        div.style.left = x + "px"; div.style.top = y + "px";
+        div.innerText = txt;
+        document.body.appendChild(div);
+        setTimeout(() => div.remove(), 800);
+    }
+
+    // Pürüzsüz para artışı
+    setInterval(() => {
+        money += autoPower / 10;
+        update();
+    }, 100);
+
+    update();
+</script>
+</body>
+</html>
