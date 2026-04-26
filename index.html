@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+
+<html lang="tr">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Zombi Defans: 30 Günlük Savaş</title>
+
+    <style>
+
+        body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
+
+        canvas { display: block; background: #1b261b; cursor: crosshair; }
+
+        
+
+        #ui-panel { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 8px; border: 2px solid #ffcc00; pointer-events: none; }
+
+        .stat { font-size: 16px; margin-bottom: 5px; }
+
+        .day-text { color: #00ff00; font-weight: bold; font-size: 20px; }
+
+
+
+        #boss-ui { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 60%; display: none; }
+
+        #boss-name { text-align:center; font-weight:bold; color:red; margin-bottom:5px; }
+
+        #boss-hp-bg { width: 100%; height: 20px; background: #444; border: 2px solid #fff; }
+
+        #boss-hp-fill { width: 100%; height: 100%; background: #ff0000; transition: 0.2s; }
+
+
+
+        #shop { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 10px; border-radius: 10px; display: flex; gap: 8px; border: 2px solid #555; flex-wrap: wrap; justify-content: center; }
+
+        .shop-item { background: #333; border: 1px solid #777; color: white; padding: 8px 12px; cursor: pointer; text-align: center; border-radius: 5px; font-size: 14px; }
+
+        .shop-item:hover { background: #444; border-color: #ffcc00; }
+
+        
+
+        #msg { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); color: #ffcc00; font-size: 20px; font-weight: bold; display: none; text-shadow: 2px 2px #000; }
+
+
+
+        #end-screen { 
+
+            position: absolute; 
+
+            top: 50%; 
+
+            left: 50%; 
+
+            transform: translate(-50%, -50%); 
+
+            background: rgba(0,0,0,0.95); 
+
+            padding: 30px; 
+
+            border-radius: 15px; 
+
+            border: 3px solid #ffcc00; 
+
+            text-align: center; 
+
+            display: none; 
+
+            z-index: 100;
+
+            box-shadow: 0 0 20px rgba(255, 204, 0, 0.5);
+
+        }
+
+        #end-title { font-size: 32px; font-weight: bold; margin-bottom: 15px; }
+
+        .end-stat { font-size: 18px; margin-bottom: 10px; }
+
+        #restart-btn { 
+
+            background: #ffcc00; 
+
+            color: black; 
+
+            border: none; 
+
+            padding: 10px 20px; 
+
+            font-size: 18px; 
+
+            font-weight: bold; 
+
+            border-radius: 5px; 
+
+            cursor: pointer; 
+
+            margin-top: 15px; 
+
+        }
+
+        #restart-btn:hover { background: white; }
+
+    </style>
+
+</head>
+
+<body>
+
+
+
+<div id="ui-panel">
+
+    <div class="stat">Altın: <span id="gold" style="color:#ffcc00">2000</span></div>
+
+    <div class="stat">Canın: <span id="playerHealth" style="color: #ff4444;">100</span></div>
+
+    <div class="stat day-text">GÜN: <span id="day">1</span> (<span id="timer">30</span>s)</div>
+
+    <div class="stat">Bombalar: <span id="grenadeCount" style="color: #ffaa00;">0</span> (G tuşu)</div>
+
+</div>
+
+
+
+<div id="boss-ui">
+
+    <div id="boss-name">İLK BOSS 💀</div>
+
+    <div id="boss-hp-bg"><div id="boss-hp-fill"></div></div>
+
+</div>
+
+
+
+<div id="msg">YERLEŞTİRMEK İÇİN TIKLA!</div>
+
+
+
+<div id="end-screen">
+
+    <div id="end-title"></div>
+
+    <div class="end-stat">Hayatta Kalınan Gün: <span id="end-day"></span></div>
+
+    <div class="end-stat">Toplam Altın: <span id="end-gold"></span></div>
+
+    <button id="restart-btn" onclick="location.reload()">Tekrar Oyna</button>
+
+</div>
+
+
+
+<div id="shop">
+
+    <div class="shop-item" onclick="buyHealth()">❤️ +10 Can (100)</div>
+
+    <div class="shop-item" onclick="startBuild('fence')">Tahta Çit (30)</div>
+
+    <div class="shop-item" onclick="startBuild('ironFence')">Demir Çit (100)</div>
+
+    <div class="shop-item" onclick="startBuild('electricFence')">⚡ Elektrikli (200)</div>
+
+    <div class="shop-item" onclick="startBuild('turret')">🔫 Normal Taret (250)</div>
+
+    <div class="shop-item" onclick="startBuild('rapidTurret')">🔥 Taramalı Taret (500)</div>
+
+    <div class="shop-item" onclick="startBuild('laserTurret')">🔴 Lazer Taret (800)</div>
+
+    <div class="shop-item" onclick="buyWeapon(2)">Makineli (400)</div>
+
+    <div class="shop-item" onclick="buyWeapon(3)">Pompalı (700)</div>
+
+    <div class="shop-item" onclick="buyGrenade()">💣 El Bombası (150)</div>
+
+</div>
+
+
+
+<canvas id="gameCanvas"></canvas>
+
+
+
+<script>
+
+const canvas = document.getElementById('gameCanvas');
+
+const ctx = canvas.getContext('2d');
+
+canvas.width = window.innerWidth;
+
+canvas.height = window.innerHeight;
+
+
+
+let gold = 0;
+
+let playerHealth = 100;
+
+let day = 1;
+
+let dayTime = 30;
+
+let buildMode = null;
+
+let currentWeapon = 1;
+
+let ownedWeapons = [1];
+
+let grenades = 0;
+
+let gameOver = false;
+
+let boss15Spawned = false;
+
+let boss29Spawned = false;
+
+
+
+const player = { x: canvas.width/2, y: canvas.height/2, speed: 6, size: 30 };
+
+const structures = [];
+
+const zombies = [];
+
+const bullets = [];
+
+const lasers = [];
+
+const spikes = [];
+
+const explosions = []; 
+
+const grenadeProjectiles = [];
+
+const keys = {};
+
+
+
+window.addEventListener('keydown', e => {
+
+    keys[e.code] = true;
+
+    if(e.code === 'KeyG' && grenades > 0 && !gameOver) throwGrenade();
+
+});
+
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+let mousePos = { x: 0, y: 0 };
+
+window.addEventListener('mousemove', e => { mousePos.x = e.clientX; mousePos.y = e.clientY; });
+
+window.addEventListener('mousedown', () => { if(gameOver) return; if(buildMode) placeStructure(); else shoot(); });
+
+
+
+setInterval(() => {
+
+    if(gameOver) return;
+
+    dayTime--;
+
+    if(dayTime <= 0) { day++; dayTime = 30; if(day > 30) { endGame(true); } }
+
+    updateUI();
+
+}, 1000);
+
+
+
+function startBuild(type) { 
+
+    const prices = { fence: 30, ironFence: 100, electricFence: 200, turret: 250, rapidTurret: 500, laserTurret: 800 };
+
+    if (gold >= prices[type]) {
+
+        buildMode = type; 
+
+        document.getElementById('msg').style.display = 'block'; 
+
+    }
+
+}
+
+
+
+function buyHealth() {
+
+    if (gold >= 100 && playerHealth < 91) { gold -= 100; playerHealth += 10; updateUI(); }
+
+}
+
+
+
+function buyWeapon(type) {
+
+    const prices = { 2: 400, 3: 700 };
+
+    if (!ownedWeapons.includes(type) && gold >= prices[type]) { 
+
+        gold -= prices[type]; 
+
+        ownedWeapons.push(type); 
+
+    }
+
+    if (ownedWeapons.includes(type)) currentWeapon = type;
+
+    updateUI();
+
+}
+
+
+
+function buyGrenade() {
+
+    if (gold >= 150) { gold -= 150; grenades++; updateUI(); }
+
+}
+
+
+
+function throwGrenade() {
+
+    grenades--;
+
+    updateUI();
+
+    const angle = Math.atan2(mousePos.y - player.y, mousePos.x - player.x);
+
+    grenadeProjectiles.push({
+
+        x: player.x, y: player.y, 
+
+        targetX: mousePos.x, targetY: mousePos.y,
+
+        vx: Math.cos(angle) * 10, vy: Math.sin(angle) * 10,
+
+        dist: Math.hypot(mousePos.x - player.x, mousePos.y - player.y),
+
+        traveled: 0
+
+    });
+
+}
+
+
+
+function placeStructure() {
+
+    const prices = { fence: 30, ironFence: 100, electricFence: 200, turret: 250, rapidTurret: 500, laserTurret: 800 };
+
+    if (gold >= prices[buildMode]) {
+
+        gold -= prices[buildMode];
+
+        let s = { type: buildMode, x: mousePos.x - 25, y: mousePos.y - 25, size: 50, hp: 1000, maxHp: 1000, cooldown: 0 };
+
+        if (buildMode === 'ironFence') { s.hp = 4000; s.maxHp = 4000; }
+
+        structures.push(s);
+
+        if (!keys['ShiftLeft']) { buildMode = null; document.getElementById('msg').style.display = 'none'; }
+
+        updateUI();
+
+    }
+
+}
+
+
+
+function shoot() {
+
+    const angle = Math.atan2(mousePos.y - player.y, mousePos.x - player.x);
+
+    if (currentWeapon === 1) fireBullet(player.x, player.y, angle, 4, true);
+
+    if (currentWeapon === 2) fireBullet(player.x, player.y, angle, 6, true);
+
+    if (currentWeapon === 3) { for(let i=-0.3; i<=0.3; i+=0.15) fireBullet(player.x, player.y, angle+i, 7, true); }
+
+}
+
+
+
+function fireBullet(x, y, angle, dmg, isFriendly) {
+
+    bullets.push({ x, y, vx: Math.cos(angle)*15, vy: Math.sin(angle)*15, dmg, isFriendly });
+
+}
+
+
+
+function updateUI() {
+
+    document.getElementById('gold').innerText = gold;
+
+    document.getElementById('playerHealth').innerText = Math.ceil(playerHealth);
+
+    document.getElementById('day').innerText = day;
+
+    document.getElementById('timer').innerText = dayTime;
+
+    document.getElementById('grenadeCount').innerText = grenades;
+
+}
+
+
+
+function endGame(win) {
+
+    gameOver = true;
+
+    const endScreen = document.getElementById('end-screen');
+
+    const endTitle = document.getElementById('end-title');
+
+    const endDay = document.getElementById('end-day');
+
+    const endGold = document.getElementById('end-gold');
+
+    endTitle.innerText = win ? "ZAFER! 🎉" : "OYUN BİTTİ! 💀";
+
+    endTitle.style.color = win ? "#00ff00" : "#ff0000";
+
+    endDay.innerText = day;
+
+    endGold.innerText = gold;
+
+    endScreen.style.display = "block";
+
+}
+
+
+
+function spawnZombie() {
+
+    let type = "normal";
+
+    if (day >= 5 && Math.random() < 0.2) type = "fire";
+
+    if (day >= 10 && Math.random() < 0.15) type = "shooter";
+
+    if (day >= 25 && Math.random() < 0.2) type = "bomber";
+
+    if (day === 15 && !boss15Spawned) { type = "boss"; boss15Spawned = true; document.getElementById('boss-name').innerText = "İLK BOSS 💀"; }
+
+    else if (day === 29 && !boss29Spawned) { type = "lastBoss"; boss29Spawned = true; document.getElementById('boss-name').innerText = "SON BOSS 🔥💀🔥"; }
+
+
+
+    let z = {
+
+        x: Math.random() > 0.5 ? canvas.width + 100 : -100,
+
+        y: Math.random() * canvas.height,
+
+        hp: (15 + (day * 3)), maxHp: (15 + (day * 3)), speed: type === "fire" ? 3 : 1.5, type: type, cooldown: 0
+
+    };
+
+    if(type === "boss") { z.hp *= 150; z.maxHp *= 150; z.x = canvas.width + 150; z.y = canvas.height/2; document.getElementById('boss-ui').style.display = 'block'; }
+
+    if(type === "lastBoss") { z.hp *= 400; z.maxHp *= 400; z.speed = 2; z.x = canvas.width + 150; z.y = canvas.height/2; document.getElementById('boss-ui').style.display = 'block'; }
+
+    zombies.push(z);
+
+}
+
+
+
+function gameLoop() {
+
+    if(gameOver) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+
+
+    if (keys['ArrowUp'] || keys['KeyW']) player.y -= player.speed;
+
+    if (keys['ArrowDown'] || keys['KeyS']) player.y += player.speed;
+
+    if (keys['ArrowLeft'] || keys['KeyA']) player.x -= player.speed;
+
+    if (keys['ArrowRight'] || keys['KeyD']) player.x += player.speed;
+
+    player.x = Math.max(15, Math.min(canvas.width-15, player.x));
+
+    player.y = Math.max(15, Math.min(canvas.height-15, player.y));
+
+
+
+    structures.forEach((s, idx) => {
+
+        ctx.fillStyle = s.type === 'ironFence' ? "#555" : s.type === 'electricFence' ? "#00ced1" : s.type.includes('Turret') || s.type === 'turret' ? "#f39c12" : "#8B4513";
+
+        ctx.fillRect(s.x, s.y, s.size, s.size);
+
+        if (s.type.includes('Turret') || s.type === 'turret') {
+
+            s.cooldown--;
+
+            let target = null;
+
+            let minDistance = 600; // 16cm Menzil Sınırı
+
+            zombies.forEach(z => {
+
+                let d = Math.hypot(z.x - (s.x+25), z.y - (s.y+25));
+
+                if(d < minDistance) { target = z; minDistance = d; }
+
+            });
+
+
+
+            if (target && s.cooldown <= 0) {
+
+                const angle = Math.atan2(target.y - (s.y+25), target.x - (s.x+25));
+
+                if (s.type === 'laserTurret') {
+
+                    lasers.push({ x1: s.x+25, y1: s.y+25, x2: target.x, y2: target.y, life: 10 });
+
+                    target.hp -= 15; s.cooldown = 12;
+
+                } else if (s.type === 'rapidTurret') {
+
+                    fireBullet(s.x+25, s.y+25, angle, 4, true); s.cooldown = 6;
+
+                } else {
+
+                    fireBullet(s.x+25, s.y+25, angle, 6, true); s.cooldown = 25;
+
+                }
+
+            }
+
+        }
+
+        if (s.hp <= 0) structures.splice(idx, 1);
+
+    });
+
+
+
+    grenadeProjectiles.forEach((gp, i) => {
+
+        gp.x += gp.vx; gp.y += gp.vy;
+
+        gp.traveled += 10;
+
+        ctx.fillStyle = "black";
+
+        ctx.beginPath(); ctx.arc(gp.x, gp.y, 8, 0, Math.PI*2); ctx.fill();
+
+        if(gp.traveled >= gp.dist) {
+
+            explosions.push({ x: gp.x, y: gp.y, radius: 120, life: 25, maxLife: 25 });
+
+            zombies.forEach(z => {
+
+                if(Math.hypot(z.x - gp.x, z.y - gp.y) < 120) z.hp -= 150;
+
+            });
+
+            grenadeProjectiles.splice(i, 1);
+
+        }
+
+    });
+
+
+
+    spikes.forEach((sp, i) => {
+
+        ctx.fillStyle = "white";
+
+        ctx.beginPath(); ctx.moveTo(sp.x, sp.y); ctx.lineTo(sp.x+15, sp.y-40); ctx.lineTo(sp.x+30, sp.y); ctx.fill();
+
+        if (Math.hypot(player.x - sp.x, player.y - sp.y) < 30) playerHealth -= 1;
+
+        sp.life--; if(sp.life <= 0) spikes.splice(i, 1);
+
+    });
+
+
+
+    lasers.forEach((l, i) => { ctx.strokeStyle = "red"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke(); l.life--; if(l.life <= 0) lasers.splice(i, 1); });
+
+
+
+    bullets.forEach((b, i) => {
+
+        b.x += b.vx; b.y += b.vy;
+
+        ctx.fillStyle = b.isFriendly ? "yellow" : "orange";
+
+        ctx.fillRect(b.x, b.y, 6, 6);
+
+        if(!b.isFriendly && Math.hypot(player.x-b.x, player.y-b.y) < 20) { playerHealth -= 2; bullets.splice(i, 1); }
+
+        if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) bullets.splice(i, 1);
+
+    });
+
+
+
+    explosions.forEach((e, i) => {
+
+        ctx.fillStyle = `rgba(255, 69, 0, ${e.life / e.maxLife})`; 
+
+        ctx.beginPath();
+
+        ctx.arc(e.x, e.y, e.radius * (1 - e.life / e.maxLife * 0.5), 0, Math.PI * 2);
+
+        ctx.fill();
+
+        e.life--;
+
+        if (e.life <= 0) explosions.splice(i, 1);
+
+    });
+
+
+
+    ctx.fillStyle = "#3498db";
+
+    ctx.fillRect(player.x - 15, player.y - 15, player.size, player.size);
+
+
+
+    zombies.forEach((z, zi) => {
+
+        const angle = Math.atan2(player.y - z.y, player.x - z.x);
+
+        let moveBlocked = false;
+
+        structures.forEach(s => {
+
+            if (z.x > s.x-20 && z.x < s.x+s.size+20 && z.y > s.y-20 && z.y < s.y+s.size+20) {
+
+                moveBlocked = true; s.hp -= (1 + (day * 0.15));
+
+                if (s.type === 'electricFence') z.hp -= 0.6;
+
+            }
+
+        });
+
+
+
+        if (!moveBlocked) { z.x += Math.cos(angle) * z.speed; z.y += Math.sin(angle) * z.speed; }
+
+        if (Math.hypot(player.x - z.x, player.y - z.y) < 30) {
+
+            playerHealth -= (0.5 + (day * 0.05));
+
+            if(z.type === "bomber") { 
+
+                z.hp = 0; playerHealth -= 30; 
+
+                explosions.push({ x: z.x, y: z.y, radius: 80, life: 20, maxLife: 20 });
+
+            }
+
+        }
+
+
+
+        if(z.type === "shooter" && Math.random() < 0.015) fireBullet(z.x, z.y, angle, 2, false);
+
+        if(z.type === "boss" || z.type === "lastBoss") {
+
+            document.getElementById('boss-hp-fill').style.width = (z.hp/z.maxHp)*100 + "%";
+
+            z.cooldown++;
+
+            let spikeRate = z.type === "lastBoss" ? 200 : 300;
+
+            if(z.cooldown >= spikeRate) { for(let k=0; k<12; k++) spikes.push({x: player.x + (Math.random()*150-75), y: player.y + (Math.random()*150-75), life: 60}); z.cooldown = 0; }
+
+        }
+
+
+
+        ctx.fillStyle = z.type === "fire" ? "orange" : z.type === "shooter" ? "blue" : (z.type === "boss" || z.type === "lastBoss") ? "purple" : z.type === "bomber" ? "black" : "green";
+
+        ctx.fillRect(z.x - 15, z.y - 15, (z.type === "boss" || z.type === "lastBoss") ? 100 : 30, (z.type === "boss" || z.type === "lastBoss") ? 100 : 30);
+
+
+
+        bullets.forEach((b, bi) => {
+
+            if (b.isFriendly && Math.hypot(b.x - z.x, b.y - z.y) < ((z.type === "boss" || z.type === "lastBoss") ? 60 : 25)) {
+
+                z.hp -= b.dmg; bullets.splice(bi, 1);
+
+            }
+
+        });
+
+        
+
+        if (z.hp <= 0) { 
+
+            if(z.type === "boss" || z.type === "lastBoss") document.getElementById('boss-ui').style.display = 'none';
+
+            if(z.type === "bomber") { explosions.push({ x: z.x, y: z.y, radius: 80, life: 20, maxLife: 20 }); }
+
+            zombies.splice(zi, 1); gold += 30; updateUI(); 
+
+        }
+
+    });
+
+
+
+    if (playerHealth <= 0) { endGame(false); }
+
+    if (Math.random() < 0.02 + (day * 0.002)) spawnZombie();
+
+    requestAnimationFrame(gameLoop);
+
+}
+
+
+
+updateUI();
+
+gameLoop();
+
+</script>
+
+</body>
+
+</html>
