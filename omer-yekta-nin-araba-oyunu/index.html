@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hızlı ve Kalabalık Yarış</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; }
+        #ui {
+            position: absolute; top: 20px; left: 20px;
+            color: #fff; font-size: 30px; font-weight: bold;
+            background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 8px;
+        }
+        #gameOver {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: white; text-align: center; display: none;
+            background: rgba(20,20,20,0.95); padding: 40px; border-radius: 20px;
+            border: 2px solid #f00; box-shadow: 0 0 20px rgba(255,0,0,0.5);
+        }
+        button { 
+            padding: 15px 30px; font-size: 20px; cursor: pointer; border: none; 
+            background: #2ecc71; color: white; border-radius: 5px; font-weight: bold;
+            transition: 0.3s;
+        }
+        button:hover { background: #27ae60; transform: scale(1.1); }
+    </style>
+</head>
+<body>
+
+    <div id="ui">Skor: 0</div>
+    <div id="gameOver">
+        <h1 style="color: #e74c3c; font-size: 48px;">KAZA YAPTIN!</h1>
+        <p id="finalScore" style="font-size: 24px; margin-bottom: 20px;"></p>
+        <button onclick="resetGame()">GAZA BAS (TEKRAR)</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const ui = document.getElementById('ui');
+        const gameOverScreen = document.getElementById('gameOver');
+        const finalScoreText = document.getElementById('finalScore');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let score = 0;
+        let frameCount = 0;
+        let isGameOver = false;
+        let gameSpeed = 10; // Yol akış hızı (Daha hızlı)
+        let obstacles = [];
+        let spawnRate = 25; // Arabaların geliş sıklığı (Daha düşük sayı = Daha çok araba)
+
+        const car = {
+            width: 55,
+            height: 95,
+            x: canvas.width / 2 - 27,
+            y: canvas.height - 140,
+            color: '#e74c3c',
+            speed: 15 // Sağa sola kaçış hızı
+        };
+
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.code] = true);
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        function spawnObstacle() {
+            // Karşıdan gelen büyük arabalar (Kamyon/Tır hissi için daha uzun)
+            const width = 80 + Math.random() * 40;
+            const height = 140 + Math.random() * 60;
+            const x = Math.random() * (canvas.width - width);
+            
+            // Farklı renklerde trafik
+            const colors = ['#3498db', '#f1c40f', '#9b59b6', '#2ecc71', '#e67e22'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            obstacles.push({ x, y: -height, width, height, color });
+        }
+
+        function update() {
+            if (isGameOver) return;
+
+            frameCount++;
+            
+            // SKOR SİSTEMİ: Saniyede tam 1 artar (60 FPS varsayımıyla)
+            if (frameCount % 60 === 0) {
+                score++;
+                ui.innerText = "Skor: " + score;
+            }
+
+            // Kontroller
+            if (keys['ArrowLeft'] && car.x > 0) car.x -= car.speed;
+            if (keys['ArrowRight'] && car.x < canvas.width - car.width) car.x += car.speed;
+
+            // Araba Üretimi (Daha sık)
+            if (frameCount % spawnRate === 0) spawnObstacle();
+
+            obstacles.forEach((obs, index) => {
+                obs.y += gameSpeed;
+
+                // Çarpışma
+                if (car.x < obs.x + obs.width &&
+                    car.x + car.width > obs.x &&
+                    car.y < obs.y + obs.height &&
+                    car.y + car.height > obs.y) {
+                    endGame();
+                }
+
+                if (obs.y > canvas.height) obstacles.splice(index, 1);
+            });
+
+            // Zorluk Artışı: Her 10 saniyede bir hızlanır ve daha çok araba gelir
+            if (score > 0 && score % 10 === 0 && frameCount % 60 === 0) {
+                gameSpeed += 0.5;
+                if (spawnRate > 10) spawnRate -= 1; 
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = "#333"; // Asfalt rengi
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Yol çizgileri
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+            ctx.setLineDash([30, 40]);
+            ctx.lineDashOffset = -frameCount * gameSpeed;
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+
+            // Oyuncu Arabası (Detaylı)
+            ctx.fillStyle = car.color;
+            ctx.roundRect ? ctx.fillRoundRect(car.x, car.y, car.width, car.height, 5) : ctx.fillRect(car.x, car.y, car.width, car.height);
+            
+            // Farlar
+            ctx.fillStyle = "rgba(255, 255, 0, 0.8)";
+            ctx.fillRect(car.x + 5, car.y - 5, 10, 5); 
+            ctx.fillRect(car.x + car.width - 15, car.y - 5, 10, 5);
+
+            // Trafikteki Arabalar
+            obstacles.forEach(obs => {
+                ctx.fillStyle = obs.color;
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                
+                // Arka stop lambaları
+                ctx.fillStyle = "red";
+                ctx.fillRect(obs.x + 5, obs.y + obs.height - 10, 15, 5);
+                ctx.fillRect(obs.x + obs.width - 20, obs.y + obs.height - 10, 15, 5);
+            });
+
+            requestAnimationFrame(() => {
+                update();
+                draw();
+            });
+        }
+
+        function endGame() {
+            isGameOver = true;
+            gameOverScreen.style.display = 'block';
+            finalScoreText.innerText = "Saniye Hayatta Kaldın: " + score;
+        }
+
+        function resetGame() {
+            score = 0;
+            frameCount = 0;
+            gameSpeed = 10;
+            spawnRate = 25;
+            obstacles = [];
+            car.x = canvas.width / 2 - 27;
+            isGameOver = false;
+            gameOverScreen.style.display = 'none';
+            ui.innerText = "Skor: 0";
+        }
+
+        draw();
+    </script>
+</body>
+</html>
