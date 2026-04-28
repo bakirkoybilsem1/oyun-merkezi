@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Final Game Pro</title>
+
+<style>
+body { margin:0; overflow:hidden; background:#111; font-family:sans-serif; }
+
+#game {
+  position:relative;
+  width:100vw;
+  height:100vh;
+  background:linear-gradient(#222,#000);
+}
+
+#player {
+  position:absolute;
+  width:50px;
+  height:50px;
+  background:lime;
+  border-radius:50%;
+  left:100px;
+  top:100px;
+}
+
+.enemy,.heal,.coin {
+  position:absolute;
+  border-radius:50%;
+}
+
+.enemy { width:35px; height:35px; background:red; }
+.heal { width:30px; height:30px; background:dodgerblue; }
+.coin { width:25px; height:25px; background:gold; }
+
+#ui {
+  position:absolute;
+  top:10px;
+  left:10px;
+  color:white;
+  font-size:16px;
+}
+
+#shop {
+  position:absolute;
+  top:0;
+  right:-320px;
+  width:300px;
+  height:100%;
+  background:#222;
+  color:white;
+  padding:10px;
+  transition:0.3s;
+}
+
+#shop.open { right:0; }
+
+button { width:100%; margin:4px 0; }
+</style>
+</head>
+
+<body>
+
+<div id="game">
+  <div id="player"></div>
+  <div id="ui"></div>
+
+  <div id="shop">
+    <h3>Market 🎮</h3>
+
+    <h4>🎨 Renk</h4>
+    <button onclick="buyColor('lime',0)">Yeşil</button>
+    <button onclick="buyColor('blue',2)">Mavi</button>
+    <button onclick="buyColor('purple',3)">Mor</button>
+    <button onclick="buyColor('orange',4)">Turuncu</button>
+
+    <hr>
+
+    <h4>🎩 Şapkalar</h4>
+    <button onclick="buyHat('crown',5)">👑 Taç</button>
+    <button onclick="buyHat('cap',3)">🧢 Şapka</button>
+    <button onclick="buyHat('wizard',7)">🧙 Büyücü</button>
+    <button onclick="buyHat('tophat',6)">🎩 Silindir</button>
+    <button onclick="buyHat('cowboy',4)">🤠 Kovboy</button>
+    <button onclick="buyHat('devil',8)">😈 Şeytan</button>
+
+    <hr>
+
+    <h4>💰 Coin Pack</h4>
+    <button onclick="buyCoinPack()">Coin x1 → artar</button>
+    <p id="packInfo">Fiyat:5 | Çarpan:x1</p>
+
+    <p>B = Market</p>
+  </div>
+</div>
+
+<script>
+
+const player=document.getElementById("player");
+const ui=document.getElementById("ui");
+const shop=document.getElementById("shop");
+const game=document.getElementById("game");
+
+let x=100,y=100;
+let hp=3,coins=0,score=0;
+let gameOver=false;
+
+let keys={};
+
+let state={
+  coinBoost:false,
+  speedBoost:false
+};
+
+let coinMultiplier=1;
+let coinPackPrice=5;
+
+let currentHat=null;
+
+// INPUT
+document.addEventListener("keydown",e=>{
+  keys[e.code]=true;
+  if(e.code==="KeyB") shop.classList.toggle("open");
+});
+document.addEventListener("keyup",e=>keys[e.code]=false);
+
+// LOOP
+function loop(){
+  if(gameOver) return;
+
+  let speed=state.speedBoost?8:6;
+
+  if(keys["ArrowLeft"]) x-=speed;
+  if(keys["ArrowRight"]) x+=speed;
+  if(keys["ArrowUp"]) y-=speed;
+  if(keys["ArrowDown"]) y+=speed;
+
+  x=Math.max(0,Math.min(innerWidth-50,x));
+  y=Math.max(0,Math.min(innerHeight-50,y));
+
+  player.style.left=x+"px";
+  player.style.top=y+"px";
+
+  ui.innerText=`Skor:${score} Can:${hp} Coin:${coins} x${coinMultiplier}`;
+
+  requestAnimationFrame(loop);
+}
+loop();
+
+
+// 🎨 COLOR
+function buyColor(color,cost){
+  if(coins<cost) return;
+  coins-=cost;
+  player.style.background=color;
+}
+
+
+// 🎩 HAT SYSTEM (DETAYLI)
+function buyHat(type,cost){
+  if(coins<cost) return;
+  coins-=cost;
+
+  if(currentHat) currentHat.remove();
+
+  state.coinBoost=false;
+  state.speedBoost=false;
+
+  let h=document.createElement("div");
+  h.style.position="absolute";
+  h.style.left="5px";
+  h.style.top="-25px";
+
+  // 👑 CROWN
+  if(type==="crown"){
+    h.style.width="40px";
+    h.style.height="22px";
+    h.style.background="linear-gradient(#ffd700,#c9a800)";
+    h.style.border="2px solid #8a6d00";
+    h.style.boxShadow="0 2px 5px rgba(0,0,0,0.5)";
+    h.style.clipPath="polygon(0% 100%, 10% 0%, 25% 60%, 40% 0%, 55% 60%, 70% 0%, 85% 60%, 100% 0%, 100% 100%)";
+    state.coinBoost=true;
+  }
+
+  // 🧢 CAP
+  if(type==="cap"){
+    h.style.width="45px";
+    h.style.height="25px";
+    h.style.background="linear-gradient(#1e3a8a,#0f172a)";
+    h.style.borderRadius="20px 20px 5px 5px";
+    h.style.boxShadow="0 3px 6px rgba(0,0,0,0.4)";
+    state.speedBoost=true;
+  }
+
+  // 🧙 WIZARD
+  if(type==="wizard"){
+    h.style.width="0";
+    h.style.height="0";
+    h.style.borderLeft="20px solid transparent";
+    h.style.borderRight="20px solid transparent";
+    h.style.borderBottom="40px solid purple";
+    h.style.filter="drop-shadow(0 3px 3px rgba(0,0,0,0.5))";
+  }
+
+  // 🎩 TOP HAT
+  if(type==="tophat"){
+    h.style.width="42px";
+    h.style.height="28px";
+    h.style.background="linear-gradient(#111,#000)";
+    h.style.border="2px solid #333";
+    h.style.boxShadow="0 3px 6px rgba(0,0,0,0.6)";
+    state.coinBoost=true;
+  }
+
+  // 🤠 COWBOY
+  if(type==="cowboy"){
+    h.style.width="55px";
+    h.style.height="18px";
+    h.style.background="linear-gradient(#8b5a2b,#5c3a1e)";
+    h.style.borderRadius="50%";
+    h.style.boxShadow="0 2px 4px rgba(0,0,0,0.4)";
+  }
+
+  // 😈 DEVIL
+  if(type==="devil"){
+    h.style.width="35px";
+    h.style.height="18px";
+    h.style.background="linear-gradient(#ff0000,#8b0000)";
+    h.style.borderRadius="5px";
+    h.style.boxShadow="0 0 8px rgba(255,0,0,0.6)";
+  }
+
+  player.appendChild(h);
+  currentHat=h;
+}
+
+
+// 💰 COIN PACK
+function buyCoinPack(){
+  if(coins<coinPackPrice) return;
+
+  coins-=coinPackPrice;
+  coinMultiplier++;
+  coinPackPrice=Math.floor(coinPackPrice*1.8);
+
+  document.getElementById("packInfo").innerText=
+    `Fiyat:${coinPackPrice} | Çarpan:x${coinMultiplier}`;
+}
+
+
+// 🟡 COIN
+function spawnCoin(){
+  let c=document.createElement("div");
+  c.className="coin";
+
+  let cx=innerWidth+100;
+  let cy=Math.random()*(innerHeight-60);
+
+  c.style.left=cx+"px";
+  c.style.top=cy+"px";
+  game.appendChild(c);
+
+  let m=setInterval(()=>{
+    cx-=7;
+    c.style.left=cx+"px";
+
+    if(cx<x+50 && cx+25>x && cy<y+50 && cy+25>y){
+      coins+=(state.coinBoost?2:1)*coinMultiplier;
+      c.remove(); clearInterval(m);
+    }
+
+    if(cx<-50){
+      c.remove(); clearInterval(m);
+    }
+  },16);
+}
+
+
+// ENEMY
+function spawnEnemy(){
+  let e=document.createElement("div");
+  e.className="enemy";
+
+  let ex=innerWidth+100;
+  let ey=Math.random()*(innerHeight-60);
+
+  e.style.left=ex+"px";
+  e.style.top=ey+"px";
+  game.appendChild(e);
+
+  let m=setInterval(()=>{
+    ex-=7;
+    e.style.left=ex+"px";
+
+    if(ex<x+50 && ex+35>x && ey<y+50 && ey+35>y){
+      hp--;
+      e.remove(); clearInterval(m);
+
+      if(hp<=0){
+        gameOver=true;
+        alert("Bitti Skor:"+score);
+        location.reload();
+      }
+    }
+
+    if(ex<-50){
+      e.remove(); clearInterval(m);
+      score++;
+    }
+  },16);
+}
+
+
+// HEAL
+function spawnHeal(){
+  let h=document.createElement("div");
+  h.className="heal";
+
+  let hx=innerWidth+100;
+  let hy=Math.random()*(innerHeight-60);
+
+  h.style.left=hx+"px";
+  h.style.top=hy+"px";
+  game.appendChild(h);
+
+  let m=setInterval(()=>{
+    hx-=7;
+    h.style.left=hx+"px";
+
+    if(hx<x+50 && hx+30>x && hy<y+50 && hy+30>y){
+      if(hp<3) hp++;
+      h.remove(); clearInterval(m);
+    }
+
+    if(hx<-50){
+      h.remove(); clearInterval(m);
+    }
+  },16);
+}
+
+
+// SPAWN
+setInterval(spawnEnemy,800);
+setInterval(spawnHeal,3000);
+setInterval(spawnCoin,1500);
+
+</script>
+</body>
+</html>
