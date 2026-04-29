@@ -3,326 +3,234 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patates Clicker - Ultimate Edition</title>
+    <title>Top Simülatörü v8</title>
     <style>
-        body { background-color: #f0e68c; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; user-select: none; overflow: hidden; }
-        #game-container { text-align: center; background: white; padding: 30px; border-radius: 30px; box-shadow: 0 15px 40px rgba(0,0,0,0.15); width: 380px; position: relative; }
-        #potato { font-size: 100px; cursor: pointer; transition: transform 0.05s; margin: 10px 0; display: inline-block; }
-        #potato:active { transform: scale(0.8); }
-        .stats { font-size: 28px; font-weight: bold; color: #5d4037; margin-bottom: 5px; }
-        .info-bar { display: flex; justify-content: space-around; background: #fdfae5; padding: 10px; border-radius: 15px; font-size: 13px; margin: 10px 0; border: 1px solid #e6db74; }
+        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; color: white; transition: transform 2s, opacity 2s; }
+        canvas { display: block; }
+        #ui-container { position: absolute; top: 10px; left: 10px; pointer-events: none; width: 100%; }
+        .stat-box { background: rgba(0, 0, 0, 0.7); padding: 8px 15px; border-radius: 8px; border: 1px solid #444; margin-bottom: 5px; width: fit-content; pointer-events: all; }
         
-        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .btn { border: none; padding: 12px; font-weight: bold; border-radius: 50px; cursor: pointer; transition: 0.3s; color: white; text-transform: uppercase; font-size: 12px; }
-        .btn-market { background-color: #ff9800; }
-        .btn-parkour { background-color: #2196f3; }
-        .btn-contest { background-color: #9c27b0; grid-column: span 2; margin-top: 5px; }
-        .btn:hover { transform: scale(1.05); opacity: 0.9; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        #market-btn { 
+            position: absolute; top: 10px; right: 20px; 
+            padding: 15px 25px; background: #ff9f43; border: none; border-radius: 5px; 
+            cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; z-index: 10;
+        }
 
-        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; }
-        #modal-window { background: white; width: 95%; max-width: 550px; max-height: 85vh; border-radius: 25px; padding: 25px; position: relative; overflow-y: auto; }
+        #market-overlay, #final-overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center;
+            pointer-events: all; z-index: 100;
+        }
+
+        .market-content, .final-content { 
+            background: #2c3e50; padding: 25px; border-radius: 15px; width: 90%; max-width: 1100px;
+            max-height: 85vh; overflow-y: auto; text-align: center;
+        }
+
+        .inv-upgrade-banner { 
+            background: #8e44ad; padding: 15px; border-radius: 10px; margin-bottom: 20px; 
+            cursor: pointer; font-weight: bold; transition: 0.3s; border: 2px solid #a29bfe;
+        }
+
+        .pack-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 10px; }
+        .pack-card { background: #34495e; padding: 15px; border-radius: 10px; border: 2px solid #546e7a; width: 190px; }
+        .premium { border-color: #f1c40f; background: #3d3002; }
+        .lvl2-pack { border-color: #00d2ff; background: #002b36; }
+        .lvl3-pack { border-color: #ff4757; background: #2f3542; }
         
-        /* MARKET DÜZENİ */
-        .market-section { margin-bottom: 20px; text-align: left; }
-        .market-section h3 { border-bottom: 2px solid #eee; padding-bottom: 5px; color: #5d4037; font-size: 16px; margin-bottom: 10px; }
-        .market-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; background: #fffcf0; border-radius: 15px; border: 1px solid #ffe082; }
-        .market-item b { font-size: 14px; display: block; color: #333; }
-        .buy-btn { background: #8bc34a; color: white; border: none; padding: 8px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; }
-        .buy-btn:disabled { background: #cfd8dc; cursor: not-allowed; }
-
-        /* YARIŞMA ALANI */
-        #contest-area { text-align: center; padding: 20px; }
-        #contest-potato { font-size: 50px; cursor: pointer; transition: font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: inline-block; min-height: 200px; line-height: 200px; }
-        #contest-potato:active { transform: scale(0.9); }
-        .contest-info { margin-top: 20px; font-weight: bold; color: #9c27b0; font-size: 18px; }
-        #contest-timer { color: #f44336; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
-
-        /* PARKUR ALANI */
-        #parkour-canvas { background: #e0f7fa; border: 4px solid #00acc1; display: none; margin: 15px auto; position: relative; overflow: hidden; width: 500px; height: 350px; border-radius: 10px; }
-        .wall, .bot { position: absolute; background: #b71c1c; }
-        .bot { background: #ff5722; border-radius: 50%; width: 14px; height: 14px; }
-        #player { position: absolute; font-size: 24px; z-index: 10; }
-        #finish { position: absolute; background: #4caf50; width: 60px; height: 60px; right: 0; bottom: 0; color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
-
-        #toast { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 15px 30px; border-radius: 50px; transition: 0.5s; z-index: 2000; border: 2px solid #ff9800; }
-        #toast.show { bottom: 30px; }
+        .chance-list { font-size: 11px; color: #bdc3c7; margin: 10px 0; text-align: left; line-height: 1.4; }
+        .ball-item { display: flex; justify-content: space-between; align-items: center; background: #222; padding: 10px; margin: 5px 0; border-radius: 5px; }
+        
+        .upgrade-btn { background: #27ae60; color: white; border: none; padding: 8px; border-radius: 3px; cursor: pointer; }
+        .delete-btn { background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 3px; cursor: pointer; }
+        
+        .rating-btn { background: #3498db; border: none; color: white; padding: 10px 15px; margin: 5px; border-radius: 5px; cursor: pointer; font-size: 18px; }
+        .vortex { transform: scale(0) rotate(1080deg); opacity: 0; pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <audio id="click-sound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3" preload="auto"></audio>
-    <audio id="reward-sound" src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" preload="auto"></audio>
-
-    <div id="toast">🎁 <span id="toast-msg"></span></div>
-
-    <div id="game-container">
-        <h1>🥔 Patates Clicker</h1>
-        <div class="stats"><span id="potato-count">0</span></div>
-        <div class="info-bar">
-            <span>Saniye: <b id="per-second">0</b></span>
-            <span>Tık Gücü: <b id="click-power-display">1</b></span>
-        </div>
-        <div id="potato" onclick="clickPotato()">🥔</div>
-        <div class="btn-group">
-            <button class="btn btn-market" onclick="openMarket()">🛒 MARKET</button>
-            <button class="btn btn-parkour" onclick="startParkour()">🏃 PARKUR</button>
-            <button class="btn btn-contest" onclick="openContest()">🏆 PATATES BÜYÜTME YARIŞMASI</button>
-        </div>
+    <div id="ui-container">
+        <div class="stat-box">Puan: <span id="score-display">0</span></div>
+        <div class="stat-box">Envanter: <span id="ball-count">1</span> / <span id="inv-limit">50</span></div>
+        <div class="stat-box">Seviye: <span id="game-lvl">1</span></div>
     </div>
 
-    <div id="overlay">
-        <div id="modal-window">
-            <span style="position:absolute; top:15px; right:20px; cursor:pointer; font-size:28px; color: #999;" onclick="closeModal()">×</span>
-            <h2 id="modal-title" style="text-align:center; margin-top: 0; color: #5d4037;"></h2>
-            <div id="modal-content"></div>
-            <div id="parkour-canvas">
-                <div id="player">🥔</div>
-                <div id="finish">BİTİŞ</div>
+    <button id="market-btn" onclick="toggleMarket(true)">🛒 MARKET & ENVANTER</button>
+
+    <div id="market-overlay">
+        <div class="market-content">
+            <span style="float:right; cursor:pointer; font-size: 24px;" onclick="toggleMarket(false)">✖</span>
+            <h2>Market</h2>
+            
+            <div class="inv-upgrade-banner" id="inv-btn" onclick="upgradeInventory()">
+                📦 ENVANTER KAPASİTESİNİ ARTIR (+10 Limit) <br>
+                <small>Fiyat: 5.000 Puan</small>
             </div>
-            <p id="timer-display" style="text-align:center; font-weight:bold; display:none; font-size: 18px; color: #2196f3;">Süre: 0.0s</p>
+
+            <div id="active-packs" class="pack-container"></div>
+
+            <div id="my-balls" style="margin-top:20px; border-top:1px solid #555">
+                <h3>Toplarımı Yönet</h3>
+            </div>
         </div>
     </div>
+
+    <div id="final-overlay">
+        <div class="final-content" id="final-screen">
+            <h1>🏆 OYUNU KAZANDINIZ! 🏆</h1>
+            <p>1 Trilyon puana ulaşarak evrenin hakimi oldunuz.</p>
+            <hr>
+            <h3>Oyunu beğendiniz mi?</h3>
+            <div id="rating-container"></div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
 
     <script>
-        let potatoes = 0;
-        let clickPower = 1;
-        let totalPerSecond = 0;
-        let playerPos = { x: 10, y: 10 };
-        let isParkourActive = false;
-        let parkourStartTime = 0;
-        let botInterval;
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score-display');
+        const ballCountDisplay = document.getElementById('ball-count');
+        const invLimitDisplay = document.getElementById('inv-limit');
+        const gameLvlDisplay = document.getElementById('game-lvl');
+        const ballListContainer = document.getElementById('my-balls');
+        const packContainer = document.getElementById('active-packs');
 
-        // Yarışma değişkenleri
-        let contestSize = 50;
-        let contestClicks = 0;
-        let contestTimeLeft = 30;
-        let contestTimerInterval;
+        let score = 0;
+        let balls = [];
+        let invLimit = 50;
+        let gameLevel = 1;
+        let isGameOver = false;
 
-        const items = [
-            { id: 'c1', name: '💪 Bronz Parmak', desc: 'Tık +1', cost: 25, power: 1, type: 'click', count: 0 },
-            { id: 'c2', name: '⚔️ Gümüş Elmas', desc: 'Tık +5', cost: 250, power: 5, type: 'click', count: 0 },
-            { id: 'c3', name: '🔱 Altın Balyoz', desc: 'Tık +25', cost: 1500, power: 25, type: 'click', count: 0 },
-            { id: 'c4', name: '🌌 Kozmik Dokunuş', desc: 'Tık +100', cost: 10000, power: 100, type: 'click', count: 0 },
-            { id: 'a1', name: '👨‍🌾 Çiftçi', desc: '+1/sn üretir', cost: 15, power: 1, type: 'auto', count: 0 },
-            { id: 'a2', name: '🚜 Patates Tarlası', desc: '+5/sn üretir', cost: 100, power: 5, type: 'auto', count: 0 },
-            { id: 'a3', name: '🏭 Cips Fabrikası', desc: '+20/sn üretir', cost: 600, power: 20, type: 'auto', count: 0 },
-            { id: 'a4', name: '🏰 Patates Şatosu', desc: '+100/sn üretir', cost: 3000, power: 100, type: 'auto', count: 0 },
-            { id: 'a5', name: '🚀 Uzay İstasyonu', desc: '+500/sn üretir', cost: 15000, power: 500, type: 'auto', count: 0 },
-            { id: 'a6', name: '🤖 Yapay Zeka', desc: '+2000/sn üretir', cost: 75000, power: 2000, type: 'auto', count: 0 }
-        ];
+        const ballTypes = {
+            common: { name: "Yaygın", color: "#2ecc71", baseValue: 1, speed: 7, upCost: 50 },
+            rare: { name: "Nadir", color: "#3498db", baseValue: 5, speed: 9, upCost: 150 },
+            epic: { name: "Destansı", color: "#9b59b6", baseValue: 20, speed: 11, upCost: 500 },
+            legendary: { name: "Efsanevi", color: "#f1c40f", baseValue: 100, speed: 14, upCost: 1500 },
+            special: { name: "Özel", color: "#e67e22", baseValue: 500, speed: 18, upCost: 5000 },
+            mystic: { name: "Mistik", color: "#e91e63", baseValue: 2500, speed: 22, upCost: 20000 },
+            quantum: { name: "Kuantum", color: "#00d2ff", baseValue: 10000, speed: 23, upCost: 50000 },
+            void: { name: "Boşluk", color: "#2f3640", baseValue: 50000, speed: 25, upCost: 250000 },
+            stellar: { name: "Yıldız", color: "#fff700", baseValue: 200000, speed: 28, upCost: 1000000 },
+            antimatter: { name: "Antimadde", color: "#ff4757", baseValue: 10000000, speed: 30, upCost: 50000000 },
+            blackhole: { name: "Karadelik", color: "#3d1d5a", baseValue: 100000000, speed: 32, upCost: 500000000 },
+            universe: { name: "EVREN", color: "#ffffff", baseValue: 1000000000, speed: 35, upCost: 5000000000 }
+        };
 
-        function playSfx(id) {
-            const sound = document.getElementById(id);
-            sound.currentTime = 0;
-            sound.play().catch(e => {});
+        class Ball {
+            constructor(typeKey) {
+                this.typeKey = typeKey;
+                const config = ballTypes[typeKey];
+                this.radius = 12;
+                this.x = Math.random() * (canvas.width - 24) + 12;
+                this.y = Math.random() * (canvas.height - 24) + 12;
+                let angle = Math.random() * Math.PI * 2;
+                this.dx = Math.cos(angle) * config.speed;
+                this.dy = Math.sin(angle) * config.speed;
+                this.level = 1;
+                this.color = config.color;
+            }
+            draw() {
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; ctx.fill(); ctx.strokeStyle = "white"; ctx.stroke();
+                ctx.fillStyle = "white"; ctx.font = "bold 10px Arial"; ctx.fillText("L" + this.level, this.x - 7, this.y + 4);
+            }
+            update() {
+                if (this.x + this.radius > canvas.width || this.x - this.radius < 0) { this.dx = -this.dx; handleCollision(this); }
+                if (this.y + this.radius > canvas.height || this.y - this.radius < 0) { this.dy = -this.dy; handleCollision(this); }
+                this.x += this.dx; this.y += this.dy; this.draw();
+            }
         }
 
-        function clickPotato() {
-            playSfx('click-sound');
-            potatoes += clickPower;
+        function handleCollision(ball) {
+            if (isGameOver) return;
+            score += ballTypes[ball.typeKey].baseValue * ball.level;
+            if (gameLevel === 1 && score >= 1000000) {
+                if (confirm("Seviye 2'ye geçilsin mi?")) { gameLevel = 2; score = 0; balls = [new Ball('legendary')]; }
+            } else if (gameLevel === 2 && score >= 100000000) {
+                if (confirm("Seviye 3'e geçilsin mi?")) { gameLevel = 3; score = 0; balls = [new Ball('antimatter')]; }
+            } else if (score >= 1000000000000) { triggerFinal(); }
             updateUI();
         }
 
-        // --- MARKET ---
-        function openMarket() {
-            isParkourActive = false;
-            clearInterval(contestTimerInterval);
-            document.getElementById('overlay').style.display = 'flex';
-            document.getElementById('modal-title').innerText = '🛒 Patates Pazarı';
-            document.getElementById('parkour-canvas').style.display = 'none';
-            document.getElementById('timer-display').style.display = 'none';
-            
-            const content = document.getElementById('modal-content');
-            content.innerHTML = `
-                <div class="market-section">
-                    <h3>👆 Tıklama Geliştirmeleri</h3>
-                    <div id="click-items"></div>
-                </div>
-                <div class="market-section">
-                    <h3>⚙️ Otomatik Üretim</h3>
-                    <div id="auto-items"></div>
-                </div>`;
-            
-            const clickList = document.getElementById('click-items');
-            const autoList = document.getElementById('auto-items');
+        function triggerFinal() {
+            isGameOver = true;
+            document.getElementById('final-overlay').style.display = 'flex';
+            const container = document.getElementById('rating-container');
+            for (let i = 1; i <= 10; i++) {
+                let btn = document.createElement('button'); btn.className = 'rating-btn'; btn.innerText = i;
+                btn.onclick = () => {
+                    document.getElementById('final-screen').innerHTML = "<h1>Teşekkürler!</h1><p>Puanınız: " + i + "/10</p>";
+                    setTimeout(() => { document.body.classList.add('vortex'); setTimeout(() => { document.body.innerHTML = ""; }, 2000); }, 1000);
+                };
+                container.appendChild(btn);
+            }
+        }
 
-            items.forEach((item, index) => {
-                const itemHTML = `
-                    <div class="market-item">
-                        <div><b>${item.name} <span style="color:#ff9800;">[x${item.count}]</span></b><small>${item.desc} | ${item.cost} 🥔</small></div>
-                        <button class="buy-btn" ${potatoes >= item.cost ? '' : 'disabled'} onclick="buyItem(${index})">AL</button>
-                    </div>`;
-                if (item.type === 'click') clickList.innerHTML += itemHTML;
-                else autoList.innerHTML += itemHTML;
+        function renderPacks() {
+            let html = `<div class="pack-card"><h3>Standart</h3><p>25 Puan</p><div class="chance-list">🟢 Yaygın: %70<br>🔵 Nadir: %25<br>🟣 Destansı: %5</div><button class="upgrade-btn" onclick="buyPack('s1')">Al</button></div>
+                        <div class="pack-card"><h3>Gümüş</h3><p>75 Puan</p><div class="chance-list">🔵 Nadir: %60<br>🟣 Destansı: %35<br>🟡 Efsanevi: %5</div><button class="upgrade-btn" onclick="buyPack('s2')">Al</button></div>
+                        <div class="pack-card"><h3>Elit</h3><p>150 Puan</p><div class="chance-list">🟣 Destansı: %60<br>🟡 Efsanevi: %35<br>🟠 Özel: %5</div><button class="upgrade-btn" onclick="buyPack('s3')">Al</button></div>
+                        <div class="pack-card premium"><h3>PREMIUM</h3><p>10.000 Puan</p><div class="chance-list">🟠 Özel: %80<br>💖 Mistik: %20</div><button class="upgrade-btn" style="background:#f1c40f; color:black" onclick="buyPack('s4')">Al</button></div>`;
+            if (gameLevel >= 2) html += `<div class="pack-card lvl2-pack"><h3>Kuantum</h3><p>50.000 Puan</p><div class="chance-list">🌀 Kuantum: %80<br>🌑 Boşluk: %20</div><button class="upgrade-btn" onclick="buyPack('s5')">Al</button></div>
+                                        <div class="pack-card lvl2-pack"><h3>Galaktik</h3><p>500.000 Puan</p><div class="chance-list">🌑 Boşluk: %70<br>⭐ Yıldız: %30</div><button class="upgrade-btn" onclick="buyPack('s6')">Al</button></div>`;
+            if (gameLevel >= 3) html += `<div class="pack-card lvl3-pack"><h3>Evrensel</h3><p>500M Puan</p><div class="chance-list">🔴 Antimadde: %85<br>🕳️ Karadelik: %14<br>🌌 EVREN: %1</div><button class="upgrade-btn" onclick="buyPack('s7')">Al</button></div>`;
+            packContainer.innerHTML = html;
+        }
+
+        function buyPack(id) {
+            if (balls.length >= invLimit) return alert("Envanter dolu!");
+            let cost = 0, type = 'common', r = Math.random() * 100;
+            if (id==='s1') { cost=25; type=r<5?'epic':(r<30?'rare':'common'); }
+            else if (id==='s2') { cost=75; type=r<5?'legendary':(r<40?'epic':'rare'); }
+            else if (id==='s3') { cost=150; type=r<5?'special':(r<40?'legendary':'epic'); }
+            else if (id==='s4') { cost=10000; type=r<20?'mystic':'special'; }
+            else if (id==='s5') { cost=50000; type=r<20?'void':'quantum'; }
+            else if (id==='s6') { cost=500000; type=r<30?'stellar':'void'; }
+            else if (id==='s7') { cost=500000000; type=r<1?'universe':(r<15?'blackhole':'antimatter'); }
+            if (score < cost) return alert("Puan yetersiz!");
+            score -= cost; balls.push(new Ball(type)); updateUI(); renderInventory();
+        }
+
+        function renderInventory() {
+            ballListContainer.innerHTML = '<h3>Toplarımı Yönet (' + balls.length + '/' + invLimit + ')</h3>';
+            balls.forEach((b, i) => {
+                let cost = b.level * ballTypes[b.typeKey].upCost;
+                let div = document.createElement('div'); div.className = 'ball-item';
+                div.innerHTML = `<span><b style="color:${b.color}">${ballTypes[b.typeKey].name}</b> (L${b.level})</span>
+                <div><button class="upgrade-btn" onclick="upgradeBall(${i})">Yükselt (${cost.toLocaleString()})</button>
+                <button class="delete-btn" onclick="deleteBall(${i})">Sil</button></div>`;
+                ballListContainer.appendChild(div);
             });
         }
 
-        function buyItem(index) {
-            const item = items[index];
-            if (potatoes >= item.cost) {
-                potatoes -= item.cost;
-                item.count++;
-                if (item.type === 'click') clickPower += item.power;
-                else totalPerSecond += item.power;
-                item.cost = Math.round(item.cost * 1.35);
-                updateUI();
-                openMarket();
-                playSfx('reward-sound');
-            }
+        window.upgradeBall = (i) => {
+            let b = balls[i]; let c = b.level * ballTypes[b.typeKey].upCost;
+            if (score >= c) { score -= c; b.level++; updateUI(); renderInventory(); }
+        };
+        window.deleteBall = (i) => { if(balls.length > 1 && confirm("Silinsin mi?")) { balls.splice(i, 1); updateUI(); renderInventory(); } };
+        
+        function upgradeInventory() {
+            if(score >= 5000) { 
+                score -= 5000; invLimit += 10; 
+                updateUI(); 
+                renderInventory(); // Envanter listesi başlığını (x/50) anlık güncellemek için.
+            } else { alert("Yetersiz puan! En az 5.000 puan lazım."); }
         }
 
-        // --- SÜRELİ YARIŞMA ---
-        function openContest() {
-            isParkourActive = false;
-            contestSize = 50;
-            contestClicks = 0;
-            contestTimeLeft = 30;
-            
-            document.getElementById('overlay').style.display = 'flex';
-            document.getElementById('modal-title').innerText = '🏆 Yarışma: Patatesi Büyüt!';
-            document.getElementById('parkour-canvas').style.display = 'none';
-            document.getElementById('timer-display').style.display = 'none';
-            
-            document.getElementById('modal-content').innerHTML = `
-                <div id="contest-area">
-                    <div id="contest-timer">Kalan Süre: 30s</div>
-                    <div id="contest-potato" onclick="growContestPotato()">🥔</div>
-                    <div class="contest-info">Tıklama: <span id="c-clicks">0</span> | Boyut: <span id="c-size">50</span>px</div>
-                </div>
-            `;
-
-            contestTimerInterval = setInterval(() => {
-                contestTimeLeft--;
-                if(document.getElementById('contest-timer')) {
-                    document.getElementById('contest-timer').innerText = `Kalan Süre: ${contestTimeLeft}s`;
-                }
-                if (contestTimeLeft <= 0) {
-                    endContest();
-                }
-            }, 1000);
+        function toggleMarket(s) { document.getElementById('market-overlay').style.display = s ? 'flex' : 'none'; if(s) renderInventory(); }
+        function updateUI() {
+            scoreDisplay.innerText = Math.floor(score).toLocaleString();
+            ballCountDisplay.innerText = balls.length;
+            invLimitDisplay.innerText = invLimit;
+            gameLvlDisplay.innerText = gameLevel;
+            renderPacks();
         }
-
-        function growContestPotato() {
-            if (contestTimeLeft <= 0) return;
-            contestClicks++;
-            contestSize += 2;
-            playSfx('click-sound');
-            
-            const p = document.getElementById('contest-potato');
-            p.style.fontSize = contestSize + 'px';
-            document.getElementById('c-clicks').innerText = contestClicks;
-            document.getElementById('c-size').innerText = contestSize;
-        }
-
-        function endContest() {
-            clearInterval(contestTimerInterval);
-            let finalReward = Math.round(contestClicks * (15 + totalPerSecond));
-            potatoes += finalReward;
-            
-            playSfx('reward-sound');
-            alert(`Yarışma Bitti! \nToplam Tıklama: ${contestClicks} \nÖdül: ${finalReward} 🥔`);
-            closeModal();
-            updateUI();
-        }
-
-        // --- PARKUR ---
-        function startParkour() {
-            document.getElementById('overlay').style.display = 'flex';
-            document.getElementById('modal-title').innerText = '🏃 Geniş Parkur';
-            document.getElementById('modal-content').innerHTML = '';
-            document.getElementById('parkour-canvas').style.display = 'block';
-            document.getElementById('timer-display').style.display = 'block';
-            playerPos = { x: 10, y: 10 };
-            isParkourActive = true;
-            parkourStartTime = Date.now();
-            generateLevel();
-            startBots();
-            updatePlayerUI();
-        }
-
-        function generateLevel() {
-            document.querySelectorAll('.wall, .bot').forEach(el => el.remove());
-            const walls = [{t:80, l:0, w:400, h:20}, {t:170, l:100, w:400, h:20}, {t:260, l:0, w:400, h:20}];
-            walls.forEach(w => {
-                const wall = document.createElement('div');
-                wall.className = 'wall';
-                wall.style.cssText = `top:${w.t}px; left:${w.l}px; width:${w.w}px; height:${w.h}px;`;
-                document.getElementById('parkour-canvas').appendChild(wall);
-            });
-            for(let i=0; i<3; i++) {
-                const bot = document.createElement('div');
-                bot.className = 'bot';
-                bot.id = 'bot-' + i;
-                document.getElementById('parkour-canvas').appendChild(bot);
-            }
-        }
-
-        function startBots() {
-            if(botInterval) clearInterval(botInterval);
-            botInterval = setInterval(() => {
-                if(!isParkourActive) return;
-                const time = Date.now() / 1500; 
-                document.querySelectorAll('.bot').forEach((bot, i) => {
-                    const movement = Math.sin(time + i) * 150 + 170; 
-                    bot.style.left = movement + 'px';
-                    bot.style.top = (125 + (i * 90)) + 'px';
-                    const br = bot.getBoundingClientRect();
-                    const pr = document.getElementById('player').getBoundingClientRect();
-                    if (!(pr.right < br.left || pr.left > br.right || pr.bottom < br.top || pr.top > br.bottom)) {
-                        playerPos = { x: 10, y: 10 };
-                        updatePlayerUI();
-                    }
-                });
-                const elapsed = ((Date.now() - parkourStartTime) / 1000).toFixed(1);
-                document.getElementById('timer-display').innerText = `Süre: ${elapsed}s`;
-            }, 30);
-        }
-
-        function updatePlayerUI() {
-            const p = document.getElementById('player');
-            p.style.top = playerPos.y + 'px'; p.style.left = playerPos.x + 'px';
-        }
-
-        window.addEventListener('keydown', (e) => {
-            if (!isParkourActive) return;
-            let s = 12, nx = playerPos.x, ny = playerPos.y;
-            if (e.key === 'ArrowUp') ny -= s; if (e.key === 'ArrowDown') ny += s;
-            if (e.key === 'ArrowLeft') nx -= s; if (e.key === 'ArrowRight') nx += s;
-            if (nx >= 0 && nx <= 470 && ny >= 0 && ny <= 320) {
-                let collided = false;
-                document.querySelectorAll('.wall').forEach(w => {
-                    const wr = { l: parseInt(w.style.left), r: parseInt(w.style.left) + parseInt(w.style.width), t: parseInt(w.style.top), b: parseInt(w.style.top) + parseInt(w.style.height) };
-                    if (nx < wr.r && nx + 24 > wr.l && ny < wr.b && ny + 24 > wr.t) collided = true;
-                });
-                if (!collided) { playerPos.x = nx; playerPos.y = ny; } 
-                else { playerPos = { x: 10, y: 10 }; }
-            }
-            if (playerPos.x > 430 && playerPos.y > 280) winParkour();
-            updatePlayerUI();
-        });
-
-        function winParkour() {
-            isParkourActive = false;
-            clearInterval(botInterval);
-            const finishTime = (Date.now() - parkourStartTime) / 1000;
-            let multiplier = finishTime < 15 ? 30 : (finishTime < 25 ? 15 : 5);
-            let gift = Math.round((500 + (totalPerSecond * 25)) * multiplier / 2);
-            potatoes += gift;
-            closeModal();
-            playSfx('reward-sound');
-            showToast(`Parkur Başarılı! +${gift} 🥔`);
-            updateUI();
-        }
-
-        function closeModal() { 
-            document.getElementById('overlay').style.display = 'none'; 
-            isParkourActive = false; 
-            clearInterval(botInterval); 
-            clearInterval(contestTimerInterval);
-        }
-        function showToast(msg) { const t = document.getElementById('toast'); document.getElementById('toast-msg').innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
-        function updateUI() { document.getElementById('potato-count').innerText = Math.floor(potatoes); document.getElementById('per-second').innerText = totalPerSecond; document.getElementById('click-power-display').innerText = clickPower; }
-        setInterval(() => { potatoes += totalPerSecond; updateUI(); }, 1000);
+        function animate() { ctx.clearRect(0,0,canvas.width,canvas.height); if(!isGameOver) balls.forEach(b => b.update()); requestAnimationFrame(animate); }
+        window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+        window.onresize(); balls.push(new Ball('common')); animate(); updateUI();
     </script>
 </body>
 </html>
