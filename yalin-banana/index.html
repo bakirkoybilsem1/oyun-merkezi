@@ -2,166 +2,195 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Backrooms - Entity is Following</title>
+    <title>Survival: Duvarlar Geçilmez!</title>
     <style>
-        body { margin: 0; background: #000; color: #7a7a1d; font-family: 'Courier New', monospace; overflow: hidden; }
-        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
-        canvas { width: 90%; height: 85%; background: #0a0a05; image-rendering: pixelated; border: 2px solid #222; }
-        
-        #overlay-start {
-            position: absolute; width: 100%; height: 100%; background: #000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 5000; color: #ff0000; text-align: center;
+        body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: sans-serif; user-select: none; }
+        canvas { display: block; }
+        #status-ui {
+            position: absolute; top: 10px; left: 10px;
+            color: white; background: rgba(0,0,0,0.8);
+            padding: 15px; border-radius: 10px; border: 2px solid #555;
+            pointer-events: none; z-index: 100;
         }
-        button { padding: 20px 40px; font-size: 24px; cursor: pointer; background: #111; color: #ff0000; border: 2px solid #ff0000; font-weight: bold; }
-
-        #jumpscare-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000 url('https://i.ibb.co/L6S9C6V/scary-face.jpg') no-repeat center;
-            background-size: cover; display: none; z-index: 9999;
+        #inventory-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 999;
         }
-
-        .hud { position: absolute; top: 10%; left: 6%; font-size: 14px; color: #555; pointer-events: none; }
+        #inv-window { width: 400px; background: #2c3e50; padding: 30px; border-radius: 20px; border: 4px solid #f1c40f; color: white; text-align: center; }
+        .recipe { background: #34495e; margin: 10px 0; padding: 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
+        button { background: #27ae60; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; background: rgba(0,0,0,0.9); padding: 10px; border-radius: 15px; z-index: 100; }
+        .slot { width: 60px; height: 60px; border: 2px solid #777; margin: 0 5px; border-radius: 10px; color: white; font-size: 11px; display: flex; align-items: center; justify-content: center; text-align: center; }
+        .selected { border-color: #f1c40f; box-shadow: 0 0 15px #f1c40f; }
     </style>
 </head>
 <body>
 
-<div id="overlay-start">
-    <h1>DİKKAT: KAYIT BULUNDU</h1>
-    <p>Canavar seni duyabilir. Yaklaştığında fısıltıları dinle.</p>
-    <button onclick="startGame()">SİSTEMİ BAŞLAT</button>
+<div id="status-ui">
+    <div style="color:#e74c3c; font-size: 20px; font-weight: bold;">CAN: <span id="hp-val">100</span></div>
+    <div id="time-val" style="color:#f1c40f;">Vakit: Gündüz</div>
+    <hr>
+    <div>🪵 Odun: <span id="wood-val">0</span> | 📦 Tahta: <span id="plank-val">0</span></div>
+    <div>🧱 Duvar: <span id="wall-val">0</span></div>
 </div>
 
-<div id="game-container">
-    <canvas id="raycaster"></canvas>
-    <div class="hud">DURUM: IZLENIYORSUN | E: ARKA BAKIŞ</div>
-    <div id="jumpscare-screen"></div>
+<div id="inventory-overlay">
+    <div id="inv-window">
+        <h2>⚒️ ÜRETİM MASASI</h2>
+        <div class="recipe"><span>2 Odun ➔ 4 Tahta</span> <button onclick="doCraft('plank')">ÜRET</button></div>
+        <div class="recipe"><span>4 Tahta ➔ 1 Duvar</span> <button onclick="doCraft('wall')">ÜRET</button></div>
+        <button style="background:#c0392b; width:100%; margin-top:20px;" onclick="toggleInv()">KAPAT (E)</button>
+    </div>
 </div>
 
-<audio id="snd-scream" src="https://actions.google.com/sounds/v1/horror/horror_ghostly_scream.ogg"></audio>
-<audio id="snd-whisper" src="https://actions.google.com/sounds/v1/horror/ambience_hum.ogg" loop></audio>
+<div id="hotbar">
+    <div id="slot1" class="slot selected">🧱<br>Duvar (1)</div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
 
 <script>
-const canvas = document.getElementById('raycaster');
-const ctx = canvas.getContext('2d');
-const scScreen = document.getElementById('jumpscare-screen');
-const sndScream = document.getElementById('snd-scream');
-const sndWhisper = document.getElementById('snd-whisper');
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-canvas.width = 400; canvas.height = 240;
-
-const map = [
-    [1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,0,0,0,0,0,1],
-    [1,0,1,1,0,1,1,1,0,1],
-    [1,0,0,0,0,0,0,1,0,1],
-    [1,1,1,0,1,1,0,1,0,1],
-    [1,0,0,0,0,1,0,0,0,1],
-    [1,0,1,1,0,1,1,1,0,1],
-    [1,0,0,0,0,0,0,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1]
-];
-
-let player = { x: 1.5, y: 1.5, dir: 0 };
-let monster = { x: 8.5, y: 7.5, speed: 0.008 }; // Canavarın başlangıç yeri ve hızı
-let keys = {};
-let gameRunning = false;
-let lookingBack = false;
-
-window.onkeydown = e => {
-    keys[e.key.toLowerCase()] = true;
-    if(e.key.toLowerCase() === 'e') lookingBack = true;
-};
-window.onkeyup = e => {
-    keys[e.key.toLowerCase()] = false;
-    if(e.key.toLowerCase() === 'e') lookingBack = false;
+let game = {
+    wood: 0, plank: 0, wallCount: 0,
+    hp: 100, isInvOpen: false, 
+    time: 0, playerX: canvas.width/2, playerY: canvas.height/2,
+    pSize: 15, wallSize: 40
 };
 
-function startGame() {
-    document.getElementById('overlay-start').style.display = 'none';
-    gameRunning = true;
-    sndWhisper.play();
-    loop();
+let resources = [];
+let mobs = [];
+let placedWalls = [];
+const keys = {};
+
+for(let i=0; i<15; i++) spawnObj('tree');
+
+function spawnObj(type) {
+    resources.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, type, hp: 3});
 }
 
-function updateMonster() {
-    // Basit Takip Yapay Zekası: Canavar her karede oyuncuya bir adım yaklaşır
-    let dx = player.x - monster.x;
-    let dy = player.y - monster.y;
-    let dist = Math.sqrt(dx*dx + dy*dy);
-    
-    // Canavar oyuncuya çok yakınsa Jumpscare!
-    if(dist < 0.5) {
-        triggerDeath();
+function toggleInv() {
+    game.isInvOpen = !game.isInvOpen;
+    document.getElementById("inventory-overlay").style.display = game.isInvOpen ? "flex" : "none";
+}
+
+function doCraft(item) {
+    if(item === 'plank' && game.wood >= 2) { game.wood -= 2; game.plank += 4; }
+    if(item === 'wall' && game.plank >= 4) { game.plank -= 4; game.wallCount += 1; }
+    updateStats();
+}
+
+function updateStats() {
+    document.getElementById("hp-val").innerText = Math.floor(game.hp);
+    document.getElementById("wood-val").innerText = game.wood;
+    document.getElementById("plank-val").innerText = game.plank;
+    document.getElementById("wall-val").innerText = game.wallCount;
+}
+
+// ÇARPIŞMA KONTROLÜ (DUVARLAR İÇİN)
+function checkCollision(newX, newY, size) {
+    for (let wall of placedWalls) {
+        if (newX + size > wall.x - 20 && newX - size < wall.x + 20 &&
+            newY + size > wall.y - 20 && newY - size < wall.y + 20) {
+            return true; // Çarpışma var
+        }
     }
-
-    monster.x += (dx / dist) * monster.speed;
-    monster.y += (dy / dist) * monster.speed;
-
-    // Uzaklığa göre fısıltı sesini artır (Basit volume kontrolü)
-    sndWhisper.volume = Math.max(0, Math.min(1, 1 - dist/8));
+    return false;
 }
 
-function triggerDeath() {
-    gameRunning = false;
-    scScreen.style.display = 'block';
-    sndScream.play();
-    document.body.style.animation = "shake 0.1s infinite";
-    setTimeout(() => location.reload(), 2500);
-}
+window.addEventListener("keydown", e => { if(e.key.toLowerCase() === 'e') toggleInv(); keys[e.key.toLowerCase()] = true; });
+window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+canvas.addEventListener("mousedown", e => {
+    if(game.isInvOpen) return;
+    if(e.button === 0) {
+        resources.forEach((r, i) => {
+            if(Math.hypot(game.playerX - r.x, game.playerY - r.y) < 60) {
+                r.hp--;
+                if(r.hp <= 0) { game.wood += 5; resources.splice(i, 1); spawnObj('tree'); }
+            }
+        });
+        mobs.forEach((m, i) => {
+            if(Math.hypot(game.playerX - m.x, game.playerY - m.y) < 50) mobs.splice(i, 1);
+        });
+    } else if(e.button === 2) {
+        if(game.wallCount > 0) {
+            placedWalls.push({x: e.clientX, y: e.clientY});
+            game.wallCount--;
+        }
+    }
+    updateStats();
+});
+canvas.oncontextmenu = (e) => e.preventDefault();
 
 function loop() {
-    if(!gameRunning) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    game.time = (game.time + 1) % 4000;
+    const isNight = game.time > 2000;
+    ctx.fillStyle = isNight ? "#0a0f0a" : "#2d5a27";
+    ctx.fillRect(0,0, canvas.width, canvas.height);
+    document.getElementById("time-val").innerText = isNight ? "Vakit: Gece 💀" : "Vakit: Gündüz ☀️";
 
-    // Hareket Kontrolü
-    let moveS = 0.04;
-    let rotS = 0.05;
-    if(keys['w']) {
-        let nx = player.x + Math.cos(player.dir)*moveS;
-        let ny = player.y + Math.sin(player.dir)*moveS;
-        if(map[Math.floor(ny)][Math.floor(nx)] === 0) { player.x=nx; player.y=ny; }
+    // Oyuncu Hareketi (Duvar Çarpışmalı)
+    if(!game.isInvOpen) {
+        let nextX = game.playerX;
+        let nextY = game.playerY;
+        if(keys['w']) nextY -= 4;
+        if(keys['s']) nextY += 4;
+        if(keys['a']) nextX -= 4;
+        if(keys['d']) nextX += 4;
+
+        if (!checkCollision(nextX, game.playerY, game.pSize)) game.playerX = nextX;
+        if (!checkCollision(game.playerX, nextY, game.pSize)) game.playerY = nextY;
     }
-    if(keys['s']) {
-        let nx = player.x - Math.cos(player.dir)*moveS;
-        let ny = player.y - Math.sin(player.dir)*moveS;
-        if(map[Math.floor(ny)][Math.floor(nx)] === 0) { player.x=nx; player.y=ny; }
+
+    // Ağaçlar
+    resources.forEach(r => {
+        ctx.fillStyle = "#1b5e20";
+        ctx.beginPath(); ctx.arc(r.x, r.y, 20, 0, Math.PI*2); ctx.fill();
+    });
+
+    // Duvarlar
+    placedWalls.forEach(o => {
+        ctx.fillStyle = "#444";
+        ctx.fillRect(o.x-20, o.y-20, 40, 40);
+        ctx.strokeStyle = "#000"; ctx.strokeRect(o.x-20, o.y-20, 40, 40);
+    });
+
+    // Moblar (Duvar Çarpışmalı)
+    if(isNight && Math.random() < 0.03) {
+        mobs.push({x: Math.random() < 0.5 ? -20 : canvas.width + 20, y: Math.random()*canvas.height, hp: 1});
     }
-    if(keys['a']) player.dir -= rotS;
-    if(keys['d']) player.dir += rotS;
+    mobs.forEach((m, i) => {
+        let angle = Math.atan2(game.playerY - m.y, game.playerX - m.x);
+        let nextMX = m.x + Math.cos(angle) * 2;
+        let nextMY = m.y + Math.sin(angle) * 2;
 
-    // Ekranı Çiz
-    ctx.fillStyle = "#111"; ctx.fillRect(0,0,400,120); // Tavan
-    ctx.fillStyle = "#1a1a05"; ctx.fillRect(0,120,400,120); // Yer
+        // Mob duvar çarpışma kontrolü
+        if (!checkCollision(nextMX, m.y, 10)) m.x = nextMX;
+        if (!checkCollision(m.x, nextMY, 10)) m.y = nextMY;
 
-    let viewAngle = lookingBack ? player.dir + Math.PI : player.dir;
-
-    for(let i=0; i<400; i++) {
-        let rayA = (viewAngle - 0.5) + (i/400);
-        let d = 0;
-        let x = player.x, y = player.y;
-        let rayX = Math.cos(rayA), rayY = Math.sin(rayA);
-
-        while(d < 10) {
-            d += 0.05;
-            x += rayX * 0.05; y += rayY * 0.05;
-            if(map[Math.floor(y)][Math.floor(x)] === 1) break;
+        ctx.fillStyle = "#2ecc71";
+        ctx.beginPath(); ctx.arc(m.x, m.y, 10, 0, Math.PI*2); ctx.fill();
+        
+        if(Math.hypot(game.playerX - m.x, game.playerY - m.y) < 20) {
+            game.hp -= 0.3;
+            updateStats();
         }
+    });
 
-        let h = 240 / (d * Math.cos(rayA - viewAngle));
-        let lum = Math.max(0, 160 - d * 22);
-        ctx.strokeStyle = `rgb(${lum}, ${lum-10}, ${lum-50})`;
-        ctx.beginPath(); ctx.moveTo(i, 120-h/2); ctx.lineTo(i, 120+h/2); ctx.stroke();
-    }
+    // Karakter
+    ctx.fillStyle = "#e67e22";
+    ctx.beginPath(); ctx.arc(game.playerX, game.playerY, game.pSize, 0, Math.PI*2); ctx.fill();
 
-    updateMonster();
+    if(game.hp <= 0) { alert("ÖLDÜN!"); location.reload(); }
     requestAnimationFrame(loop);
 }
-
-// Shake CSS
-const style = document.createElement('style');
-style.innerHTML = `@keyframes shake { 0%{transform:translate(4px,4px)} 50%{transform:translate(-4px,-4px)} 100%{transform:translate(0,0)} }`;
-document.head.appendChild(style);
+loop();
 </script>
-
 </body>
 </html>
