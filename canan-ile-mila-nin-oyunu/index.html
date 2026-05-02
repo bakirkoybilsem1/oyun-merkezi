@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Cyber Runner - Karakter Fix</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
+        canvas { display: block; background: #000; }
+        #ui {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            pointer-events: none; color: #0ff;
+        }
+        .menu {
+            pointer-events: auto; background: rgba(0,0,0,0.9); padding: 30px;
+            border: 2px solid #0ff; border-radius: 15px; text-align: center;
+            box-shadow: 0 0 20px #0ff;
+        }
+        button {
+            padding: 15px 40px; font-size: 20px; cursor: pointer;
+            background: #0ff; border: none; font-weight: bold; border-radius: 5px;
+        }
+        #score { position: absolute; top: 20px; font-size: 30px; text-shadow: 0 0 10px #0ff; }
+    </style>
+</head>
+<body>
+
+    <canvas id="game"></canvas>
+    <div id="ui">
+        <div id="score">SKOR: 0</div>
+        <div id="menu" class="menu">
+            <h1>CYBER SURFER</h1>
+            <p>Yön Tuşları ile Hareket Et</p>
+            <button onclick="start()">BAŞLAT</button>
+        </div>
+    </div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const menu = document.getElementById('menu');
+const scoreBox = document.getElementById('score');
+
+let gameReq;
+let running = false;
+let lanes = [];
+let player = { lane: 1, x: 0, y: 0, jump: 0, vY: 0, roll: 0 };
+let obs = [];
+let score = 0;
+let speed = 7;
+
+function init() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const mid = canvas.width / 2;
+    const dist = Math.min(canvas.width / 4, 150);
+    lanes = [mid - dist, mid, mid + dist];
+    
+    // Karakterin konumunu zorla belirle
+    player.x = lanes[player.lane];
+    player.y = canvas.height - 150;
+}
+
+function start() {
+    running = true;
+    score = 0;
+    speed = 7;
+    obs = [];
+    player.lane = 1;
+    player.jump = 0;
+    player.roll = 0;
+    menu.style.display = 'none';
+    loop();
+}
+
+window.addEventListener('keydown', e => {
+    if(!running) return;
+    if(e.key === 'ArrowLeft' && player.lane > 0) player.lane--;
+    if(e.key === 'ArrowRight' && player.lane < 2) player.lane++;
+    if(e.key === 'ArrowUp' && player.jump === 0) player.vY = 15;
+    if(e.key === 'ArrowDown') player.roll = 25;
+});
+
+function update() {
+    score++;
+    scoreBox.innerText = "SKOR: " + Math.floor(score/10);
+    speed += 0.001;
+
+    // Şerit takibi (Yumuşak geçiş)
+    let targetX = lanes[player.lane];
+    player.x += (targetX - player.x) * 0.2;
+
+    // Zıplama
+    if(player.jump > 0 || player.vY !== 0) {
+        player.jump += player.vY;
+        player.vY -= 0.8;
+        if(player.jump < 0) { player.jump = 0; player.vY = 0; }
+    }
+
+    // Eğilme
+    if(player.roll > 0) player.roll--;
+
+    // Engeller
+    if(Math.random() < 0.02) {
+        obs.push({
+            x: lanes[Math.floor(Math.random()*3)],
+            y: -100,
+            t: Math.random() > 0.5 ? 'H' : 'L' // High (Eğil), Low (Zıpla)
+        });
+    }
+
+    obs.forEach((o, i) => {
+        o.y += speed;
+        
+        // Çarpışma kontrolü
+        let pTop = player.y - player.jump + (player.roll > 0 ? 40 : 0);
+        let pBot = player.y - player.jump + 80;
+        
+        if(o.y + 40 > pTop && o.y < pBot && Math.abs(o.x - player.x) < 20) {
+            if(o.t === 'L' && player.jump < 30) die();
+            if(o.t === 'H' && player.roll === 0) die();
+        }
+
+        if(o.y > canvas.height) obs.splice(i, 1);
+    });
+}
+
+function draw() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Yolları çiz
+    ctx.strokeStyle = '#222';
+    lanes.forEach(l => {
+        ctx.beginPath(); ctx.moveTo(l, 0); ctx.lineTo(l, canvas.height); ctx.stroke();
+    });
+
+    // Engelleri çiz
+    obs.forEach(o => {
+        ctx.fillStyle = o.t === 'L' ? '#ff0055' : '#ffcc00';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.fillRect(o.x - 30, o.y, 60, o.t === 'L' ? 40 : 100);
+        if(o.t === 'H') ctx.clearRect(o.x - 25, o.y + 70, 50, 30); // Altı boş geçit
+    });
+
+    // KARAKTERİ ÇİZ (Fosforlu Cyan)
+    ctx.save();
+    let drawY = player.y - player.jump;
+    let drawH = 80;
+    if(player.roll > 0) {
+        drawY += 40;
+        drawH = 40;
+    }
+    
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#0ff';
+    ctx.fillStyle = '#fff'; // İç gövde beyaz (daha net görünür)
+    ctx.fillRect(player.x - 20, drawY, 40, drawH);
+    
+    ctx.strokeStyle = '#0ff'; // Dış çerçeve cyan
+    ctx.lineWidth = 3;
+    ctx.strokeRect(player.x - 20, drawY, 40, drawH);
+    ctx.restore();
+}
+
+function die() {
+    running = false;
+    cancelAnimationFrame(gameReq);
+    menu.style.display = 'block';
+    menu.innerHTML = `<h1>OYUN BİTTİ</h1><p>SKOR: ${Math.floor(score/10)}</p><button onclick="start()">TEKRAR DENE</button>`;
+}
+
+function loop() {
+    if(!running) return;
+    update();
+    draw();
+    gameReq = requestAnimationFrame(loop);
+}
+
+init();
+window.onresize = init;
+</script>
+</body>
+</html>
