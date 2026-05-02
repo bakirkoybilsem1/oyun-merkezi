@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Arena: Clean Dark</title>
+    <style>
+        :root { --neon: #00f2ff; --bg: #0a0a0f; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; overflow: hidden; height: 100vh; }
+        
+        /* Üst Panel */
+        #hud { width: 100%; max-width: 1000px; display: flex; justify-content: space-around; padding: 15px; background: #111; border-bottom: 2px solid var(--neon); box-shadow: 0 5px 15px rgba(0,242,255,0.1); }
+        
+        /* Oyun Alanı - Reklamsız Düz Renk */
+        canvas { 
+            background: #121218; /* Saf ve koyu arka plan */
+            border: 2px solid #333; 
+            margin-top: 10px; 
+            border-radius: 8px; 
+        }
+        
+        /* Market Alanı */
+        #shop { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 15px; width: 1000px; max-height: 180px; overflow-y: auto; padding: 10px; }
+        .card { padding: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .card:hover { border-color: var(--neon); background: #222; }
+        .locked { opacity: 0.3; filter: grayscale(1); }
+        .active { border: 2px solid var(--neon) !important; box-shadow: 0 0 8px var(--neon); }
+        
+        /* Ölüm Ekranı */
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        .btn { padding: 12px 40px; background: var(--neon); color: black; border: none; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+<div id="hud">
+    <div>💰 <span id="gold-val">0</span></div>
+    <div>⭐ SKOR: <span id="lvl-val">0</span></div>
+    <div>❤️ <span id="hp-val">100</span> / <span id="mhp-val">100</span></div>
+    <div id="status-msg" style="color: var(--neon);">ARENA TEMİZLENDİ</div>
+</div>
+
+<div id="overlay">
+    <h1 style="color:#ff4757; font-size: 40px;">SAVAŞÇI DÜŞTÜ!</h1>
+    <button class="btn" onclick="respawn()">YENİDEN DENE</button>
+</div>
+
+<canvas id="gameCanvas" width="1000" height="350"></canvas>
+
+<div id="shop"></div>
+
+<div style="margin-top: 10px; color: #555; font-size: 13px;">
+    <b>WASD:</b> Hareket | <b>F:</b> Saldırı | Arka plan temizlendi, odaklan!
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let gold = 0, score = 0, isGameOver = false, playerCanAttack = true;
+let lastHitTime = 0;
+
+const heroes = {
+    'Çaylak':  { e: '👦', hp: 100, atk: 45, spd: 6, reg: 0.2, price: 0, open: true },
+    'Ninja':   { e: '🥷', hp: 85, atk: 55, spd: 9, reg: 0.1, price: 150, open: false },
+    'Şövalye': { e: '🛡️', hp: 220, atk: 40, spd: 4, reg: 0.3, price: 300, open: false },
+    'Samuray': { e: '👺', hp: 130, atk: 65, spd: 7, reg: 0.15, price: 500, open: false },
+    'Büyücü':  { e: '🧙', hp: 75, atk: 120, spd: 5, reg: 0.2, price: 750, open: false },
+    'Robot':   { e: '🤖', hp: 160, atk: 50, spd: 6, reg: 0.05, price: 1000, open: false },
+    'Korsan':  { e: '🏴‍☠️', hp: 120, atk: 65, spd: 6.5, reg: 0.1, price: 1300, open: false },
+    'Uzaylı':  { e: '👽', hp: 140, atk: 80, spd: 7, reg: 0.25, price: 1700, open: false },
+    'Melek':   { e: '😇', hp: 110, atk: 45, spd: 6, reg: 1.5, price: 2200, open: false },
+    'İblis':   { e: '😈', hp: 190, atk: 90, spd: 7, reg: 0.1, price: 3000, open: false },
+    'Kral':    { e: '👑', hp: 260, atk: 100, spd: 5, reg: 0.4, price: 5000, open: false },
+    'Tanrı':   { e: '⚡', hp: 550, atk: 170, spd: 8, reg: 3.0, price: 10000, open: false }
+};
+
+const monsters = ['👾','👻','🧟','🧛','🤡','🦂','🕷️','🐗','🐍','🦟','👹','💀','🎃','🦖','👽'];
+
+let p = { ...heroes['Çaylak'], x: 100, y: 250, vx: 0, vy: 0, w: 50, h: 50, mHp: 100, name: 'Çaylak' };
+let e = { e: '👾', x: 800, y: 250, vx: 0, vy: 0, hp: 40, mHp: 40, atk: 8, spd: 3, lastAtk: 0 };
+
+const keys = {};
+window.onkeydown = (ev) => keys[ev.code] = true;
+window.onkeyup = (ev) => keys[ev.code] = false;
+
+function initShop() {
+    const shop = document.getElementById('shop');
+    shop.innerHTML = '';
+    for (let key in heroes) {
+        let h = heroes[key];
+        let div = document.createElement('div');
+        div.className = `card ${h.open ? '' : 'locked'} ${p.name === key ? 'active' : ''}`;
+        div.innerHTML = `<b style="font-size:22px">${h.e}</b><br><b>${key}</b><br>${h.open ? 'SEÇ' : h.price + '💰'}`;
+        div.onclick = () => h.open ? selectHero(key) : buyHero(key);
+        shop.appendChild(div);
+    }
+}
+
+function buyHero(key) {
+    if (gold >= heroes[key].price) {
+        gold -= heroes[key].price;
+        heroes[key].open = true;
+        initShop();
+        selectHero(key);
+    }
+}
+
+function selectHero(key) {
+    const h = heroes[key];
+    p = { ...p, ...h, name: key, hp: h.hp, mHp: h.hp };
+    initShop();
+}
+
+function spawnEnemy() {
+    score++;
+    e.e = monsters[Math.floor(Math.random() * monsters.length)];
+    e.mHp = 35 + (score * 6); 
+    e.hp = e.mHp;
+    e.atk = 7 + (score * 0.5);
+    e.spd = 2.2 + Math.random() * 2;
+    e.x = canvas.width + 50;
+    e.lastAtk = 0;
+}
+
+function respawn() {
+    isGameOver = false;
+    gold = Math.floor(gold * 0.7); 
+    score = 0;
+    document.getElementById('overlay').style.display = 'none';
+    p.hp = p.mHp; p.x = 100;
+    spawnEnemy();
+    requestAnimationFrame(update);
+}
+
+function update() {
+    if (isGameOver) return;
+
+    if (keys['KeyA'] || keys['ArrowLeft']) p.vx = -p.spd;
+    else if (keys['KeyD'] || keys['ArrowRight']) p.vx = p.spd;
+    else p.vx *= 0.8;
+    if ((keys['KeyW'] || keys['Space']) && p.vy === 0) p.vy = -15;
+
+    if (Date.now() - lastHitTime > 1500 && p.hp < p.mHp) p.hp += p.reg;
+
+    if (keys['KeyF'] && playerCanAttack) {
+        if (Math.abs(p.x - e.x) < 95) {
+            e.hp -= p.atk;
+            e.vx = p.x < e.x ? 12 : -12;
+        }
+        playerCanAttack = false;
+        setTimeout(() => playerCanAttack = true, 200);
+    }
+
+    [p, e].forEach(obj => {
+        obj.x += obj.vx; obj.y += obj.vy;
+        obj.vy += 0.8;
+        if (obj.y > canvas.height - 70) { obj.y = canvas.height - 70; obj.vy = 0; }
+        if (obj.x < 0) obj.x = 0; if (obj.x > canvas.width - 50) obj.x = canvas.width - 50;
+        obj.vx *= 0.9;
+    });
+
+    let dist = p.x - e.x;
+    let now = Date.now();
+
+    if (Math.abs(dist) > 55) {
+        e.vx = dist > 0 ? e.spd : -e.spd;
+    } else {
+        e.vx *= 0.5;
+        if (now - e.lastAtk > 700) {
+            p.hp -= e.atk;
+            lastHitTime = now;
+            e.lastAtk = now;
+            p.vx = dist > 0 ? 12 : -12;
+        }
+    }
+
+    if (e.hp <= 0) { gold += 45 + score; spawnEnemy(); }
+    if (p.hp <= 0) { isGameOver = true; document.getElementById('overlay').style.display = 'flex'; }
+
+    draw();
+    requestAnimationFrame(update);
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Zemin Çizgisi
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height - 20);
+    ctx.lineTo(canvas.width, canvas.height - 20);
+    ctx.stroke();
+
+    ctx.font = "50px Arial";
+    ctx.textAlign = "center";
+    
+    // Karakterler
+    ctx.fillText(p.e, p.x + 25, p.y + 45);
+    ctx.fillText(e.e, e.x + 25, e.y + 45);
+    
+    // Can Barları
+    ctx.fillStyle = "#00ff88"; ctx.fillRect(p.x, p.y - 15, (p.hp/p.mHp)*50, 6);
+    ctx.fillStyle = "#ff4444"; ctx.fillRect(e.x, e.y - 15, (e.hp/e.mHp)*50, 6);
+
+    document.getElementById('gold-val').innerText = Math.floor(gold);
+    document.getElementById('lvl-val').innerText = score;
+    document.getElementById('hp-val').innerText = Math.ceil(p.hp);
+    document.getElementById('mhp-val').innerText = p.mHp;
+}
+
+initShop();
+spawnEnemy();
+update();
+</script>
+</body>
+</html>
