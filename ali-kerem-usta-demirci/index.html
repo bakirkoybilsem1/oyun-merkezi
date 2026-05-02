@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USTA DEMİRCİ: RİSKLİ DÖVME</title>
+    <style>
+        body { background: #121212; color: #eee; font-family: 'Courier New', Courier, monospace; text-align: center; margin: 0; user-select: none; }
+        #game-container { max-width: 450px; margin: 20px auto; background: #1e1e1e; padding: 25px; border: 4px solid #444; box-shadow: 0 0 30px #000; border-radius: 15px; }
+        
+        .slot-machine { background: #282828; padding: 15px; border-radius: 10px; border: 2px dashed #f1c40f; margin-bottom: 15px; }
+        #display-name { font-size: 22px; color: #f1c40f; font-weight: bold; margin-bottom: 10px; }
+        
+        #timer-box { font-size: 20px; color: #e74c3c; font-weight: bold; background: #000; padding: 5px; border-radius: 5px; display: inline-block; min-width: 80px; margin-bottom: 10px; border: 1px solid #444; }
+
+        .stat-label { display: flex; justify-content: space-between; margin: 15px 0 5px 0; font-weight: bold; font-size: 14px; }
+        .bar-bg { background: #333; height: 25px; border-radius: 5px; border: 1px solid #555; position: relative; overflow: hidden; }
+        #heat-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #3498db, #f1c40f, #e74c3c, #ffffff); transition: 0.1s; }
+        #progress-bar { width: 0%; height: 100%; background: #2ecc71; transition: 0.2s; }
+        #target-zone { position: absolute; left: 70%; width: 15%; height: 100%; background: rgba(255, 255, 255, 0.2); border-left: 2px solid white; border-right: 2px solid white; z-index: 1; }
+        
+        #anvil-icon { font-size: 70px; margin: 15px 0; display: block; transition: transform 0.1s; }
+        
+        button { width: 100%; padding: 15px; margin: 8px 0; font-size: 16px; font-weight: bold; cursor: pointer; border: none; border-radius: 8px; text-transform: uppercase; }
+        .btn-spin { background: #9b59b6; color: white; border-bottom: 4px solid #8e44ad; }
+        .btn-heat { background: #e67e22; color: white; border-bottom: 4px solid #d35400; }
+        .btn-forge { background: #555; color: #888; }
+        .active-forge { background: #2ecc71 !important; color: white !important; cursor: crosshair !important; box-shadow: 0 0 20px #2ecc71; border-bottom: 4px solid #27ae60; }
+        
+        #log { height: 60px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; flex-direction: column; }
+        
+        /* Geri gitme efekti */
+        .shake { animation: shake 0.3s; }
+        @keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 100% { transform: translateX(0); } }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="slot-machine">
+        <div id="display-name">❓ GİZEMLİ GÖREV ❓</div>
+        <div id="timer-box">00:00</div>
+        <button class="btn-spin" id="spin-btn" onclick="startRandomSelection()">🎲 KADERİNİ BELİRLE</button>
+    </div>
+
+    <div id="anvil-icon">⚒️</div>
+    <div id="log" style="color: #aaa;">Eşya seç ve başla!</div>
+
+    <div class="stat-label">SICAKLIK <span id="heat-txt">0°C</span></div>
+    <div class="bar-bg">
+        <div id="target-zone"></div>
+        <div id="heat-bar"></div>
+    </div>
+
+    <div class="stat-label">İLERLEME <span id="progress-txt">%0</span></div>
+    <div class="bar-bg"><div id="progress-bar"></div></div>
+
+    <br>
+    <button class="btn-heat" onmousedown="startHeating()" onmouseup="stopHeating()" onmouseleave="stopHeating()">KÖRÜKLE</button>
+    <button id="forge-btn" class="btn-forge" onclick="forge()">DEMİRİ DÖV!</button>
+</div>
+
+<script>
+    let heat = 0, progress = 0, isHeating = false, gameActive = false;
+    let currentItem = null;
+    let startTime, timerInterval;
+
+    const items = [
+        { name: "Kral Kılıcı", icon: "⚔️", h: 1.6, c: 0.6 },
+        { name: "Savaş Baltası", icon: "🪓", h: 1.2, c: 0.4 },
+        { name: "Kalkan", icon: "🛡️", h: 0.9, c: 0.2 },
+        { name: "Altın Tac", icon: "👑", h: 2.0, c: 1.0 },
+        { name: "Gizli Hançer", icon: "🗡️", h: 2.2, c: 1.2 }
+    ];
+
+    function startRandomSelection() {
+        if (gameActive) return;
+        const spinBtn = document.getElementById('spin-btn');
+        spinBtn.disabled = true;
+        let counter = 0;
+        const spinInterval = setInterval(() => {
+            const tempItem = items[Math.floor(Math.random() * items.length)];
+            document.getElementById('display-name').innerText = "🎲 " + tempItem.name;
+            counter++;
+            if (counter > 12) {
+                clearInterval(spinInterval);
+                currentItem = items[Math.floor(Math.random() * items.length)];
+                beginCrafting();
+                spinBtn.disabled = false;
+            }
+        }, 80);
+    }
+
+    function beginCrafting() {
+        document.getElementById('display-name').innerText = currentItem.icon + " " + currentItem.name;
+        document.getElementById('display-name').style.color = "#f1c40f";
+        document.getElementById('anvil-icon').innerText = "🔥";
+        heat = 0; progress = 0;
+        gameActive = true;
+        startTime = Date.now();
+        if(timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(updateTimer, 100);
+    }
+
+    function updateTimer() {
+        if (!gameActive) return;
+        let elapsed = Math.floor((Date.now() - startTime) / 1000);
+        let mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        let secs = (elapsed % 60).toString().padStart(2, '0');
+        document.getElementById('timer-box').innerText = mins + ":" + secs;
+        if (elapsed >= 90) gameOver("SÜRE DOLDU! Metal işlenemez hale geldi.");
+    }
+
+    const gameLoop = setInterval(() => {
+        if (!gameActive) return;
+        if (isHeating) heat += currentItem.h; else heat -= currentItem.c;
+        if (heat < 0) heat = 0;
+        if (heat > 100) gameOver("METAL ERİDİ! Çok fazla ısıttın.");
+        updateUI();
+    }, 50);
+
+    function updateUI() {
+        document.getElementById('heat-bar').style.width = heat + "%";
+        document.getElementById('heat-txt').innerText = Math.floor(heat * 12) + "°C";
+        document.getElementById('progress-bar').style.width = progress + "%";
+        document.getElementById('progress-txt').innerText = "%" + Math.floor(progress);
+
+        const forgeBtn = document.getElementById('forge-btn');
+        if (heat >= 70 && heat <= 85) forgeBtn.classList.add('active-forge');
+        else forgeBtn.classList.remove('active-forge');
+    }
+
+    function startHeating() { if(gameActive) isHeating = true; }
+    function stopHeating() { isHeating = false; }
+
+    function forge() {
+        if (!gameActive) return;
+        const log = document.getElementById('log');
+
+        if (heat >= 70 && heat <= 85) {
+            // Başarılı vuruş
+            progress += 5;
+            heat -= 5;
+            log.innerText = "HARİKA! Şekil alıyor...";
+            log.style.color = "#2ecc71";
+            document.getElementById('anvil-icon').style.transform = "scale(1.4)";
+            setTimeout(() => document.getElementById('anvil-icon').style.transform = "scale(1)", 50);
+        } else if (heat < 70) {
+            // SOĞUK VURUŞ: CEZA!
+            progress = Math.max(0, progress - 10);
+            log.innerText = "METAL ÇOK SOĞUK! Geri gittin!";
+            log.style.color = "#e74c3c";
+            document.getElementById('game-container').classList.add('shake');
+            setTimeout(() => document.getElementById('game-container').classList.remove('shake'), 300);
+        } else {
+            // ÇOK SICAK VURUŞ: HAFİF CEZA
+            progress = Math.max(0, progress - 5);
+            log.innerText = "ÇOK SICAK! Metal yamuldu!";
+            log.style.color = "#e67e22";
+        }
+
+        if (progress >= 100) victory();
+    }
+
+    function victory() {
+        gameActive = false;
+        clearInterval(timerInterval);
+        let finalTime = Math.floor((Date.now() - startTime) / 1000);
+        let quality = "";
+        if (finalTime < 30) quality = "EFSANEVİ (GÜZEL)";
+        else if (finalTime < 60) quality = "ORTALAMA";
+        else quality = "KÖTÜ İŞÇİLİK";
+        document.getElementById('log').innerHTML = `<span style="color:#2ecc71">${quality}</span><br>Süre: ${finalTime}sn`;
+        document.getElementById('anvil-icon').innerText = currentItem.icon;
+    }
+
+    function gameOver(msg) {
+        gameActive = false;
+        clearInterval(timerInterval);
+        document.getElementById('log').innerText = msg;
+        document.getElementById('log').style.color = "#e74c3c";
+        document.getElementById('anvil-icon').innerText = "❌";
+    }
+</script>
+</body>
+</html>
