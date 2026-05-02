@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Voxel War: Arena Mayhem</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Arial Black', sans-serif; user-select: none; }
+        #gui { position: absolute; top: 20px; left: 20px; color: #fff; z-index: 100; text-shadow: 2px 2px #000; pointer-events: none; }
+        .stat { font-size: 24px; margin-bottom: 5px; }
+        #hp-bar { width: 200px; height: 20px; background: #440000; border: 2px solid #fff; }
+        #hp-inner { width: 100%; height: 100%; background: #ff0000; transition: 0.2s; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; border: 2px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 100; }
+        #sniper-scope { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; border: 250px solid black; box-sizing: border-box; border-radius: 50%; display: none; pointer-events: none; z-index: 50; }
+        #market-ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(10,10,10,0.95); border: 5px solid gold; color: white; padding: 20px; display: none; text-align: center; z-index: 200; border-radius: 15px; width: 350px; }
+        .buy-item { background: #333; border: 1px solid #555; padding: 10px; margin: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .buy-btn { background: #27ae60; color: white; border: none; padding: 5px 10px; cursor: pointer; }
+        #hud { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; z-index: 100; }
+        .slot { width: 60px; height: 50px; background: rgba(0,0,0,0.8); border: 2px solid #444; color: #666; font-size: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .unlocked { border-color: #fff; color: #fff; }
+        .active { border-color: gold; background: rgba(255, 215, 0, 0.2); transform: scale(1.1); color: gold; }
+        #bow-bar-container { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); width: 150px; height: 10px; background: #222; border: 1px solid #fff; display: none; }
+        #bow-bar-inner { width: 0%; height: 100%; background: lime; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+<div id="gui">
+    <div class="stat">CAN</div>
+    <div id="hp-bar"><div id="hp-inner"></div></div>
+    <div class="stat" style="margin-top:10px;">PARA: $<span id="money">100</span></div>
+    <div id="dash-status" style="font-size: 12px; color: #00ff00;">DASH HAZIR (X)</div>
+    <div id="bomb-status" style="font-size: 12px; color: #ffaa00; margin-top: 5px;">BOMBA: KİLİTLİ</div>
+</div>
+
+<div id="bow-bar-container"><div id="bow-bar-inner"></div></div>
+<div id="crosshair"></div>
+<div id="sniper-scope"></div>
+
+<div id="market-ui">
+    <h1 style="color:gold">M - MARKET</h1>
+    <div id="market-list" style="max-height: 400px; overflow-y: auto;"></div>
+    <button onclick="closeMarket()" style="margin-top:10px; background:red; color:white; border:none; padding:10px; cursor:pointer; width:100%;">KAPAT</button>
+</div>
+
+<div id="hud"></div>
+
+<script>
+    let hp = 100, money = 100, currentSlot = 1, velocityY = 0, canJump = true;
+    let isZoomed = false, lastShotTime = 0, isMouseDown = false;
+    let lastDashTime = 0, lastBombTime = 0;
+    let inventoryPage = 1; 
+    let bowCharge = 0;
+    const DASH_COOLDOWN = 10000;
+    const BOMB_COOLDOWN = 3000;
+    const unlocked = [1]; 
+    let hasBomb = false;
+
+    let npcTaramaCount = 0;
+    let npcSniperCount = 0;
+    const TOTAL_NPCS = 40;
+
+    const weapons = {
+        1: { name: "TABANCA", price: 0, damage: 25, speed: 3, color: 0xffff00, effect: "bullet", rate: 400 },
+        2: { name: "SNIPER", price: 1500, damage: 250, speed: 10, color: 0x00ffff, effect: "bullet", rate: 1200 },
+        3: { name: "TARAMALI", price: 2000, damage: 8, speed: 4, color: 0xffaa00, effect: "bullet", rate: 100 },
+        4: { name: "ROKET ATAR", price: 3500, damage: 80, speed: 1.5, color: 0xff4400, effect: "rocket", rate: 800 },
+        5: { name: "ALEV SİLAHI", price: 2500, damage: 50, speed: 1.6, color: 0xff4500, effect: "spark", rate: 50 },
+        6: { name: "POMPALI", price: 1200, damage: 150, speed: 3, color: 0xaaaaaa, effect: "bullet", rate: 800 },
+        7: { name: "LAZER", price: 4000, damage: 45, speed: 8, color: 0xff0000, effect: "laser", rate: 150 },
+        8: { name: "ELEKTRİK", price: 4500, damage: 120, speed: 5, color: 0x0088ff, effect: "bullet", rate: 200 },
+        9: { name: "VOLKAN", price: 5000, damage: 200, speed: 1, color: 0xff0000, effect: "rocket", rate: 1500 },
+        0: { name: "HANÇER", price: 500, damage: 80, speed: 0.8, color: 0xcccccc, effect: "melee", rate: 300 },
+        11: { name: "PORTAL", price: 3000, damage: 0, speed: 4, color: 0x800080, effect: "portal", rate: 1000 },
+        12: { name: "KARA DELİK", price: 7000, damage: 5, speed: 2, color: 0x000000, effect: "blackhole", rate: 5000 },
+        13: { name: "YAY", price: 2000, damage: 120, speed: 6, color: 0x8b4513, effect: "bow", rate: 500 },
+        "bomb": { name: "BOMBA", price: 2500, damage: 300 }
+    };
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x00BFFF);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2500);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const sun = new THREE.DirectionalLight(0xffffff, 1);
+    sun.position.set(100, 200, 100);
+    scene.add(sun);
+
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshPhongMaterial({ color: 0x228B22 }));
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+
+    const houses = [], npcs = [], bullets = [], npcBullets = [], jumpPads = [], healthPacks = [], activeBombs = [], blackHoles = [];
+
+    function spawnHealthPack() {
+        const group = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshPhongMaterial({color: 0xff0000}));
+        const crossH = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.6, 0.6), new THREE.MeshPhongMaterial({color: 0xffffff}));
+        const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.6, 2.2, 0.6), new THREE.MeshPhongMaterial({color: 0xffffff}));
+        group.add(body, crossH, crossV);
+        group.position.set((Math.random()-0.5)*1500, 1.2, (Math.random()-0.5)*1500);
+        scene.add(group);
+        healthPacks.push(group);
+    }
+    for(let i=0; i<30; i++) spawnHealthPack();
+
+    function spawnJumpPad(x, z) {
+        const pad = new THREE.Mesh(new THREE.BoxGeometry(6, 0.5, 6), new THREE.MeshPhongMaterial({ color: 0xffff00 }));
+        pad.position.set(x, 0.25, z);
+        scene.add(pad);
+        jumpPads.push(pad);
+    }
+    for(let i=0; i<20; i++) spawnJumpPad((Math.random()-0.5)*1000, (Math.random()-0.5)*1000);
+
+    function buildHouse(x, z, color, isMarket = false) {
+        const group = new THREE.Group();
+        const size = isMarket ? 45 : 20;
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(size, 20, size), new THREE.MeshPhongMaterial({ color: color }));
+        wall.position.y = 10;
+        if(isMarket) {
+            const mSign = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 2), new THREE.MeshPhongMaterial({color: 0xff0000}));
+            mSign.position.set(0, 30, 0);
+            group.add(mSign);
+        }
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(size*0.8, 15, 4), new THREE.MeshPhongMaterial({ color: 0x222222 }));
+        roof.position.y = 25; roof.rotation.y = Math.PI/4;
+        group.add(wall, roof);
+        group.position.set(x, 0, z);
+        scene.add(group);
+        houses.push({ mesh: group, market: isMarket });
+    }
+
+    buildHouse(0, -80, 0xffd700, true);
+    for(let i=0; i<50; i++) {
+        let x = (Math.random()-0.5)*1200;
+        let z = (Math.random()-0.5)*1200;
+        let dist = Math.sqrt(x*x + (z+80)*(z+80));
+        if(dist > 80) buildHouse(x, z, Math.random()*0xffffff);
+        else i--;
+    }
+
+    function spawnNPC(existingNPC = null) {
+        const team = Math.random() > 0.5 ? "A" : "B";
+        const isHunter = Math.random() < 0.20;
+        const npc = existingNPC || new THREE.Group();
+        let npcWeaponId = 1;
+        
+        if(existingNPC && existingNPC.userData.weaponId) {
+            if(existingNPC.userData.weaponId === 3) npcTaramaCount--;
+            if(existingNPC.userData.weaponId === 2) npcSniperCount--;
+        }
+
+        if (npcs.length < TOTAL_NPCS) {
+             if (npcs.length === 0) { npcWeaponId = 3; npcTaramaCount++; } 
+             else if (npcs.length === 1 || npcs.length === 2) { npcWeaponId = 2; npcSniperCount++; }
+        }
+
+        if(!existingNPC) {
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 2), new THREE.MeshPhongMaterial({ color: team === "A" ? 0xff0000 : 0x0000ff }));
+            body.position.y = 2.5;
+            const head = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), new THREE.MeshPhongMaterial({ color: 0xffdbac }));
+            head.position.y = 5.8;
+            const gun = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 2.5), new THREE.MeshPhongMaterial({color: 0x111}));
+            gun.position.set(1.3, 3.5, -1.2);
+            npc.add(body, head, gun);
+            scene.add(npc);
+            npcs.push(npc);
+        }
+        
+        npc.position.set((Math.random()-0.5)*1000, 0, (Math.random()-0.5)*1000);
+        npc.userData = { health: 70, lastShot: 0, team: team, dead: false, speed: 0.3, isHunter: isHunter, weaponId: npcWeaponId };
+    }
+    for(let i=0; i<TOTAL_NPCS; i++) spawnNPC();
+
+    function shoot() {
+        const w = weapons[currentSlot];
+        if (!w || w.effect === "bow") return; 
+        if(Date.now() - lastShotTime < w.rate) return;
+        lastShotTime = Date.now();
+
+        let b;
+        if(w.effect === "portal") b = new THREE.Mesh(new THREE.SphereGeometry(1), new THREE.MeshBasicMaterial({ color: 0x800080 }));
+        else if(w.effect === "blackhole") b = new THREE.Mesh(new THREE.SphereGeometry(1.2), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+        else if(w.effect === "laser") b = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 12), new THREE.MeshBasicMaterial({ color: w.color }));
+        else if(w.effect === "melee") { b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3, 0.1), new THREE.MeshPhongMaterial({ color: 0xcccccc })); b.rotation.x = Math.PI/2; }
+        else b = new THREE.Mesh(w.effect === "spark" ? new THREE.BoxGeometry(2.5, 2.5, 2.5) : new THREE.SphereGeometry(0.45), new THREE.MeshBasicMaterial({ color: w.color }));
+        
+        b.position.copy(camera.position);
+        b.quaternion.copy(camera.quaternion);
+        b.userData = { speed: w.speed, damage: w.damage, effect: w.effect, life: 300, weaponId: currentSlot };
+        bullets.push(b);
+        scene.add(b);
+    }
+
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+        keys[e.key.toLowerCase()] = true;
+        if(e.key === 'Tab') {
+            e.preventDefault();
+            inventoryPage = inventoryPage === 1 ? 2 : 1;
+            initUI();
+        }
+        if(e.key.toLowerCase() === 'b') {
+            if(!hasBomb || Date.now() - lastBombTime < BOMB_COOLDOWN) return;
+            lastBombTime = Date.now();
+            const bomb = new THREE.Mesh(new THREE.SphereGeometry(0.8), new THREE.MeshPhongMaterial({color: 0x333333}));
+            bomb.position.copy(camera.position);
+            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+            bomb.userData = { velocity: dir.multiplyScalar(1.5), gravity: -0.05, timer: 180 };
+            scene.add(bomb); activeBombs.push(bomb);
+        }
+        if(e.key.toLowerCase() === 'x') {
+            const now = Date.now();
+            if(now - lastDashTime >= DASH_COOLDOWN) {
+                const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+                camera.position.addScaledVector(dir, 60);
+                lastDashTime = now;
+                document.getElementById('dash-status').innerText = 'DASH DOLUYOR...';
+                setTimeout(() => document.getElementById('dash-status').innerText = 'DASH HAZIR (X)', DASH_COOLDOWN);
+            }
+        }
+        if(!isNaN(e.key) && e.code.startsWith('Digit')) {
+            let k = parseInt(e.key); 
+            let targetSlot = k;
+            if(inventoryPage === 2) {
+                if(k >= 1 && k <= 3) targetSlot = k + 10;
+                else return;
+            }
+            if(unlocked.includes(targetSlot)) { 
+                currentSlot = targetSlot; 
+                initUI(); 
+            } 
+        }
+        if(e.key.toLowerCase() === 'm') {
+            const mHouse = houses.find(h => h.market).mesh;
+            if(camera.position.distanceTo(mHouse.position) < 60) {
+                const ui = document.getElementById('market-ui');
+                ui.style.display = ui.style.display === 'block' ? 'none' : 'block';
+                if(ui.style.display === 'block') document.exitPointerLock();
+            }
+        }
+        if(e.code === 'Space' && canJump) { velocityY = 0.6; canJump = false; }
+    });
+
+    window.addEventListener('mousedown', (e) => {
+        if(e.button === 0) {
+            isMouseDown = true;
+            if(weapons[currentSlot] && weapons[currentSlot].effect === "bow") {
+                document.getElementById('bow-bar-container').style.display = 'block';
+                bowCharge = 0;
+            }
+        }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+        if(e.button === 0) {
+            isMouseDown = false;
+            if(weapons[currentSlot] && weapons[currentSlot].effect === "bow" && bowCharge > 5) {
+                const b = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 4), new THREE.MeshBasicMaterial({color: 0xffffff}));
+                b.position.copy(camera.position);
+                b.quaternion.copy(camera.quaternion);
+                let chargeRatio = bowCharge / 100;
+                b.userData = { 
+                    speed: chargeRatio * 12 + 2, 
+                    damage: chargeRatio * 400, 
+                    effect: "bullet", 
+                    life: 250 
+                };
+                bullets.push(b);
+                scene.add(b);
+            }
+            document.getElementById('bow-bar-container').style.display = 'none';
+            bowCharge = 0;
+        }
+    });
+
+    function animate() {
+        requestAnimationFrame(animate);
+        if(isMouseDown) {
+            if(weapons[currentSlot] && weapons[currentSlot].effect === "bow") {
+                bowCharge = Math.min(bowCharge + 1.5, 100);
+                document.getElementById('bow-bar-inner').style.width = bowCharge + "%";
+            } else {
+                shoot();
+            }
+        }
+
+        if(document.pointerLockElement) {
+            const spd = keys['shift'] ? 1.0 : 0.7;
+            if(keys["arrowup"]) camera.translateZ(-spd);
+            if(keys["arrowdown"]) camera.translateZ(spd);
+            if(keys["arrowleft"]) camera.translateX(-spd);
+            if(keys["arrowright"]) camera.translateX(spd);
+            camera.position.y += velocityY;
+            if(camera.position.y > 5) velocityY -= 0.03; else { camera.position.y = 5; velocityY = 0; canJump = true; }
+            
+            jumpPads.forEach(pad => { if(camera.position.distanceTo(pad.position) < 5) { velocityY = 1.2; canJump = false; } });
+            healthPacks.forEach((p) => { if(camera.position.distanceTo(p.position) < 5) { hp = Math.min(100, hp + 25); updateStats(); p.position.y = -500; setTimeout(() => p.position.y = 1.2, 10000); } });
+        }
+
+        for(let i = activeBombs.length - 1; i >= 0; i--){
+            let b = activeBombs[i];
+            b.position.add(b.userData.velocity); b.userData.velocity.y += b.userData.gravity;
+            if(b.position.y < 0.4) { b.position.y = 0.4; b.userData.velocity.multiplyScalar(0.5); b.userData.velocity.y *= -0.5; }
+            if(--b.userData.timer <= 0) { explode(b.position, 300, 0xff5500, 30); scene.remove(b); activeBombs.splice(i, 1); }
+        }
+
+        for(let i = bullets.length - 1; i >= 0; i--){
+            let b = bullets[i];
+            b.translateZ(-b.userData.speed);
+            
+            let hitTrigger = false;
+            if(b.position.y <= 0) { b.position.y = 0; hitTrigger = true; }
+            houses.forEach(h => { if(b.position.distanceTo(h.mesh.position) < 15) hitTrigger = true; });
+            
+            // ROKET VE VOLKAN YERE DEĞİNCE PATLASIN
+            if(hitTrigger && b.userData.effect === "rocket") {
+                let pSize = (b.userData.weaponId === 9) ? 60 : 15; // Volkan (9) ise çok büyük patlasın
+                explode(b.position, b.userData.damage, b.material.color, pSize);
+                scene.remove(b); bullets.splice(i, 1); continue;
+            }
+
+            if(b.userData.effect === "portal" && hitTrigger) {
+                camera.position.set(b.position.x, 5, b.position.z);
+                scene.remove(b); bullets.splice(i, 1); continue;
+            }
+
+            if(b.userData.effect === "blackhole") {
+                let npcHit = false;
+                npcs.forEach(n => { if(!n.userData.dead && b.position.distanceTo(n.position) < 5) npcHit = true; });
+                
+                if(hitTrigger || npcHit) {
+                    const bh = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), new THREE.MeshBasicMaterial({color: 0x000000, transparent: true, opacity: 0.8}));
+                    bh.position.copy(b.position); bh.userData = { life: 300, size: 1 };
+                    scene.add(bh); blackHoles.push(bh);
+                    scene.remove(b); bullets.splice(i, 1); continue;
+                }
+            }
+
+            let bulletRemoved = false;
+            for(let j = npcs.length - 1; j >= 0; j--){
+                let n = npcs[j];
+                if(!n.userData.dead && b.position.distanceTo(n.position) < 4) {
+                    if(b.userData.effect === "rocket") {
+                        let pSize = (b.userData.weaponId === 9) ? 60 : 15;
+                        explode(b.position, b.userData.damage, b.material.color, pSize);
+                    }
+                    else { n.userData.health -= b.userData.damage; if(n.userData.health <= 0) dieNPC(n); }
+                    scene.remove(b); bullets.splice(i, 1); bulletRemoved = true; break;
+                }
+            }
+            if(bulletRemoved) continue;
+            if(--b.userData.life <= 0) { scene.remove(b); bullets.splice(i, 1); }
+        }
+
+        for(let i = blackHoles.length - 1; i >= 0; i--){
+            let bh = blackHoles[i];
+            bh.userData.size = Math.min(bh.userData.size + 0.1, 15);
+            bh.scale.set(bh.userData.size, bh.userData.size, bh.userData.size);
+            npcs.forEach(n => {
+                if(!n.userData.dead && n.position.distanceTo(bh.position) < bh.userData.size * 2) {
+                    let dir = new THREE.Vector3().subVectors(bh.position, n.position).normalize();
+                    n.position.addScaledVector(dir, 0.5);
+                    n.userData.health -= 0.5; if(n.userData.health <= 0) dieNPC(n);
+                }
+            });
+            if(--bh.userData.life <= 0) { scene.remove(bh); blackHoles.splice(i, 1); }
+        }
+
+        for(let i = npcBullets.length - 1; i >= 0; i--){
+            let b = npcBullets[i];
+            b.translateZ(b.userData.speed);
+            if(b.position.distanceTo(camera.position) < 3.5) { hp -= b.userData.damage; updateStats(); scene.remove(b); npcBullets.splice(i, 1); continue; }
+            if(--b.userData.life <= 0) { scene.remove(b); npcBullets.splice(i, 1); }
+        }
+
+        npcs.forEach(n => {
+            if(n.userData.dead) return;
+            
+            let target;
+            if(n.userData.isHunter) {
+                target = camera.position;
+            } else {
+                let minDist = Infinity;
+                npcs.forEach(other => {
+                    if(!other.userData.dead && other !== n && other.userData.team !== n.userData.team) {
+                        let d = n.position.distanceTo(other.position);
+                        if(d < minDist) { minDist = d; target = other.position; }
+                    }
+                });
+            }
+
+            if(target) {
+                n.lookAt(target.x, 0, target.z);
+                let distToTarget = n.position.distanceTo(target);
+                if(distToTarget > 15) n.translateZ(n.userData.speed);
+                
+                if(distToTarget < 70) { 
+                    const w = weapons[n.userData.weaponId];
+                    if(Date.now() - n.userData.lastShot > w.rate) {
+                        const b = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshBasicMaterial({ color: w.color }));
+                        b.position.copy(n.position); b.position.y = 3.5; b.lookAt(target);
+                        b.userData = { speed: w.speed * 0.6, damage: w.damage * 0.5, life: 200 };
+                        npcBullets.push(b); scene.add(b); n.userData.lastShot = Date.now();
+                    }
+                }
+            }
+        });
+
+        renderer.render(scene, camera);
+    }
+
+    function explode(pos, damage, color, size = 15) {
+        const boom = new THREE.Mesh(new THREE.SphereGeometry(1), new THREE.MeshBasicMaterial({color: color, transparent: true, opacity: 0.7}));
+        boom.position.copy(pos); scene.add(boom);
+        let s = 1; const intr = setInterval(() => { s += 2.5; boom.scale.set(s,s,s); if(s > size) { scene.remove(boom); clearInterval(intr); } }, 20);
+        npcs.forEach(n => { if(!n.userData.dead && n.position.distanceTo(pos) < size) { n.userData.health -= damage; if(n.userData.health <= 0) dieNPC(n); } });
+        if(camera.position.distanceTo(pos) < size) { hp -= 25; updateStats(); }
+    }
+
+    function dieNPC(n) { n.userData.dead = true; n.position.y = -100; money += 60; updateStats(); setTimeout(() => spawnNPC(n), 3000); }
+
+    function updateStats() {
+        if(hp <= 0) { hp = 100; camera.position.set((Math.random()-0.5)*800, 5, (Math.random()-0.5)*800); }
+        document.getElementById('hp-inner').style.width = hp + "%";
+        document.getElementById('money').innerText = money;
+        document.getElementById('bomb-status').innerText = hasBomb ? "BOMBA HAZIR (B)" : "BOMBA: KİLİTLİ";
+    }
+
+    function initUI() {
+        const hud = document.getElementById('hud'); hud.innerHTML = '';
+        if(inventoryPage === 1) {
+            for(let i = 1; i <= 10; i++) {
+                let key = i === 10 ? 0 : i;
+                const div = document.createElement('div');
+                div.className = `slot ${unlocked.includes(key) ? 'unlocked' : ''} ${currentSlot === key ? 'active' : ''}`;
+                div.innerHTML = `${key}<br>${weapons[key].name}`;
+                hud.appendChild(div);
+            }
+        } else {
+            for(let i = 11; i <= 13; i++) {
+                let key = i - 10;
+                const div = document.createElement('div');
+                div.className = `slot ${unlocked.includes(i) ? 'unlocked' : ''} ${currentSlot === i ? 'active' : ''}`;
+                div.innerHTML = `${key}<br>${weapons[i].name}`;
+                hud.appendChild(div);
+            }
+        }
+        
+        const mList = document.getElementById('market-list'); mList.innerHTML = '';
+        Object.keys(weapons).forEach(id => {
+            const w = weapons[id];
+            let actualId = (id === "bomb") ? "bomb" : parseInt(id);
+            const isUnlocked = (id === "bomb") ? hasBomb : unlocked.includes(actualId);
+            const item = document.createElement('div');
+            item.className = 'buy-item';
+            item.innerHTML = `<span>${w.name} ($${w.price})</span>
+                <button class="buy-btn" onclick="buyWeapon('${id}')" ${isUnlocked ? 'disabled' : ''}>AL</button>`;
+            mList.appendChild(item);
+        });
+    }
+
+    function buyWeapon(id) {
+        let price = weapons[id].price;
+        if(money >= price) {
+            if(id === 'bomb') hasBomb = true;
+            else unlocked.push(parseInt(id));
+            money -= price; initUI(); updateStats();
+        }
+    }
+    
+    function closeMarket() { document.getElementById('market-ui').style.display = 'none'; }
+    document.body.addEventListener('click', () => { if(document.getElementById('market-ui').style.display !== 'block') document.body.requestPointerLock(); });
+    document.addEventListener('mousemove', (e) => {
+        if(document.pointerLockElement) {
+            let sens = isZoomed ? 0.0004 : 0.0022;
+            camera.rotation.y -= e.movementX * sens;
+            camera.rotation.x -= e.movementY * sens;
+            camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
+        }
+    });
+    window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+
+    initUI();
+    animate();
+</script>
+</body>
+</html>
