@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Megalodon: Sudden Death</title>
+    <style>
+        :root {
+            --neon-cyan: #00f5d4;
+            --neon-pink: #f15bb5;
+            --danger: #ff0000;
+        }
+
+        body {
+            margin: 0;
+            background: #000;
+            color: white;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-area {
+            position: relative;
+            width: 90%;
+            height: 250px;
+            background: linear-gradient(to bottom, #001219, #002129);
+            border-radius: 40px;
+            border: 2px solid var(--neon-cyan);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .sprite {
+            position: absolute;
+            font-size: 70px;
+            bottom: 40px;
+            transition: all 0.6s ease-out;
+            z-index: 10;
+        }
+
+        #megalodon { left: 0%; transform: scaleX(-1); filter: drop-shadow(0 0 15px var(--danger)); }
+        #player { left: 45%; filter: drop-shadow(0 0 10px var(--neon-cyan)); }
+
+        #ui-container {
+            width: 90%;
+            max-width: 500px;
+            padding: 25px;
+            background: rgba(10, 10, 15, 0.9);
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid #333;
+        }
+
+        .stats { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; font-size: 0.9rem; }
+        #question-box { font-size: 1.1rem; min-height: 80px; margin-bottom: 20px; color: #fff; }
+        
+        .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button {
+            padding: 15px;
+            background: transparent;
+            border: 1px solid var(--neon-cyan);
+            border-radius: 10px;
+            cursor: pointer;
+            color: var(--neon-cyan);
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        button:hover { background: var(--neon-cyan); color: #000; }
+
+        #level-tag { background: var(--neon-pink); color: white; padding: 2px 10px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="game-area">
+        <div id="megalodon" class="sprite">🦈</div>
+        <div id="player" class="sprite">🏊‍♂️</div>
+    </div>
+
+    <div id="ui-container">
+        <div class="stats">
+            <div>SEVİYE: <span id="lvl-txt">1</span> <span id="diff-txt">(KOLAY)</span></div>
+            <div>SORU: <span id="q-num">1</span>/10</div>
+        </div>
+        <div id="question-box">Hazırsan başlayalım...</div>
+        <div class="options" id="options">
+            <button onclick="startLevel()" style="grid-column: span 2;">OYUNU BAŞLAT</button>
+        </div>
+    </div>
+
+    <script>
+        let level = 1;
+        let questionIndex = 0;
+        let currentQuestions = [];
+        let megaPos = 0;
+        let playerPos = 45;
+
+        const questionBank = [
+            { q: "Megalodon'un nesli kaç milyon yıl önce tükendi?", a: ["3.6", "10", "65", "100"], c: 0 },
+            { q: "Dodo kuşu hangi ülkede yaşıyordu?", a: ["Mauritius", "İzlanda", "Madagaskar", "Avustralya"], c: 0 },
+            { q: "Mamutlar hangi çağın simgesidir?", a: ["Buzul Çağı", "Demir Çağı", "Maden Çağı", "Cilalı Taş"], c: 0 },
+            { q: "En büyük dinozor türlerinden biri?", a: ["Argentinosaurus", "Serçe", "Kaplumbağa", "Kedi"], c: 0 },
+            { q: "Tazmanya Kaplanı bir memeli miydi?", a: ["Evet (Keseli)", "Hayır (Sürüngen)", "Hayır (Kuş)", "Balıktı"], c: 0 },
+            { q: "Smilodon'un en belirgin özelliği?", a: ["Uzun dişleri", "Uçabilmesi", "Çok yavaş olması", "Mavi olması"], c: 0 },
+            { q: "Yolcu Güvercini'nin nesli neden tükendi?", a: ["Aşırı avlanma", "Soğuk hava", "Yiyecek yokluğu", "Virüs"], c: 0 },
+            { q: "Hazar Kaplanı nerede yaşardı?", a: ["Orta Asya/Türkiye", "Brezilya", "Antarktika", "Mısır"], c: 0 },
+            { q: "Moa kuşu kaç metreydi?", a: ["3.6 Metre", "50 cm", "10 Metre", "1 Metre"], c: 0 },
+            { q: "Steller Deniz İneği ne yiyordu?", a: ["Deniz yosunu", "Et", "Balık", "Kuş"], c: 0 },
+            { q: "Dinozorları yok eden meteorun adı?", a: ["Chicxulub", "Halley", "Ay", "Güneş"], c: 0 },
+            { q: "Quagga hangi hayvana benzer?", a: ["Zebra", "Fil", "Aslan", "Zürafa"], c: 0 },
+            { q: "Büyük Auk kuşu nerede yaşardı?", a: ["Kuzey Atlantik", "Sahra Çölü", "Amazon", "Asya"], c: 0 },
+            { q: "Megalodon'un iskeleti neden bulunmaz?", a: ["Kıkırdak olduğu için", "Çok küçük olduğu için", "Taşa dönüştüğü için", "Yoktur"], c: 0 },
+            { q: "İlk dinozor fosili ne zaman bulundu?", a: ["1820'ler", "2020", "1500", "M.Ö. 100"], c: 0 }
+        ];
+
+        function startLevel() {
+            questionIndex = 0;
+            playerPos = 45;
+            
+            // Zorluğa göre Megalodon'un başlangıç pozisyonu
+            if (level === 1) megaPos = -20;
+            else if (level === 2) megaPos = -5;
+            else if (level === 3) megaPos = 10;
+            else megaPos = 25; // İmkansız
+
+            // Soruları karıştır ve 10 tane seç
+            currentQuestions = [...questionBank].sort(() => Math.random() - 0.5).slice(0, 10);
+            
+            updateUI();
+            showQuestion();
+        }
+
+        function showQuestion() {
+            const q = currentQuestions[questionIndex];
+            document.getElementById("question-box").innerText = q.q;
+            const optDiv = document.getElementById("options");
+            optDiv.innerHTML = "";
+
+            q.a.forEach((text, i) => {
+                const btn = document.createElement("button");
+                btn.innerText = text;
+                btn.onclick = () => checkAnswer(i === q.c);
+                optDiv.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(correct) {
+            if (correct) {
+                questionIndex++;
+                playerPos += 4;
+                megaPos += 1;
+                
+                if (questionIndex >= 10) {
+                    levelComplete();
+                } else {
+                    updateUI();
+                    showQuestion();
+                }
+            } else {
+                gameOver();
+            }
+        }
+
+        function updateUI() {
+            document.getElementById("lvl-txt").innerText = level;
+            document.getElementById("q-num").innerText = questionIndex + 1;
+            document.getElementById("player").style.left = playerPos + "%";
+            document.getElementById("megalodon").style.left = megaPos + "%";
+            
+            const diffs = ["KOLAY", "ORTA", "ZOR", "İMKANSIZ"];
+            const dText = level > 4 ? "İMKANSIZ+" : diffs[level-1] || "İMKANSIZ";
+            document.getElementById("diff-txt").innerText = `(${dText})`;
+        }
+
+        function levelComplete() {
+            level++;
+            document.getElementById("question-box").innerHTML = `<b style="color:var(--neon-cyan)">SEVİYE TAMAMLANDI!</b><br>Bir sonraki aşama daha tehlikeli.`;
+            document.getElementById("options").innerHTML = `<button onclick="startLevel()" style="grid-column: span 2;">SEVİYE ${level}'E GEÇ</button>`;
+        }
+
+        function gameOver() {
+            document.getElementById("megalodon").style.left = (playerPos - 5) + "%";
+            document.getElementById("player").style.opacity = "0";
+            document.getElementById("question-box").innerHTML = `<b style="color:var(--danger)">YANLIŞ CEVAP!</b><br>Megalodon seni yakaladı.`;
+            document.getElementById("options").innerHTML = `<button onclick="startLevel()" style="grid-column: span 2;">SEVİYEYİ TEKRARLA</button>`;
+        }
+    </script>
+</body>
+</html>
