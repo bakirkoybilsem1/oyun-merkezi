@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>KRAL MINECRAFT v6.1 - Yavaş Zaman</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 15px; height: 15px; border: 2px solid white; transform: translate(-50%, -50%); pointer-events: none; z-index: 100; mix-blend-mode: difference; }
+        #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; background: rgba(0,0,0,0.85); padding: 10px; border: 2px solid #555; z-index: 50; }
+        .slot { width: 50px; height: 50px; border: 2px solid #444; display: flex; align-items: center; justify-content: center; color: white; font-size: 9px; text-align: center; background: rgba(255,255,255,0.1); }
+        .active { border-color: #fff; background: rgba(255,255,255,0.3); box-shadow: 0 0 10px #fff; }
+        #inventory { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(20,20,20,0.95); border: 4px solid #555; padding: 20px; display: none; grid-template-columns: repeat(4, 1fr); gap: 10px; z-index: 1000; color: white; border-radius: 8px; }
+        .inv-item { width: 70px; height: 70px; border: 1px solid #777; display: flex; align-items: center; justify-content: center; cursor: pointer; text-align: center; font-size: 11px; }
+        #msg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: #0f0; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5000; cursor: pointer; text-align: center; }
+        #sleep-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; opacity: 0; display: none; z-index: 6000; transition: opacity 1s; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div id="crosshair"></div>
+    <div id="sleep-overlay"></div>
+    <div id="msg">
+        <h1 style="font-size: 40px; color: #fff;">⛏️ KRAL MINECRAFT (Yavaş Zaman)</h1>
+        <p style="color: #4caf50;">TAB: Envanter | 3x SPACE: Uçuş | Sağ Tık: Kapı/Yatak</p>
+        <h2 style="margin-top: 30px; border: 2px solid #fff; padding: 10px;">GİRİŞ YAPMAK İÇİN TIKLA</h2>
+    </div>
+
+    <div id="hotbar">
+        <div class="slot active" id="s1" data-id="1">Çim</div>
+        <div class="slot" id="s2" data-id="2">Tahta</div>
+        <div class="slot" id="s3" data-id="3">Taş</div>
+        <div class="slot" id="s4" data-id="4">Merd.</div>
+        <div class="slot" id="s5" data-id="11">Yatak</div>
+        <div class="slot" id="s6" data-id="6">Elmas</div>
+        <div class="slot" id="s7" data-id="16">Kapı</div>
+        <div class="slot" id="s8" data-id="14">Kum</div>
+        <div class="slot" id="s9" data-id="15">Balçık</div>
+        <div class="slot" id="s0" data-id="12">Basam.</div>
+    </div>
+
+    <div id="inventory">
+        <div class="inv-item" onclick="swapItem('Zümrüt', 13)">Zümrüt</div>
+        <div class="inv-item" onclick="swapItem('Demir', 7)">Demir</div>
+        <div class="inv-item" onclick="swapItem('Altın', 8)">Altın</div>
+        <div class="inv-item" onclick="swapItem('Toprak', 0)">Toprak</div>
+        <div class="inv-item" onclick="swapItem('Yün', 5)">Yün</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls, sun, moon, ambientLight;
+        let blocks = [];
+        let moveF = false, moveB = false, moveL = false, moveR = false, moveU = false, moveD = false;
+        let velocityY = 0, isFlying = false, canJump = true, isSleeping = false;
+        let lastSpaceTime = 0, spaceTapCount = 0, selectedIdx = 1, gameTime = 0;
+
+        const mats = {
+            1: {c: 0x55aa55}, 2: {c: 0x8B4513}, 3: {c: 0x808080}, 4: {c: 0xCD853F, t: 'stair'}, 0: {c: 0x966F33},
+            6: {c: 0x00ced1, e: 0x004444}, 7: {c: 0xccddee}, 8: {c: 0xFFD700}, 5: {c: 0xffffff}, 11: {t: 'bed'},
+            12: {c: 0xCD853F, t: 'slab'}, 13: {c: 0x00ff44, e: 0x004411},
+            14: {c: 0xedc9af, t: 'sand'}, 15: {c: 0x44ff44, t: 'slime', o: 0.6}, 16: {c: 0x6d4c41, t: 'door'}
+        };
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new THREE.PointerLockControls(camera, document.body);
+            document.getElementById('msg').addEventListener('click', () => { controls.lock(); document.getElementById('msg').style.display = 'none'; });
+
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const celestGeo = new THREE.BoxGeometry(12, 12, 1);
+            sun = new THREE.Mesh(celestGeo, new THREE.MeshBasicMaterial({color: 0xffffaa}));
+            moon = new THREE.Mesh(celestGeo, new THREE.MeshBasicMaterial({color: 0xeeeeee}));
+            scene.add(sun, moon);
+
+            // 5 Katman Taş ve Bedrock
+            for(let x = -15; x < 15; x++) {
+                for(let z = -15; z < 15; z++) {
+                    addBlock(x, 0, z, 1); 
+                    addBlock(x, -1, z, 0); 
+                    for(let y = -2; y > -7; y--) addBlock(x, y, z, 3);
+                    addBlock(x, -7, z, 3, true); 
+                }
+            }
+
+            camera.position.set(0, 5, 0);
+            setupInput();
+            animate();
+        }
+
+        function addBlock(x, y, z, id, isBedrock = false) {
+            const config = mats[id] || {c: 0xffffff};
+            if(config.t === 'bed') { createBed(x, y, z); return; }
+            let h = 1, w = 1;
+            if(config.t === 'stair') h = 0.5;
+            if(config.t === 'slab') h = 0.25;
+            if(config.t === 'door') { h = 2; w = 0.2; }
+            const geo = new THREE.BoxGeometry(w, h, 1);
+            const mat = new THREE.MeshLambertMaterial({color: isBedrock ? 0x222222 : config.c, transparent: !!config.o, opacity: config.o || 1, emissive: config.e || 0});
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y + (h/2 - 0.5), z);
+            mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color: 0x000000})));
+            mesh.userData = { id, type: config.t || 'block', indestructible: isBedrock, open: false };
+            scene.add(mesh); blocks.push(mesh);
+        }
+
+        function createBed(x, y, z) {
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.4, 1.9), new THREE.MeshLambertMaterial({color: 0xff0000}));
+            const pillow = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.15, 0.5), new THREE.MeshLambertMaterial({color: 0xffffff}));
+            pillow.position.set(0, 0.25, -0.6);
+            group.add(body, pillow);
+            group.position.set(x, y - 0.25, z);
+            scene.add(group);
+            const coll = new THREE.Mesh(new THREE.BoxGeometry(1, 0.6, 2), new THREE.MeshBasicMaterial({visible: false}));
+            coll.userData = { id: 11, type: 'bed', parent: group };
+            group.add(coll); blocks.push(coll);
+        }
+
+        function setupInput() {
+            document.addEventListener('keydown', (e) => {
+                if(e.code === 'Tab') { e.preventDefault(); const inv = document.getElementById('inventory'); if(inv.style.display==='grid'){inv.style.display='none'; controls.lock();}else{inv.style.display='grid'; controls.unlock();} }
+                if(e.code === 'ArrowUp') moveF = true; if(e.code === 'ArrowDown') moveB = true; if(e.code === 'ArrowLeft') moveL = true; if(e.code === 'ArrowRight') moveR = true; if(e.code === 'ShiftLeft') moveD = true;
+                if(e.code === 'Space') {
+                    moveU = true; let now = performance.now();
+                    if(now - lastSpaceTime < 300) spaceTapCount++; else spaceTapCount = 1;
+                    lastSpaceTime = now;
+                    if(spaceTapCount >= 3) { isFlying = !isFlying; velocityY = 0; spaceTapCount = 0; }
+                    if(!isFlying && canJump) { velocityY = 0.18; canJump = false; }
+                }
+                if(/[0-9]/.test(e.key)) { selectedIdx = e.key === '0' ? 10 : parseInt(e.key); document.querySelectorAll('.slot').forEach(s => s.classList.remove('active')); document.getElementById('s' + e.key).classList.add('active'); }
+            });
+            document.addEventListener('keyup', (e) => { if(e.code==='ArrowUp')moveF=false; if(e.code==='ArrowDown')moveB=false; if(e.code==='ArrowLeft')moveL=false; if(e.code==='ArrowRight')moveR=false; if(e.code==='Space')moveU=false; if(e.code==='ShiftLeft')moveD=false; });
+            document.addEventListener('mousedown', (e) => {
+                if(!controls.isLocked) return;
+                const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(0,0), camera);
+                const hits = ray.intersectObjects(blocks);
+                if(hits.length > 0) {
+                    const obj = hits[0].object;
+                    if(e.button === 0) { 
+                        if(!obj.userData.indestructible) { if(obj.userData.type==='bed') scene.remove(obj.userData.parent); else scene.remove(obj); blocks=blocks.filter(b=>b!==obj); }
+                    } else if(e.button === 2) {
+                        if(obj.userData.type === 'door') { obj.rotation.y += obj.userData.open ? -Math.PI/2 : Math.PI/2; obj.userData.open = !obj.userData.open; }
+                        else if(obj.userData.type === 'bed' && gameTime > 1500) startSleep(); 
+                        else { const n=hits[0].face.normal; const sid = selectedIdx === 10 ? '0' : selectedIdx; const id=parseInt(document.getElementById('s'+sid).getAttribute('data-id')); addBlock(obj.position.x+n.x, obj.position.y+n.y, obj.position.z+n.z, id); }
+                    }
+                }
+            });
+            document.addEventListener('contextmenu', e => e.preventDefault());
+        }
+
+        function startSleep() {
+            isSleeping = true; const overlay = document.getElementById('sleep-overlay');
+            overlay.style.display = 'block'; setTimeout(() => overlay.style.opacity = 1, 10);
+            let sleepInt = setInterval(() => { gameTime += 50; if(gameTime >= 2400) gameTime = 0; if(gameTime > 50 && gameTime < 150) { clearInterval(sleepInt); overlay.style.opacity = 0; setTimeout(() => { overlay.style.display = 'none'; isSleeping = false; }, 1000); } }, 40);
+        }
+
+        function swapItem(name, id) {
+            const sid = selectedIdx === 10 ? '0' : selectedIdx;
+            const slot = document.getElementById('s' + sid);
+            const oldId = slot.getAttribute('data-id'); const oldName = slot.innerText;
+            slot.setAttribute('data-id', id); slot.innerText = name;
+            event.target.innerText = oldName; event.target.setAttribute('onclick', `swapItem('${oldName}', ${oldId})`);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(controls.isLocked || isSleeping) {
+                if(!isSleeping) gameTime += 0.1; // ZAMAN BURADA YAVAŞLATILDI (0.4 -> 0.1)
+                if(gameTime >= 2400) gameTime = 0;
+                
+                const sunAngle = (gameTime / 2400) * Math.PI * 2 - Math.PI/2;
+                sun.position.set(Math.cos(sunAngle)*180, Math.sin(sunAngle)*180, -60);
+                moon.position.set(Math.cos(sunAngle+Math.PI)*180, Math.sin(sunAngle+Math.PI)*180, -60);
+                sun.lookAt(camera.position); moon.lookAt(camera.position);
+
+                if(gameTime < 1200) { scene.background = new THREE.Color(0x87CEEB); ambientLight.intensity = 0.7; }
+                else if(gameTime < 1500) { scene.background = new THREE.Color(0xff8844); ambientLight.intensity = 0.4; }
+                else { scene.background = new THREE.Color(0x050515); ambientLight.intensity = 0.15; }
+
+                if(camera.position.y < -15 && !isFlying) { camera.position.set(0, 5, 0); velocityY = 0; }
+
+                const oldPos = camera.position.clone();
+                if(isFlying) { if(moveU) camera.position.y += 0.2; if(moveD) camera.position.y -= 0.2; }
+                else { velocityY -= 0.008; camera.position.y += velocityY; }
+
+                if (moveF) controls.moveForward(0.15); if (moveB) controls.moveForward(-0.15);
+                if (moveL) controls.moveRight(-0.15); if (moveR) controls.moveRight(0.15);
+
+                const groundRay = new THREE.Raycaster(camera.position, new THREE.Vector3(0, -1, 0), 0, 1.8);
+                const groundHits = groundRay.intersectObjects(blocks);
+                if(groundHits.length > 0 && !isFlying) {
+                    const block = groundHits[0].object;
+                    camera.position.y = groundHits[0].point.y + 1.7;
+                    velocityY = 0; canJump = true;
+                    if(block.userData.id === 15) velocityY = 0.5;
+                }
+
+                blocks.forEach(b => {
+                    if(b.userData.type === 'sand') {
+                        const downRay = new THREE.Raycaster(b.position, new THREE.Vector3(0, -1, 0), 0, 0.6);
+                        if(downRay.intersectObjects(blocks.filter(x => x !== b)).length === 0 && b.position.y > -6.5) b.position.y -= 0.15;
+                    }
+                });
+
+                const wallRay = new THREE.Raycaster(camera.position, controls.getDirection(new THREE.Vector3()), 0, 0.7);
+                if(wallRay.intersectObjects(blocks).length > 0) camera.position.copy(oldPos);
+            }
+            renderer.render(scene, camera);
+        }
+        init();
+    </script>
+</body>
+</html>
