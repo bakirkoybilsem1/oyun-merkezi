@@ -56,63 +56,63 @@
 
     <div id="timer-container"><div id="timer-bar"></div></div>
     
-    <div class="question" id="q-text">Hogwarts Express bekleniyor...</div>
+    <div class="question" id="q-text">Asalar hazırsa başlıyoruz...</div>
     
     <div class="choices" id="choice-buttons"></div>
 </div>
 
 <script>
-    let money = parseInt(localStorage.getItem('hp_quiz_money')) || 0;
-    let askedQuestions = JSON.parse(localStorage.getItem('hp_asked_ids')) || []; 
+    // Başlangıç değerlerini güvenli bir şekilde al
+    let money = 0;
+    try {
+        money = parseInt(localStorage.getItem('hp_quiz_money')) || 0;
+    } catch(e) { money = 0; }
+
+    let askedQuestions = [];
+    try {
+        askedQuestions = JSON.parse(localStorage.getItem('hp_asked_ids')) || [];
+    } catch(e) { askedQuestions = []; }
+
     let currentQ;
     let timer;
     let timeLeft = 60;
 
     const database = [
-        // KOLAY SEVİYE (0 - 1000 Galleon)
+        // KOLAY SEVİYE
         { id: 1, q: "Ginny Weasley'nin tam adı nedir?", a: ["Ginevra Molly Weasley", "Virginia Weasley", "Gwen Weasley", "Molly Ginny Weasley"], c: 0, d: "easy" },
         { id: 2, q: "Harry Potter'ın alnındaki yara izi ne şekildedir?", a: ["Yıldız", "Şimşek", "Ay", "Kılıç"], c: 1, d: "easy" },
         { id: 3, q: "Hangi bina zeka ve bilgeliği temsil eder?", a: ["Gryffindor", "Slytherin", "Ravenclaw", "Hufflepuff"], c: 2, d: "easy" },
-        { id: 4, q: "Hagrid'in devasa köpeğinin adı nedir?", a: ["Fang", "Fluffy", "Aragog", "Norbert"], c: 0, d: "easy" },
-        { id: 5, q: "Hermione'nin en sevdiği ders hangisidir?", a: ["İksir", "Aritmansi", "Karanlık Sanatlara Karşı Savunma", "Kehanet"], c: 1, d: "easy" },
-        { id: 6, q: "Dobby ne karşılığında özgür kalmıştır?", a: ["Asa", "Para", "Eski bir şapka", "Kirli bir çorap"], c: 3, d: "easy" },
-        { id: 7, q: "Ron Weasley'nin en büyük korkusu nedir?", a: ["Ölüm", "Örümcekler", "Yılanlar", "Snape"], c: 1, d: "easy" },
+        { id: 4, q: "Dobby ne karşılığında özgür kalmıştır?", a: ["Asa", "Para", "Eski bir şapka", "Kirli bir çorap"], c: 3, d: "easy" },
+        { id: 5, q: "Ron Weasley'nin en büyük korkusu nedir?", a: ["Ölüm", "Örümcekler", "Yılanlar", "Snape"], c: 1, d: "easy" },
+        { id: 6, q: "Harry'nin babasının lakabı nedir?", a: ["Çatalak", "Aylak", "Kılkuyruk", "Patiayak"], c: 0, d: "easy" },
 
         // ZOR SEVİYE (1000+ Galleon)
         { id: 101, q: "Ginny Weasley profesyonel Quidditch kariyerinde hangi mevkide oynadı?", a: ["Arayıcı", "Kovalayıcı", "Vurucu", "Tutucu"], c: 1, d: "hard" },
         { id: 102, q: "Luna Lovegood'un babasının adı nedir?", a: ["Xenophilius", "Garrick", "Aberforth", "Regulus"], c: 0, d: "hard" },
-        { id: 103, q: "Voldemort'un yılanı Nagini aslında eskiden nedir?", a: ["Bir Maledictus", "Bir Animagus", "Bir Inferius", "Sıradan bir yılan"], c: 0, d: "hard" },
-        { id: 104, q: "Sirius Black'in ev cininin adı nedir?", a: ["Winky", "Dobby", "Kreacher", "Hokey"], c: 2, d: "hard" },
-        { id: 105, q: "Bellatrix Lestrange'i kim öldürmüştür?", a: ["Harry Potter", "Molly Weasley", "Neville Longbottom", "Hermione Granger"], c: 1, d: "hard" },
-        { id: 106, q: "Neville Longbottom'ın anne ve babasına işkence eden büyü hangisidir?", a: ["Avada Kedavra", "Cruciatus", "Imperius", "Sectumsempra"], c: 1, d: "hard" },
-        { id: 107, q: "Harry'nin annesi Lily'nin Patronus'u hangi hayvandır?", a: ["Geyik", "Maral (Dişi Geyik)", "Tavşan", "Kedi"], c: 1, d: "hard" },
-        { id: 108, q: "Snape'in gizli takma adı nedir?", a: ["Melez Prens", "Karanlık Lord", "Gümüş Ok", "Asaların Efendisi"], c: 0, d: "hard" }
+        { id: 103, q: "Bellatrix Lestrange'i kim öldürmüştür?", a: ["Harry Potter", "Molly Weasley", "Neville Longbottom", "Hermione Granger"], c: 1, d: "hard" },
+        { id: 104, q: "Neville Longbottom'ın ebeveynlerine işkence eden büyü hangisidir?", a: ["Avada Kedavra", "Cruciatus", "Imperius", "Sectumsempra"], c: 1, d: "hard" },
+        { id: 105, q: "Dumbledore'un vasiyetinde Ron'a bıraktığı eşya nedir?", a: ["Püfür (Deluminator)", "Görünmezlik Pelerini", "Mürver Asa", "Bezoar"], c: 0, d: "hard" }
     ];
-
-    function start() {
-        document.getElementById('money-display').innerText = money;
-        loadQuestion();
-    }
 
     function loadQuestion() {
         clearInterval(timer);
-        let mode = money >= 1000 ? "hard" : "easy";
+        const display = document.getElementById('money-display');
+        if(display) display.innerText = money;
         
-        // Önemli: Daha önce sorulmamış soruları filtrele
+        let mode = money >= 1000 ? "hard" : "easy";
         let pool = database.filter(q => q.d === mode && !askedQuestions.includes(q.id));
 
-        // Eğer o seviyedeki tüm sorular bittiyse (havuz boşaldıysa)
         if (pool.length === 0) {
-            alert("Tebrikler! Bu seviyedeki tüm soruları bitirdin. Sorular sıfırlanıyor.");
+            alert("Bu seviyedeki tüm soruları bildin! Sorular sıfırlanıyor.");
             askedQuestions = askedQuestions.filter(id => {
                 let q = database.find(x => x.id === id);
-                return q.d !== mode;
+                return q && q.d !== mode;
             });
             pool = database.filter(q => q.d === mode);
         }
 
         currentQ = pool[Math.floor(Math.random() * pool.length)];
-        askedQuestions.push(currentQ.id); // Soru soruldu olarak işaretle
+        askedQuestions.push(currentQ.id); 
         
         updateUI(mode);
         
@@ -135,7 +135,7 @@
         const bar = document.getElementById('timer-bar');
         timer = setInterval(() => {
             timeLeft--;
-            bar.style.width = (timeLeft / 60) * 100 + "%";
+            if(bar) bar.style.width = (timeLeft / 60) * 100 + "%";
             if (timeLeft <= 0) {
                 clearInterval(timer);
                 finish("timeout");
@@ -167,13 +167,11 @@
         if (confirm("Oyunun kaydedilsin mi?")) {
             localStorage.setItem('hp_quiz_money', money);
             localStorage.setItem('hp_asked_ids', JSON.stringify(askedQuestions));
-            alert("İlerlemen büyüyle korundu!");
         }
         loadQuestion();
     }
 
     function updateUI(mode) {
-        document.getElementById('money-display').innerText = money;
         const status = document.getElementById('diff-status');
         if (mode === "hard") {
             status.innerHTML = '<span class="hard-tag">ZOR SEVİYE</span>';
@@ -182,7 +180,8 @@
         }
     }
 
-    start();
+    // Sayfa yüklenince direkt başla
+    window.onload = loadQuestion;
 </script>
 
 </body>
