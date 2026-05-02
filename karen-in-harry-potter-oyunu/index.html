@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Harry Potter Efsanesi - Bilgi Yarışması</title>
+    <style>
+        body {
+            font-family: 'Crimson Text', serif;
+            background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
+                        url('https://images.unsplash.com/photo-1547756536-cde3673fa2e5?auto=format&fit=crop&w=1600&q=80');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: #e2c044;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #game-window {
+            background: rgba(15, 15, 30, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 0 40px #d4af37;
+            width: 600px;
+            text-align: center;
+            border: 2px solid #d4af37;
+        }
+        .stats { display: flex; justify-content: space-between; font-size: 1.3rem; margin-bottom: 20px; font-weight: bold; }
+        #timer-container { width: 100%; height: 12px; background: #222; border-radius: 6px; margin-bottom: 25px; border: 1px solid #d4af37; overflow: hidden; }
+        #timer-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #d4af37, #f1d279); transition: width 1s linear; }
+        .question { font-size: 1.6rem; margin-bottom: 30px; min-height: 90px; color: #fff; text-shadow: 1px 1px 2px #000; }
+        .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        button {
+            background: #252545;
+            color: #d4af37;
+            border: 1px solid #d4af37;
+            padding: 18px;
+            font-size: 1.1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:hover { background: #d4af37; color: #1a1a2e; transform: scale(1.02); }
+        .hard-tag { color: #ff4747 !important; border: 1px solid #ff4747; padding: 2px 8px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="game-window">
+    <div class="stats">
+        <span>Galleon: <span id="money-display">0</span> ⚡</span>
+        <span id="diff-status">Seviye: Normal</span>
+    </div>
+
+    <div id="timer-container"><div id="timer-bar"></div></div>
+    
+    <div class="question" id="q-text">Hogwarts Express bekleniyor...</div>
+    
+    <div class="choices" id="choice-buttons"></div>
+</div>
+
+<script>
+    let money = parseInt(localStorage.getItem('hp_quiz_money')) || 0;
+    let askedQuestions = JSON.parse(localStorage.getItem('hp_asked_ids')) || []; 
+    let currentQ;
+    let timer;
+    let timeLeft = 60;
+
+    const database = [
+        // KOLAY SEVİYE (0 - 1000 Galleon)
+        { id: 1, q: "Ginny Weasley'nin tam adı nedir?", a: ["Ginevra Molly Weasley", "Virginia Weasley", "Gwen Weasley", "Molly Ginny Weasley"], c: 0, d: "easy" },
+        { id: 2, q: "Harry Potter'ın alnındaki yara izi ne şekildedir?", a: ["Yıldız", "Şimşek", "Ay", "Kılıç"], c: 1, d: "easy" },
+        { id: 3, q: "Hangi bina zeka ve bilgeliği temsil eder?", a: ["Gryffindor", "Slytherin", "Ravenclaw", "Hufflepuff"], c: 2, d: "easy" },
+        { id: 4, q: "Hagrid'in devasa köpeğinin adı nedir?", a: ["Fang", "Fluffy", "Aragog", "Norbert"], c: 0, d: "easy" },
+        { id: 5, q: "Hermione'nin en sevdiği ders hangisidir?", a: ["İksir", "Aritmansi", "Karanlık Sanatlara Karşı Savunma", "Kehanet"], c: 1, d: "easy" },
+        { id: 6, q: "Dobby ne karşılığında özgür kalmıştır?", a: ["Asa", "Para", "Eski bir şapka", "Kirli bir çorap"], c: 3, d: "easy" },
+        { id: 7, q: "Ron Weasley'nin en büyük korkusu nedir?", a: ["Ölüm", "Örümcekler", "Yılanlar", "Snape"], c: 1, d: "easy" },
+
+        // ZOR SEVİYE (1000+ Galleon)
+        { id: 101, q: "Ginny Weasley profesyonel Quidditch kariyerinde hangi mevkide oynadı?", a: ["Arayıcı", "Kovalayıcı", "Vurucu", "Tutucu"], c: 1, d: "hard" },
+        { id: 102, q: "Luna Lovegood'un babasının adı nedir?", a: ["Xenophilius", "Garrick", "Aberforth", "Regulus"], c: 0, d: "hard" },
+        { id: 103, q: "Voldemort'un yılanı Nagini aslında eskiden nedir?", a: ["Bir Maledictus", "Bir Animagus", "Bir Inferius", "Sıradan bir yılan"], c: 0, d: "hard" },
+        { id: 104, q: "Sirius Black'in ev cininin adı nedir?", a: ["Winky", "Dobby", "Kreacher", "Hokey"], c: 2, d: "hard" },
+        { id: 105, q: "Bellatrix Lestrange'i kim öldürmüştür?", a: ["Harry Potter", "Molly Weasley", "Neville Longbottom", "Hermione Granger"], c: 1, d: "hard" },
+        { id: 106, q: "Neville Longbottom'ın anne ve babasına işkence eden büyü hangisidir?", a: ["Avada Kedavra", "Cruciatus", "Imperius", "Sectumsempra"], c: 1, d: "hard" },
+        { id: 107, q: "Harry'nin annesi Lily'nin Patronus'u hangi hayvandır?", a: ["Geyik", "Maral (Dişi Geyik)", "Tavşan", "Kedi"], c: 1, d: "hard" },
+        { id: 108, q: "Snape'in gizli takma adı nedir?", a: ["Melez Prens", "Karanlık Lord", "Gümüş Ok", "Asaların Efendisi"], c: 0, d: "hard" }
+    ];
+
+    function start() {
+        document.getElementById('money-display').innerText = money;
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        clearInterval(timer);
+        let mode = money >= 1000 ? "hard" : "easy";
+        
+        // Önemli: Daha önce sorulmamış soruları filtrele
+        let pool = database.filter(q => q.d === mode && !askedQuestions.includes(q.id));
+
+        // Eğer o seviyedeki tüm sorular bittiyse (havuz boşaldıysa)
+        if (pool.length === 0) {
+            alert("Tebrikler! Bu seviyedeki tüm soruları bitirdin. Sorular sıfırlanıyor.");
+            askedQuestions = askedQuestions.filter(id => {
+                let q = database.find(x => x.id === id);
+                return q.d !== mode;
+            });
+            pool = database.filter(q => q.d === mode);
+        }
+
+        currentQ = pool[Math.floor(Math.random() * pool.length)];
+        askedQuestions.push(currentQ.id); // Soru soruldu olarak işaretle
+        
+        updateUI(mode);
+        
+        document.getElementById('q-text').innerText = currentQ.q;
+        const container = document.getElementById('choice-buttons');
+        container.innerHTML = '';
+
+        currentQ.a.forEach((txt, i) => {
+            const b = document.createElement('button');
+            b.innerText = txt;
+            b.onclick = () => check(i);
+            container.appendChild(b);
+        });
+
+        runTimer();
+    }
+
+    function runTimer() {
+        timeLeft = 60;
+        const bar = document.getElementById('timer-bar');
+        timer = setInterval(() => {
+            timeLeft--;
+            bar.style.width = (timeLeft / 60) * 100 + "%";
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                finish("timeout");
+            }
+        }, 1000);
+    }
+
+    function check(idx) {
+        clearInterval(timer);
+        if (idx === currentQ.c) {
+            money += 200;
+            alert("✨ Harika! +200 Galleon.");
+            loadQuestion();
+        } else {
+            money -= 100;
+            finish("wrong");
+        }
+    }
+
+    function finish(reason) {
+        let ans = currentQ.a[currentQ.c];
+        if (reason === "timeout") {
+            money -= 50;
+            alert("⏰ Süre bitti! -50 Galleon.\nDoğru cevap: " + ans);
+        } else {
+            alert("❌ Yanlış! -100 Galleon.\nDoğru cevap: " + ans);
+        }
+
+        if (confirm("Oyunun kaydedilsin mi?")) {
+            localStorage.setItem('hp_quiz_money', money);
+            localStorage.setItem('hp_asked_ids', JSON.stringify(askedQuestions));
+            alert("İlerlemen büyüyle korundu!");
+        }
+        loadQuestion();
+    }
+
+    function updateUI(mode) {
+        document.getElementById('money-display').innerText = money;
+        const status = document.getElementById('diff-status');
+        if (mode === "hard") {
+            status.innerHTML = '<span class="hard-tag">ZOR SEVİYE</span>';
+        } else {
+            status.innerText = "Seviye: Normal";
+        }
+    }
+
+    start();
+</script>
+
+</body>
+</html>
