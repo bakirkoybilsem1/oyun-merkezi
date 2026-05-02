@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Çiçek Bahçesi Bilgi Yarışması 🌸</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --ana-pembe: #ff80ab;
+            --koyu-pembe: #c51162;
+            --yumusak-pembe: #fce4ec;
+            --beyaz: #ffffff;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: var(--yumusak-pembe);
+            margin: 0; 
+            overflow: hidden; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Maksimum Seviyede Çiçekli Arka Plan */
+        .bg-flower {
+            position: absolute;
+            user-select: none;
+            z-index: -1;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-40px) rotate(20deg); }
+        }
+
+        .container { 
+            max-width: 450px; 
+            width: 90%;
+            background: rgba(255, 255, 255, 0.96); 
+            padding: 40px; 
+            border-radius: 40px; 
+            box-shadow: 0 15px 50px rgba(197, 17, 98, 0.2); 
+            text-align: center;
+            border: 6px solid var(--ana-pembe);
+            position: relative;
+            z-index: 10;
+        }
+
+        h1 { color: var(--koyu-pembe); font-size: 28px; margin-bottom: 10px; }
+        .progress { color: var(--ana-pembe); font-weight: bold; margin-bottom: 20px; }
+
+        .question { 
+            font-size: 1.3rem; 
+            font-weight: 600; 
+            color: #333; 
+            margin-bottom: 30px; 
+            line-height: 1.5;
+            min-height: 80px;
+        }
+
+        .options { display: grid; gap: 12px; }
+
+        .opt-btn { 
+            padding: 15px; 
+            border: 2px solid var(--yumusak-pembe); 
+            border-radius: 20px; 
+            background: var(--beyaz); 
+            cursor: pointer; 
+            transition: 0.3s; 
+            font-size: 1.1rem;
+            color: var(--koyu-pembe);
+            font-weight: 500;
+        }
+
+        .opt-btn:hover { background: var(--ana-pembe); color: white; transform: scale(1.03); }
+
+        .correct { background: #81c784 !important; color: white !important; border-color: #4caf50 !important; }
+        .wrong { background: #e57373 !important; color: white !important; border-color: #f44336 !important; }
+
+        .main-btn { 
+            width: 100%; 
+            margin-top: 25px; 
+            padding: 15px; 
+            background: var(--koyu-pembe); 
+            color: white; 
+            border: none; 
+            border-radius: 20px; 
+            cursor: pointer; 
+            font-size: 1.2rem;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(197, 17, 98, 0.3);
+        }
+
+        #final-screen, #post-quiz-step { display: none; }
+        
+        .nickname-box {
+            background: var(--yumusak-pembe);
+            padding: 15px;
+            border-radius: 20px;
+            margin: 20px 0;
+            border: 2px dashed var(--koyu-pembe);
+        }
+
+        .nickname-title { font-size: 0.9rem; color: #ad1457; text-transform: uppercase; letter-spacing: 1px; }
+        .nickname-text { font-size: 1.8rem; color: var(--koyu-pembe); font-weight: 900; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div id="flower-bg-container"></div>
+
+    <div class="container">
+        <div id="quiz-area">
+            <h1>🌸 Çiçek Yarışması</h1>
+            <div class="progress" id="prog">Soru 1 / 20</div>
+            <div class="question" id="q-text">Yükleniyor...</div>
+            <div class="options" id="opt-container"></div>
+            <button id="next-btn" class="main-btn" style="display:none;" onclick="sonraki()">Sıradaki Çiçek 🎀</button>
+        </div>
+
+        <div id="post-quiz-step">
+            <h2 style="color: var(--koyu-pembe);">Tebrikler!</h2>
+            <p>Yarışmayı bitirdin. Takma adını ve skorunu görmeye hazır mısın?</p>
+            <button class="main-btn" onclick="skoruGoster()">Skoru Gör ✨</button>
+        </div>
+
+        <div id="final-screen">
+            <h2 style="color: var(--koyu-pembe);">Yarışma Özeti 💐</h2>
+            <p id="score-text" style="font-size: 1.2rem; color: #444;"></p>
+            
+            <div class="nickname-box">
+                <div class="nickname-title">Senin Çiçek Unvanın:</div>
+                <div id="nick-text" class="nickname-text">...</div>
+            </div>
+
+            <button onclick="location.reload()" class="main-btn" style="background:var(--ana-pembe);">Yeniden Başla 🌸</button>
+        </div>
+    </div>
+
+<script>
+// Arka planı 120 adet çiçekle doldur
+const flowerIcons = ['🌸', '🌺', '🌷', '🌼', '🌻', '💐', '🌹', '🏵️', '🌿', '🍃'];
+const bgContainer = document.getElementById('flower-bg-container');
+for (let i = 0; i < 120; i++) {
+    const f = document.createElement('div');
+    f.className = 'bg-flower';
+    f.innerText = flowerIcons[Math.floor(Math.random() * flowerIcons.length)];
+    f.style.left = Math.random() * 100 + 'vw';
+    f.style.top = Math.random() * 100 + 'vh';
+    f.style.fontSize = Math.random() * (45 - 15) + 15 + 'px';
+    f.style.animationDelay = Math.random() * 5 + 's';
+    f.style.opacity = Math.random() * 0.6 + 0.3;
+    bgContainer.appendChild(f);
+}
+
+const veri = [
+    { s: "Aşkın ve tutkunun simgesi olan çiçek hangisidir?", c: ["Lale", "Gül", "Papatya", "Karanfil"], d: "Gül" },
+    { s: "Suda yetişen ve saflığı simgeleyen çiçek hangisidir?", c: ["Nilüfer", "Kaktüs", "Orkide", "Menekşe"], d: "Nilüfer" },
+    { s: "Adını mitolojide kendine aşık olan gençten alan çiçek?", c: ["Sümbül", "Nergis", "Zambak", "Yasemin"], d: "Nergis" },
+    { s: "Hollanda ile özdeşleşen soğanlı bitki hangisidir?", c: ["Gül", "Lale", "Papatya", "Lavanta"], d: "Lale" },
+    { s: "Güneşi takip eden 'Günebakan' çiçeği hangisidir?", c: ["Ayçiçeği", "Papatya", "Kasımpatı", "Lale"], d: "Ayçiçeği" },
+    { s: "Karların arasından çıkan bahar müjdeleyicisi?", c: ["Kardelen", "Gelincik", "Sarmaşık", "Kaktüs"], d: "Kardelen" },
+    { s: "Safran baharatı hangi çiçekten elde edilir?", c: ["Zambak", "Çiğdem", "Begonvil", "Lavanta"], d: "Çiğdem" },
+    { s: "Sakinleştirici mor tarlalarıyla ünlü çiçek?", c: ["Karanfil", "Lavanta", "Ayçiçeği", "Sümbül"], d: "Lavanta" },
+    { s: "Japonya'nın sembolü olan Kiraz Çiçeği?", c: ["Sakura", "Gül", "Orkide", "Kasımpatı"], d: "Sakura" },
+    { s: "Vanilya aroması hangi çiçekten gelir?", c: ["Papatya", "Orkide", "Zambak", "Manolya"], d: "Orkide" },
+    { s: "Geceleri açan ve kokusuyla bilinen çiçek?", c: ["Akşam Sefası", "Günebakan", "Lale", "Menekşe"], d: "Akşam Sefası" },
+    { s: "Böcek yiyen etçil bitki hangisidir?", c: ["Gül", "Venüs Sinek Kapanı", "Sarmaşık", "Sümbül"], d: "Venüs Sinek Kapanı" },
+    { s: "Sadakat ve 'beni unutma' çiçeği hangisidir?", c: ["Unutma Beni", "Karanfil", "Ortanca", "Orkide"], d: "Unutma Beni" },
+    { s: "Baharat olan karanfil çiçeğin hangi kısmıdır?", c: ["Kurutulmuş Tomurcuk", "Kök", "Yaprak", "Gövde"], d: "Kurutulmuş Tomurcuk" },
+    { s: "Dünyanın en kötü kokulu dev çiçeği?", c: ["Ceset Çiçeği", "Lale", "Papatya", "Zambak"], d: "Ceset Çiçeği" },
+    { s: "Topraksız ağaç üstünde yaşayan zarif çiçek?", c: ["Orkide", "Ayçiçeği", "Karanfil", "Lale"], d: "Orkide" },
+    { s: "Van Gogh'un tablolarındaki ünlü sarı çiçek?", c: ["Ayçiçeği", "Papatya", "Gül", "Krizantem"], d: "Ayçiçeği" },
+    { s: "Kasım ayında açan hüzün çiçeği?", c: ["Kasımpatı", "Lale", "Gelincik", "Menekşe"], d: "Kasımpatı" },
+    { s: "Dikenli ama güzel çiçekli çöl bitkisi?", c: ["Kaktüs", "Çam", "Palmiye", "Yosun"], d: "Kaktüs" },
+    { s: "Tozlaşmayı sağlayan en önemli canlı?", c: ["Arı", "Karınca", "Örümcek", "Tırtıl"], d: "Arı" }
+];
+
+let index = 0, skor = 0, kilit = false;
+
+function soruGetir() {
+    kilit = false;
+    document.getElementById("next-btn").style.display = "none";
+    const soru = veri[index];
+    document.getElementById("prog").innerText = `Soru ${index + 1} / 20`;
+    document.getElementById("q-text").innerText = soru.s;
+    const kap = document.getElementById("opt-container");
+    kap.innerHTML = "";
+    soru.c.forEach(shik => {
+        const btn = document.createElement("button");
+        btn.className = "opt-btn";
+        btn.innerText = shik;
+        btn.onclick = () => {
+            if(kilit) return;
+            kilit = true;
+            if(shik === soru.d) { btn.classList.add("correct"); skor++; }
+            else { btn.classList.add("wrong"); Array.from(kap.children).forEach(b => { if(b.innerText === soru.d) b.classList.add("correct"); }); }
+            document.getElementById("next-btn").style.display = "block";
+        };
+        kap.appendChild(btn);
+    });
+}
+
+function sonraki() {
+    index++;
+    if(index < veri.length) {
+        soruGetir();
+    } else {
+        document.getElementById("quiz-area").style.display = "none";
+        document.getElementById("post-quiz-step").style.display = "block";
+    }
+}
+
+function skoruGoster() {
+    document.getElementById("post-quiz-step").style.display = "none";
+    document.getElementById("final-screen").style.display = "block";
+    document.getElementById("score-text").innerText = `Toplamda 20 sorudan ${skor} tanesini bildin!`;
+    
+    // Takma Ad Belirleme Mantığı
+    let nick = "";
+    if(skor === 20) nick = "🌺 Çiçeklerin Efendisi";
+    else if(skor >= 15) nick = "🌷 Uzman Bahçıvan";
+    else if(skor >= 10) nick = "🌼 Doğa Dostu";
+    else if(skor >= 5) nick = "🌱 Filizlenen Yetenek";
+    else nick = "🌵 Kaktüs Sever";
+    
+    document.getElementById("nick-text").innerText = nick;
+    
+    // Konfeti
+    confetti({ particleCount: 250, spread: 100, origin: { y: 0.6 }, colors: ['#ff80ab', '#fce4ec', '#c51162'] });
+}
+
+soruGetir();
+</script>
+</body>
+</html>
