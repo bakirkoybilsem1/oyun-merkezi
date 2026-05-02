@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Nevermore: Sonsuz Karanlık</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;700&display=swap');
+
+        body {
+            background-color: #050505;
+            color: #e0e0e0;
+            font-family: 'Cinzel', serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(circle, #1a1a2e 0%, #000 100%);
+        }
+
+        #game-box {
+            width: 700px;
+            background: rgba(15, 15, 15, 0.95);
+            padding: 40px;
+            border: 3px solid #4b0082;
+            border-radius: 20px;
+            box-shadow: 0 0 50px rgba(75, 0, 130, 0.6);
+            text-align: center;
+            border-style: double;
+        }
+
+        .header { color: #f1c40f; font-family: 'Cinzel Decorative'; font-size: 32px; margin-bottom: 20px; text-shadow: 0 0 10px #4b0082; }
+
+        .question-text { font-size: 24px; margin-bottom: 30px; height: 80px; display: flex; align-items: center; justify-content: center; }
+
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+        .btn {
+            background: #000;
+            border: 2px solid #4b0082;
+            color: #fff;
+            padding: 18px;
+            cursor: pointer;
+            border-radius: 12px;
+            font-family: 'Cinzel', serif;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover { background: #4b0082; transform: scale(1.03); box-shadow: 0 0 15px #8e44ad; }
+
+        #feedback-area { margin-top: 30px; min-height: 50px; font-style: italic; font-size: 18px; font-weight: bold; }
+
+        .stats { margin-top: 20px; color: #888; border-top: 1px solid #333; padding-top: 15px; display: flex; justify-content: space-around; }
+
+        /* Wednesday'in 'Şey'i (Thing) - Kodla Çizim */
+        .thing-hand { font-size: 50px; position: absolute; bottom: 20px; right: 20px; filter: grayscale(1); }
+    </style>
+</head>
+<body>
+
+<div id="game-box">
+    <div class="header">NEVERMORE GİZEMLERİ</div>
+    
+    <div id="quiz-part">
+        <div class="question-text" id="q-text">Hazırlanıyorsun...</div>
+        <div class="options-grid" id="options"></div>
+        <div id="feedback-area"></div>
+    </div>
+
+    <div class="stats">
+        <span>Çözülen Sır: <b id="score-val">0</b></span>
+        <span>Durum: <b id="status-val">Yeni Öğrenci</b></span>
+    </div>
+</div>
+
+<div class="thing-hand">🖐️</div>
+
+<script>
+    const allQuestions = [
+        { q: "Wednesday'in baloda yaptığı o meşhur dansın şarkısı nedir?", a: ["Goo Goo Muck", "Bloody Mary", "Paint it Black", "Space Oddity"], c: 0 },
+        { q: "Joseph Crackstone kimdir?", a: ["Bir öğretmen", "Bir kasaba kurucusu", "Bir kurtadam", "Bir siren"], c: 1 },
+        { q: "Uncle Fester'ın özel gücü nedir?", a: ["Görünmezlik", "Elektrik", "Ateş", "Zihin okuma"], c: 1 },
+        { q: "Xavier'in gizli yeteneği nedir?", a: ["Geleceği görmek", "Resimlerini canlandırmak", "Uçmak", "Suya hükmetmek"], c: 1 },
+        { q: "Wednesday'in annesinin adı nedir?", a: ["Morticia", "Ophelia", "Grandmama", "Eudora"], c: 0 },
+        { q: "Wednesday okulda hangi sporu yapar?", a: ["Okçuluk", "Eskrim", "Yüzme", "Satranç"], c: 1 },
+        { q: "Sirenler güçlerini neyle kullanırlar?", a: ["Gözleriyle", "Şarkı söyleyerek", "Dans ederek", "Dokunarak"], c: 1 },
+        { q: "Wednesday'in kardeşi Pugsley neyin içinden çıkarılmıştı?", a: ["Kutu", "Dolap", "Fırın", "Buzdolabı"], c: 1 },
+        { q: "Tyler'ın çalıştığı kafenin adı nedir?", a: ["Starbucks", "The Weathervane", "Gold Cup", "Rainy Day"], c: 1 },
+        { q: "Canavarın gerçek türü nedir?", a: ["Kurtadam", "Hyde", "Vampir", "Zombi"], c: 1 },
+        { q: "Wednesday'in daktilosunun markası nedir?", a: ["Remington", "Underwood", "Royal", "Olivetti"], c: 1 },
+        { q: "Enid'in nihai dönüşümü hangi olay sırasında gerçekleşti?", a: ["Okul balosu", "Kanlı Ay", "Yüzme yarışı", "Poe Kupası"], c: 1 }
+    ];
+
+    let score = 0;
+    let currentQuestion = {};
+
+    function getRandomQuestion() {
+        // Soruları karıştırarak sonsuz döngü oluşturur
+        const randomIndex = Math.floor(Math.random() * allQuestions.length);
+        return allQuestions[randomIndex];
+    }
+
+    function displayQuestion() {
+        currentQuestion = getRandomQuestion();
+        const qElement = document.getElementById('q-text');
+        const optElement = document.getElementById('options');
+        const feedback = document.getElementById('feedback-area');
+
+        feedback.innerText = "";
+        qElement.innerText = currentQuestion.q;
+        optElement.innerHTML = "";
+
+        currentQuestion.a.forEach((opt, idx) => {
+            const button = document.createElement('button');
+            button.className = 'btn';
+            button.innerText = opt;
+            button.onclick = () => check(idx);
+            optElement.appendChild(button);
+        });
+    }
+
+    function check(idx) {
+        const feedback = document.getElementById('feedback-area');
+        if(idx === currentQuestion.c) {
+            score++;
+            feedback.style.color = "#2ecc71";
+            feedback.innerText = "Doğru... Zekân beni korkutuyor.";
+        } else {
+            feedback.style.color = "#ff4757";
+            feedback.innerText = "Yanlış! Karanlıkta kayboldun.";
+        }
+
+        document.getElementById('score-val').innerText = score;
+        updateStatus();
+        
+        // 1.5 saniye sonra yeni soru (sonsuz döngü)
+        setTimeout(displayQuestion, 1500);
+    }
+
+    function updateStatus() {
+        let status = "Yeni Öğrenci";
+        if(score > 5) status = "Gizem Çözücü";
+        if(score > 10) status = "Nevermore Ustası";
+        if(score > 20) status = "Addams Onur Üyesi";
+        document.getElementById('status-val').innerText = status;
+    }
+
+    // İlk soruyu başlat
+    displayQuestion();
+</script>
+</body>
+</html>
