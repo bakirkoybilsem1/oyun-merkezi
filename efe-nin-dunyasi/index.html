@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Brawl Stars 3v3 Arena</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Arial Black', sans-serif; }
+        #game-container { position: relative; border: 5px solid #333; width: 1000px; height: 600px; background: #44af5c; }
+        canvas { display: block; background: #44af5c; }
+        
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 10;
+        }
+        
+        h1 { color: #fff; font-size: 60px; text-shadow: 4px 4px #2980b9; margin-bottom: 30px; letter-spacing: 2px; }
+        button {
+            padding: 20px 50px; font-size: 28px; cursor: pointer; background: #f1c40f;
+            border: none; border-radius: 50px; font-weight: bold; color: #222;
+            box-shadow: 0 6px #d35400; transition: 0.1s;
+        }
+        button:hover { background: #f39c12; transform: scale(1.05); }
+        button:active { transform: translateY(4px); box-shadow: 0 2px #d35400; }
+
+        #ui { position: absolute; top: 15px; width: 100%; text-align: center; color: white; pointer-events: none; z-index: 5; }
+        .status { font-size: 26px; text-shadow: 2px 2px #000; background: rgba(0,0,0,0.3); display: inline-block; padding: 5px 20px; border-radius: 20px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="start-screen" class="overlay">
+        <h1>BRAWL ARENA</h1>
+        <button id="startBtn">OYUNU BAŞLAT</button>
+    </div>
+
+    <div id="end-screen" class="overlay" style="display: none;">
+        <h1 id="result-text">ZAFER!</h1>
+        <button id="restartBtn">TEKRAR OYNA</button>
+    </div>
+
+    <div id="ui">
+        <div class="status">
+            <span style="color: #3498db;" id="blueCount">MAVİ: 3</span> | 
+            <span style="color: #ff4757;" id="redCount">KIRMIZI: 3</span>
+        </div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = 1000;
+canvas.height = 600;
+
+let warriors = [], bullets = [], keys = {};
+let gameActive = false;
+
+class Bullet {
+    constructor(x, y, angle, team) {
+        this.x = x; this.y = y; this.angle = angle;
+        this.speed = 9; this.team = team; this.radius = 5; this.life = 50;
+    }
+    update() {
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        this.life--;
+    }
+    draw() {
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+        ctx.fillStyle = '#fff200'; ctx.fill();
+        ctx.strokeStyle = '#ffa502'; ctx.stroke();
+    }
+}
+
+class Warrior {
+    constructor(x, y, team, isPlayer = false) {
+        this.x = x; this.y = y; this.team = team; this.isPlayer = isPlayer;
+        this.radius = 20; this.hp = 100; this.alive = true;
+        this.angle = isPlayer ? 0 : Math.PI; this.shootTimer = 0;
+        this.targetX = x; this.targetY = y;
+        this.color = team === 'blue' ? '#3498db' : '#ff4757';
+    }
+
+    draw() {
+        if (!this.alive) return;
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = '#2f3542'; ctx.fillRect(15, -5, 25, 10); // Silah namlusu
+        ctx.restore();
+
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+        ctx.fillStyle = this.color; ctx.fill();
+        ctx.strokeStyle = this.isPlayer ? '#f1c40f' : 'white';
+        ctx.lineWidth = 4; ctx.stroke();
+
+        // Can barı
+        ctx.fillStyle = '#2f3542'; ctx.fillRect(this.x-25, this.y-35, 50, 6);
+        ctx.fillStyle = '#2ed573'; ctx.fillRect(this.x-25, this.y-35, (this.hp/100)*50, 6);
+    }
+
+    update() {
+        if (!this.alive) return;
+        if (this.isPlayer) {
+            if (keys['ArrowUp']) this.y -= 4.5; if (keys['ArrowDown']) this.y += 4.5;
+            if (keys['ArrowLeft']) this.x -= 4.5; if (keys['ArrowRight']) this.x += 4.5;
+        } else {
+            if (Math.hypot(this.x-this.targetX, this.y-this.targetY) < 30) {
+                this.targetX = Math.random() * (canvas.width - 40) + 20;
+                this.targetY = Math.random() * (canvas.height - 40) + 20;
+            }
+            let ang = Math.atan2(this.targetY - this.y, this.targetX - this.x);
+            this.x += Math.cos(ang) * 2.2; this.y += Math.sin(ang) * 2.2;
+        }
+
+        let enemy = warriors.find(w => w.alive && w.team !== this.team && Math.hypot(w.x-this.x, w.y-this.y) < 350);
+        if (enemy) {
+            this.angle = Math.atan2(enemy.y - this.y, enemy.x - this.x);
+            if (++this.shootTimer > 25) {
+                bullets.push(new Bullet(this.x, this.y, this.angle, this.team));
+                this.shootTimer = 0;
+            }
+        }
+        this.x = Math.max(this.radius, Math.min(canvas.width-this.radius, this.x));
+        this.y = Math.max(this.radius, Math.min(canvas.height-this.radius, this.y));
+    }
+}
+
+function startGame() {
+    warriors = [
+        new Warrior(150, 300, 'blue', true), new Warrior(150, 150, 'blue'), new Warrior(150, 450, 'blue'),
+        new Warrior(850, 300, 'red'), new Warrior(850, 150, 'red'), new Warrior(850, 450, 'red')
+    ];
+    bullets = [];
+    gameActive = true;
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('end-screen').style.display = 'none';
+}
+
+function checkGameOver() {
+    const blueAlive = warriors.filter(w => w.team === 'blue' && w.alive).length;
+    const redAlive = warriors.filter(w => w.team === 'red' && w.alive).length;
+    
+    document.getElementById('blueCount').innerText = `MAVİ: ${blueAlive}`;
+    document.getElementById('redCount').innerText = `KIRMIZI: ${redAlive}`;
+
+    if (blueAlive === 0 || redAlive === 0) {
+        gameActive = false;
+        const resultText = document.getElementById('result-text');
+        if (blueAlive > 0) {
+            resultText.innerText = "ZAFER!";
+            resultText.style.color = "#3498db";
+        } else {
+            resultText.innerText = "BOZGUN!";
+            resultText.style.color = "#ff4757";
+        }
+        document.getElementById('end-screen').style.display = 'flex';
+    }
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('restartBtn').addEventListener('click', startGame);
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup', e => keys[e.key] = false);
+
+function loop() {
+    ctx.fillStyle = '#44af5c'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Izgara/Harita Detayı
+    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+    for(let i=0; i<canvas.width; i+=50) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,600); ctx.stroke(); }
+    
+    if (gameActive) {
+        bullets.forEach((b, i) => {
+            b.update(); b.draw();
+            warriors.forEach(w => {
+                if (w.alive && w.team !== b.team && Math.hypot(w.x-b.x, w.y-b.y) < w.radius) {
+                    w.hp -= 10; bullets.splice(i, 1);
+                    if (w.hp <= 0) w.alive = false;
+                }
+            });
+            if (b.life <= 0) bullets.splice(i, 1);
+        });
+
+        warriors.forEach(w => { w.update(); w.draw(); });
+        checkGameOver();
+    }
+
+    requestAnimationFrame(loop);
+}
+
+// Döngüyü başlat
+loop();
+</script>
+</body>
+</html>
