@@ -1,0 +1,86 @@
+                } else {
+                    clearInterval(walkTimer);
+                    autoWalking = false;
+                    enterHome();
+                }
+            }, 20);
+        }
+
+        function enterHome() {
+            isAtHome = true; isInside = false;
+            document.getElementById('gameWorld').style.display = "none";
+            interior.style.display = "block";
+            interior.style.backgroundImage = "url('ev.jpg')";
+            ghost.style.display = "none"; flame.style.display = "none"; book.style.display = "none";
+            
+            // Başlangıç noktası: Kapının tam önü, duvarın içinde değil
+            posX = window.innerWidth / 2; 
+            posY = window.innerHeight * 0.88; 
+            
+            update();
+            showMsg("Evine hoş geldin.");
+        }
+
+        function update() {
+            player.style.left = posX + 'px'; player.style.top = posY + 'px';
+            let px = (posX / window.innerWidth) * 100, py = (posY / window.innerHeight) * 100;
+            
+            if (!isInside && !isAtHome) {
+                hintBox.innerHTML = (px < 35 && py < 45) ? "[E] MALİKÂNE" : (px > 63 && py < 45) ? "[G] EV" : "[T] EVE GİT";
+            } else {
+                hintBox.innerHTML = (py > 80) ? "[SPACE] DIŞARI ÇIK" : (isInside && !ritualDone && Math.sqrt(Math.pow(px-45,2)+Math.pow(py-41,2)) < 15) ? "[P] ETKİLEŞİM" : "";
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (!canMove || autoWalking) return;
+            const key = e.key.toLowerCase();
+
+            if (key === 't') { autoGoHome(); return; }
+
+            let nX = posX, nY = posY, spd = 30;
+            if (key === 'w') nY -= spd; if (key === 's') nY += spd;
+            if (key === 'a') { nX -= spd; player.classList.remove('flip'); }
+            if (key === 'd') { nX += spd; player.classList.add('flip'); }
+
+            let px = (nX / window.innerWidth) * 100, py = (nY / window.innerHeight) * 100;
+
+            if (!isInside && !isAtHome) {
+                posX = nX; posY = nY;
+                if (key === 'e' && px < 35 && py < 45) {
+                    if (hasKey) {
+                        isInside = true; document.getElementById('gameWorld').style.display = "none";
+                        interior.style.display = "block"; interior.style.backgroundImage = "url('malikane_ici.jpg')";
+                        flame.style.display = "block"; posX = window.innerWidth / 2; posY = window.innerHeight * 0.8;
+                    } else showMsg("Kapı kilitli.");
+                }
+                if (key === 'g' && px > 63 && py < 45) enterHome();
+            } else {
+                // Sınırlandırma ve Çıkış
+                if (key === ' ' && py > 75) {
+                    let wasHome = isAtHome; isInside = false; isAtHome = false;
+                    interior.style.display = "none"; document.getElementById('gameWorld').style.display = "block";
+                    // Dışarı çıkınca kapının önünde doğar
+                    posX = wasHome ? window.innerWidth * 0.73 : window.innerWidth * 0.3; 
+                    posY = window.innerHeight * 0.5;
+                } else if (py > 90 || !(px < 5 || px > 95 || py < 5)) { posX = nX; posY = nY; }
+
+                if (key === 'p' && isInside && !ritualDone) {
+                    let dist = Math.sqrt(Math.pow(px - 45, 2) + Math.pow(py - 41, 2));
+                    if (dist < 15) {
+                        if (!ghostMet) {
+                            ghost.style.display = "block"; showMsg("LALE: 'Kurtar beni...'");
+                            setTimeout(() => { ghost.style.display = "none"; book.style.display = "block"; ghostMet = true; }, 2000);
+                        } else if (collectedCount === 3) {
+                            ritualDone = true; ghost.style.display = "block";
+                            showMsg("LALE: 'Teşekkür ederim... Özgürüm!'");
+                            setTimeout(() => { ghost.style.display = "none"; flame.style.display = "none"; invUI.style.display = "none"; }, 3000);
+                        }
+                    }
+                }
+            }
+            update();
+        });
+    </script>
+</body>
+</html>
