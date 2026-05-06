@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Sisli Vadi: Lale'nin Kurtuluşu</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        img { image-rendering: pixelated; } /* Retro görünüm için netleştirme */
+        
+        .scene { position: absolute; width: 100vw; height: 100vh; display: none; background-size: 100% 100%; }
+        
+        /* ANA MENÜ */
+        #mainMenu { display: flex; background: url('oyun_dunyasi.jpg') no-repeat center/cover; z-index: 5000; align-items: center; justify-content: center; }
+        .btn-start { padding: 20px 50px; background: rgba(0,0,0,0.85); color: #9370DB; border: 3px solid #9370DB; cursor: pointer; font-size: 26px; font-weight: bold; border-radius: 12px; transition: 0.3s; }
+        .btn-start:hover { transform: scale(1.1); background: #9370DB; color: white; }
+
+        /* DÜNYALAR */
+        #gameWorld { background: url('oyun_dunyasi.jpg') no-repeat center/cover; }
+        #interior { background: url('malikane_ici.jpg') no-repeat center/cover; }
+
+        /* KARAKTER (SİYAH KUTU SORUNU GİDERİLDİ) */
+        #player { 
+            position: absolute; 
+            width: 65px; 
+            z-index: 100; 
+            transform: translate(-50%, -50%); 
+            display: none; 
+            background: transparent !important; /* Arka planı tamamen temizledik */
+            border: none !important;
+            box-shadow: none !important;
+        }
+        #player img { 
+            width: 100%; 
+            height: auto; 
+            background: transparent !important; 
+            mix-blend-mode: multiply; /* Eğer görselin beyaz fonu varsa onu yok eder */
+        }
+        #player.flip img { transform: scaleX(-1); }
+
+        /* ETKİLEŞİM ÖGELERİ */
+        #ghostSprite { position: absolute; left: 50%; top: 35%; transform: translate(-50%, -50%); width: 280px; z-index: 150; display: none; filter: drop-shadow(0 0 15px purple); pointer-events: none; }
+        #purpleFlame { position: absolute; left: 45%; top: 41%; width: 100px; transform: translate(-50%, -50%); display: none; }
+        #inventoryUI { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.8); border: 2px solid #9370DB; color: white; padding: 15px; z-index: 2000; display: none; width: 180px; border-radius: 8px; }
+        .inv-item { margin: 5px 0; font-size: 13px; color: #666; }
+        .inv-item.found { color: #00ff00; font-weight: bold; }
+        .ingredient { position: absolute; cursor: pointer; display: none; z-index: 95; }
+        .ingredient img { width: 50px; border: 1px solid gold; border-radius: 5px; }
+
+        /* ARAYÜZ */
+        #hintBox { position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%); color: white; font-size: 15px; z-index: 1000; background: rgba(0,0,0,0.7); padding: 8px 20px; border-radius: 20px; border: 1px solid #9370DB; }
+        #msgBox { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(10, 0, 20, 0.95); border: 2px solid #9370DB; color: #E6E6FA; padding: 20px; display: none; z-index: 3000; width: 60%; text-align: center; border-radius: 12px; font-size: 18px; }
+        #recipePage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 70%; height: 70%; background: url('j.jpg') no-repeat center/contain; z-index: 4000; display: none; }
+        .page-close { position: absolute; top: 10px; right: 10px; cursor: pointer; background: #900; color: white; padding: 5px 15px; border-radius: 5px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="mainMenu" class="scene"><button class="btn-start" onclick="startGame()">MACERAYA BAŞLA</button></div>
+    
+    <div id="gameWorld" class="scene">
+        <div id="keyItem" style="position:absolute; left:82%; top:75%; font-size:35px; cursor:pointer;" onclick="collectKey()">🔑</div>
+    </div>
+    
+    <div id="interior" class="scene">
+        <div id="ghostSprite"><img src="hayalet.png" style="width:100%;"></div>
+        <div id="purpleFlame"><img src="mor_ates.png" style="width:100%;"></div>
+        <div id="bookOnShelf" style="position:absolute; left:15%; top:45%; width:45px; height:60px; background:url('recipeBook.jpg') center/cover; border:2px solid gold; display:none; cursor:pointer;" onclick="openBook()"></div>
+        <div id="ing1" class="ingredient" style="left:75%; top:25%;" onclick="collectIng(1)"><img src="gumus_tozu.jpg"></div>
+        <div id="ing2" class="ingredient" style="left:20%; top:75%;" onclick="collectIng(2)"><img src="lavanta.jpg"></div>
+        <div id="ing3" class="ingredient" style="left:85%; top:80%;" onclick="collectIng(3)"><img src="ejderha_nefesi.png"></div>
+    </div>
+
+    <div id="inventoryUI">
+        <b style="color: gold;">CANTAN</b>
+        <div id="slot1" class="inv-item">○ Gümüş Tozu</div>
+        <div id="slot2" class="inv-item">○ Lavanta</div>
+        <div id="slot3" class="inv-item">○ Ejderha Nefesi</div>
+    </div>
+
+    <div id="player"><img src="karakter.png"></div>
+    <div id="hintBox"></div>
+    <div id="msgBox"></div>
+    <div id="recipePage"><div class="page-close" onclick="closeBook()">KAPAT</div></div>
+
+    <script>
+        const player = document.getElementById('player'), 
+              interior = document.getElementById('interior'),
+              ghost = document.getElementById('ghostSprite'), 
+              msgBox = document.getElementById('msgBox'),
+              hintBox = document.getElementById('hintBox'), 
+              book = document.getElementById('bookOnShelf'),
+              invUI = document.getElementById('inventoryUI'),
+              flame = document.getElementById('purpleFlame');
+
+        let posX, posY, hasKey = false, isInside = false, isAtHome = false, canMove = true, autoWalking = false;
+        let collectedCount = 0, ghostMet = false, ritualDone = false;
+
+        function showMsg(txt) { msgBox.innerHTML = txt; msgBox.style.display = "block"; setTimeout(()=> msgBox.style.display="none", 3000); }
+
+        function startGame() {
+            document.getElementById('mainMenu').style.display = "none";
+            document.getElementById('gameWorld').style.display = "block";
+            player.style.display = "block";
+            if(!posX) { posX = window.innerWidth / 2; posY = window.innerHeight / 2; }
+            update();
+        }
+
+        function collectKey() { hasKey = true; document.getElementById('keyItem').style.display = "none"; showMsg("Anahtarı buldun!"); }
+        function openBook() { canMove = false; document.getElementById('recipePage').style.display = "block"; }
+        function closeBook() { 
+            document.getElementById('recipePage').style.display = "none"; canMove = true; invUI.style.display = "block";
+            if(!ritualDone) document.querySelectorAll('.ingredient').forEach(el => el.style.display = "block");
+        }
+
+        function collectIng(id) {
+            document.getElementById('ing' + id).style.display = "none";
+            document.getElementById('slot' + id).classList.add('found');
+            document.getElementById('slot' + id).innerText = "● Alındı";
+            collectedCount++;
+        }
+
+        // T TUŞU: OTOMATİK EVE GİTME (KALİBRE EDİLDİ)
+        function autoGoHome() {
+            if(isInside || isAtHome || autoWalking) return;
+            autoWalking = true;
+            showMsg("Eve yürünüyor...");
+            
+            // Görseldeki kapı hizasına göre X ve Y ayarlandı
+            const targetX = window.innerWidth * 0.73; 
+            const targetY = window.innerHeight * 0.42;
+
+            const walkTimer = setInterval(() => {
+                let dx = targetX - posX;
+                let dy = targetY - posY;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+
+                if (dist > 5) {
+                    posX += (dx / dist) * 7;
+                    posY += (dy / dist) * 7;
+                    if (dx > 0) player.classList.add('flip'); else player.classList.remove('flip');
+                    update();
+                } else {
+                    clearInterval(walkTimer);
+                    autoWalking = false;
+                    enterHome();
+                }
+            }, 20);
+        }
+
+        function enterHome() {
+            isAtHome = true; isInside = false;
+            document.getElementById('gameWorld').style.display = "none";
+            interior.style.display = "block";
+            interior.style.backgroundImage = "url('ev.jpg')";
+            ghost.style.display = "none"; flame.style.display = "none"; book.style.display = "none";
+            
+            // Başlangıç noktası: Kapının tam önü, duvarın içinde değil
+            posX = window.innerWidth / 2; 
+            posY = window.innerHeight * 0.88; 
+            
+            update();
+            showMsg("Evine hoş geldin.");
+        }
+
+        function update() {
+            player.style.left = posX + 'px'; player.style.top = posY + 'px';
+            let px = (posX / window.innerWidth) * 100, py = (posY / window.innerHeight) * 100;
+            
+            if (!isInside && !isAtHome) {
+                hintBox.innerHTML = (px < 35 && py < 45) ? "[E] MALİKÂNE" : (px > 63 && py < 45) ? "[G] EV" : "[T] EVE GİT";
+            } else {
+                hintBox.innerHTML = (py > 80) ? "[SPACE] DIŞARI ÇIK" : (isInside && !ritualDone && Math.sqrt(Math.pow(px-45,2)+Math.pow(py-41,2)) < 15) ? "[P] ETKİLEŞİM" : "";
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (!canMove || autoWalking) return;
+            const key = e.key.toLowerCase();
+
+            if (key === 't') { autoGoHome(); return; }
+
+            let nX = posX, nY = posY, spd = 30;
+            if (key === 'w') nY -= spd; if (key === 's') nY += spd;
+            if (key === 'a') { nX -= spd; player.classList.remove('flip'); }
+            if (key === 'd') { nX += spd; player.classList.add('flip'); }
+
+            let px = (nX / window.innerWidth) * 100, py = (nY / window.innerHeight) * 100;
+
+            if (!isInside && !isAtHome) {
+                posX = nX; posY = nY;
+                if (key === 'e' && px < 35 && py < 45) {
+                    if (hasKey) {
+                        isInside = true; document.getElementById('gameWorld').style.display = "none";
+                        interior.style.display = "block"; interior.style.backgroundImage = "url('malikane_ici.jpg')";
+                        flame.style.display = "block"; posX = window.innerWidth / 2; posY = window.innerHeight * 0.8;
+                    } else showMsg("Kapı kilitli.");
+                }
+                if (key === 'g' && px > 63 && py < 45) enterHome();
+            } else {
+                // Sınırlandırma ve Çıkış
+                if (key === ' ' && py > 75) {
+                    let wasHome = isAtHome; isInside = false; isAtHome = false;
+                    interior.style.display = "none"; document.getElementById('gameWorld').style.display = "block";
+                    // Dışarı çıkınca kapının önünde doğar
+                    posX = wasHome ? window.innerWidth * 0.73 : window.innerWidth * 0.3; 
+                    posY = window.innerHeight * 0.5;
+                } else if (py > 90 || !(px < 5 || px > 95 || py < 5)) { posX = nX; posY = nY; }
+
+                if (key === 'p' && isInside && !ritualDone) {
+                    let dist = Math.sqrt(Math.pow(px - 45, 2) + Math.pow(py - 41, 2));
+                    if (dist < 15) {
+                        if (!ghostMet) {
+                            ghost.style.display = "block"; showMsg("LALE: 'Kurtar beni...'");
+                            setTimeout(() => { ghost.style.display = "none"; book.style.display = "block"; ghostMet = true; }, 2000);
+                        } else if (collectedCount === 3) {
+                            ritualDone = true; ghost.style.display = "block";
+                            showMsg("LALE: 'Teşekkür ederim... Özgürüm!'");
+                            setTimeout(() => { ghost.style.display = "none"; flame.style.display = "none"; invUI.style.display = "none"; }, 3000);
+                        }
+                    }
+                }
+            }
+            update();
+        });
+    </script>
+</body>
+</html>
