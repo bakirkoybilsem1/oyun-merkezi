@@ -268,5 +268,14 @@
       "#c471ed",
       "#12c2e9"
     ]
+  },
+  {
+    "slug": "ac",
+    "name": "Oyun Yükleniyor...",
+    "emoji": "🎲",
+    "colors": [
+      "#FF6B6B",
+      "#FF8E53"
+    ]
   }
 ]
