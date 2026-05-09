@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oyun Yükleniyor...</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: #000;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .ust-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #111;
+      padding: 0 16px;
+      height: 48px;
+      flex-shrink: 0;
+      border-bottom: 1px solid #222;
+    }
+
+    .geri {
+      color: rgba(255,255,255,0.5);
+      text-decoration: none;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .geri:hover { color: white; }
+
+    .oyun-adi {
+      color: white;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .fallback-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #FF4B4B;
+      color: white;
+      text-decoration: none;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .fallback-btn:hover { background: #e03c3c; }
+
+    iframe {
+      flex: 1;
+      border: none;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ust-bar">
+    <a class="geri" href="/">← Geri Dön</a>
+    <div class="oyun-adi" id="oyunAdi">Oyun</div>
+    <a class="fallback-btn" id="fallbackLink" href="#" target="_blank">
+      ⚠️ Açılmıyor mu? Buraya tıkla
+    </a>
+  </div>
+
+  <iframe id="frame" src="" allowfullscreen></iframe>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const slug = params.get('oyun') || '';
+    const ad   = params.get('ad')  || 'Oyun';
+
+    document.getElementById('oyunAdi').textContent   = ad;
+    document.getElementById('frame').src             = '/' + slug + '/';
+    document.getElementById('fallbackLink').href     = 'https://oyunoyna.vercel.app/oyun/' + slug;
+    document.title = ad;
+  </script>
+
+</body>
+</html>
