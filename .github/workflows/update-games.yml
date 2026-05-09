@@ -1,0 +1,84 @@
+name: Oyun Listesini Otomatik Güncelle
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  update-games:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Yeni oyunları games.json'a ekle
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const RENK_PALETI = [
+              ["#FF6B6B","#FF8E53"], ["#4ECDC4","#44A08D"], ["#FCCB90","#D57EEB"],
+              ["#96FBC4","#F9F586"], ["#FBC2EB","#A6C1EE"], ["#FDDB92","#D1FDFF"],
+              ["#E0C3FC","#8EC5FC"], ["#f7971e","#ffd200"], ["#134e5e","#71b280"],
+              ["#FC5C7D","#6A82FB"], ["#43C6AC","#F8FFAE"], ["#4568DC","#B06AB3"],
+              ["#FF416C","#FF4B2B"], ["#12c2e9","#f64f59"], ["#c471ed","#12c2e9"]
+            ];
+
+            const EMOJILER = [
+              "🎮","🏎️","🚀","🎯","🚁","🥔","🏙️","🍌","🧟",
+              "⚔️","🎲","🦸","🐉","🌟","💥","🏰","🦕","🌍","🛸","⚒️"
+            ];
+
+            const YOKSAY = new Set(['.github','node_modules','.git','public','dist','build','assets']);
+
+            // Mevcut games.json oku
+            let games = [];
+            if (fs.existsSync('games.json')) {
+              games = JSON.parse(fs.readFileSync('games.json', 'utf8'));
+            }
+            const mevcutSluglar = new Set(games.map(g => g.slug));
+
+            // Klasörleri tara
+            const klasorler = fs.readdirSync('.', { withFileTypes: true })
+              .filter(e => e.isDirectory() && !e.name.startsWith('.') && !YOKSAY.has(e.name))
+              .map(e => e.name)
+              .sort();
+
+            let degisti = false;
+
+            for (const klasor of klasorler) {
+              if (mevcutSluglar.has(klasor)) continue;
+
+              // Oyun adını index.html <title>'dan çek
+              let ad = klasor.replace(/-/g, ' ');
+              const indexYolu = path.join(klasor, 'index.html');
+              if (fs.existsSync(indexYolu)) {
+                const html = fs.readFileSync(indexYolu, 'utf8');
+                const esles = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+                if (esles) ad = esles[1].trim();
+              }
+
+              const idx = games.length % RENK_PALETI.length;
+              const ei  = games.length % EMOJILER.length;
+
+              games.push({ slug: klasor, name: ad, emoji: EMOJILER[ei], colors: RENK_PALETI[idx] });
+              degisti = true;
+              console.log(`Eklendi: ${klasor} → "${ad}"`);
+            }
+
+            if (degisti) {
+              fs.writeFileSync('games.json', JSON.stringify(games, null, 2));
+            }
+
+      - name: Commit at
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add games.json
+          git diff --staged --quiet || git commit -m "🎮 Oyun listesi güncellendi [skip ci]"
+          git push
