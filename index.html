@@ -54,11 +54,18 @@
       gap: 18px;
       transition: background 0.2s, transform 0.2s;
       cursor: pointer;
+      opacity: 0;
+      animation: fadeIn 0.35s ease forwards;
     }
 
     .kart:hover {
       background: rgba(255,255,255,0.13);
       transform: translateY(-3px);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     .emoji-kutu {
@@ -85,7 +92,6 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      color: white;
       padding: 5px 14px;
       border-radius: 50px;
       font-size: 0.82rem;
@@ -106,90 +112,39 @@
     <p>Oynamak istediğin oyunu seç!</p>
   </header>
 
-  <div class="grid">
+  <div class="grid" id="grid"></div>
 
-    <a class="kart" href="/ruzgar-ve-alp-cinar-in-demir-araba-oyunu">
-      <div class="emoji-kutu" style="background:linear-gradient(135deg,#FF6B6B,#FF8E53); box-shadow:0 8px 24px #FF6B6B55;">🏎️</div>
-      <div class="icerik">
-        <div class="oyun-adi">Rüzgar ve Alp Çınar'ın Demir Araba Oyunu</div>
-        <span class="btn" style="background:linear-gradient(135deg,#FF6B6B,#FF8E53)">▶ Oyuna giriş yapmak için tıklayınız</span>
-      </div>
-      <div class="ok">→</div>
-    </a>
+  <script>
+    function acikMi(hex) {
+      const r = parseInt(hex.slice(1,3), 16);
+      const g = parseInt(hex.slice(3,5), 16);
+      const b = parseInt(hex.slice(5,7), 16);
+      return (r * 299 + g * 587 + b * 114) / 1000 > 155;
+    }
 
-    <a class="kart" href="/doruk-i-le-uzay-la-sonsuz-ucus">
-      <div class="emoji-kutu" style="background:linear-gradient(135deg,#4ECDC4,#44A08D); box-shadow:0 8px 24px #4ECDC455;">🚀</div>
-      <div class="icerik">
-        <div class="oyun-adi">Doruk ile Uzay'la Sonsuz Uçuş</div>
-        <span class="btn" style="background:linear-gradient(135deg,#4ECDC4,#44A08D)">▶ Oyuna giriş yapmak için tıklayınız</span>
-      </div>
-      <div class="ok">→</div>
-    </a>
-
-    <a class="kart" href="/elif-ikra-ve-karen-in-hp-oyunu">
-      <div class="emoji-kutu" style="background:linear-gradient(135deg,#FCCB90,#D57EEB); box-shadow:0 8px 24px #FCCB9055;">🎯</div>
-      <div class="icerik">
-        <div class="oyun-adi">Elif İkra ve Karen'in HP Oyunu</div>
-        <span class="btn" style="background:linear-gradient(135deg,#FCCB90,#D57EEB)">▶ Oyuna giriş yapmak için tıklayınız</span>
-      </div>
-      <div class="ok">→</div>
-    </a>
-
-    <a class="kart" href="/elif-naz-drone-elite-v7">
-      <div class="emoji-kutu" style="background:linear-gradient(135deg,#96FBC4,#F9F586); box-shadow:0 8px 24px #96FBC455;">🚁</div>
-      <div class="icerik">
-        <div class="oyun-adi">Elif Naz DRONE ELITE v7</div>
-        <span class="btn" style="background:linear-gradient(135deg,#96FBC4,#F9F586); color:#333">▶ Oyuna giriş yapmak için tıklayınız</span>
-      </div>
-      <div class="ok">→</div>
-    </a>
-
-    <a class="kart" href="/eren-patates-click">
-      <div class="emoji-kutu" style="background:linear-gradient(135deg,#FBC2EB,#A6C1EE); box-shadow:0 8px 24px #FBC2EB55;">🥔</div>
-      <div class="icerik">
-        <div class="oyun-adi">Eren Patates Click</div>
-        <span class="btn" style="background:linear-gradient(135deg,#FBC2EB,#A6C1EE); color:#333">▶ Oyuna giriş yapmak için tıklayınız</span>
-      </div>
-      <div class="ok">→</div>
-    </a>
-
-    <a class="kart" href="/hamza-nin-oyunu">
-      <div class="emoji-kutu" style="background:linear-gradient(135deg,#FDDB92,#D1FDFF); box-shadow:0 8px 24px #FDDB9255; color:#333">🎮</div>
-      <div class="icerik">
-        <div class="oyun-adi">Hamza'nın Oyunu</div>
-        <span class="btn" style="background:linear-gradient(135deg,#FDDB92,#D1FDFF); color:#333">▶ Oyuna giriş yapmak için tıklayınız</span>
-      </div>
-      <div class="ok">→</div>
-    </a>
-
-    <a class="kart" href="/mila-i-le-canan-in-siber-sehri">
-      <div class="emoji-kutu" style="background:linear-gradient(135deg,#E0C3FC,#8EC5FC); box-shadow:0 8px 24px #E0C3FC55;">🏙️</div>
-      <div class="icerik">
-        <div class="oyun-adi">Mila ile Canan'ın Siber Şehri</div>
-        <span class="btn" style="background:linear-gradient(135deg,#E0C3FC,#8EC5FC); color:#333">▶ Oyuna giriş yapmak için tıklayınız</span>
-      </div>
-      <div class="ok">→</div>
-    </a>
-
-    <a class="kart" href="/yalin-banana">
-      <div class="emoji-kutu" style="background:linear-gradient(135deg,#f7971e,#ffd200); box-shadow:0 8px 24px #f7971e55;">🍌</div>
-      <div class="icerik">
-        <div class="oyun-adi">Yalın Banana</div>
-        <span class="btn" style="background:linear-gradient(135deg,#f7971e,#ffd200); color:#333">▶ Oyuna giriş yapmak için tıklayınız</span>
-      </div>
-      <div class="ok">→</div>
-    </a>
-
-    <a class="kart" href="/eymen-zombi-defans">
-      <div class="emoji-kutu" style="background:linear-gradient(135deg,#134e5e,#71b280); box-shadow:0 8px 24px #134e5e55;">🧟</div>
-      <div class="icerik">
-        <div class="oyun-adi">Eymen Zombi Defans</div>
-        <span class="btn" style="background:linear-gradient(135deg,#134e5e,#71b280)">▶ Oyuna giriş yapmak için tıklayınız</span>
-      </div>
-      <div class="ok">→</div>
-    </a>
-
-  </div>
+    fetch('/games.json')
+      .then(r => r.json())
+      .then(oyunlar => {
+        const grid = document.getElementById('grid');
+        oyunlar.forEach((oyun, i) => {
+          const [c1, c2] = oyun.colors;
+          const textColor = acikMi(c1) ? '#333' : 'white';
+          const a = document.createElement('a');
+          a.className = 'kart';
+          a.href = '/' + oyun.slug;
+          a.style.animationDelay = (i * 55) + 'ms';
+          a.innerHTML = `
+            <div class="emoji-kutu" style="background:linear-gradient(135deg,${c1},${c2});box-shadow:0 8px 24px ${c1}55">${oyun.emoji}</div>
+            <div class="icerik">
+              <div class="oyun-adi">${oyun.name}</div>
+              <span class="btn" style="background:linear-gradient(135deg,${c1},${c2});color:${textColor}">▶ Oyuna giriş yapmak için tıklayınız</span>
+            </div>
+            <div class="ok">→</div>
+          `;
+          grid.appendChild(a);
+        });
+      });
+  </script>
 
 </body>
 </html>
