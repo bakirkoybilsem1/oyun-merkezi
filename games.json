@@ -1,0 +1,56 @@
+[
+  {
+    "slug": "ruzgar-ve-alp-cinar-in-demir-araba-oyunu",
+    "name": "Rüzgar ve Alp Çınar'ın Demir Araba Oyunu",
+    "emoji": "🏎️",
+    "colors": ["#FF6B6B", "#FF8E53"]
+  },
+  {
+    "slug": "doruk-i-le-uzay-la-sonsuz-ucus",
+    "name": "Doruk ile Uzay'la Sonsuz Uçuş",
+    "emoji": "🚀",
+    "colors": ["#4ECDC4", "#44A08D"]
+  },
+  {
+    "slug": "elif-ikra-ve-karen-in-hp-oyunu",
+    "name": "Elif İkra ve Karen'in HP Oyunu",
+    "emoji": "🎯",
+    "colors": ["#FCCB90", "#D57EEB"]
+  },
+  {
+    "slug": "elif-naz-drone-elite-v7",
+    "name": "Elif Naz DRONE ELITE v7",
+    "emoji": "🚁",
+    "colors": ["#96FBC4", "#F9F586"]
+  },
+  {
+    "slug": "eren-patates-click",
+    "name": "Eren Patates Click",
+    "emoji": "🥔",
+    "colors": ["#FBC2EB", "#A6C1EE"]
+  },
+  {
+    "slug": "hamza-nin-oyunu",
+    "name": "Hamza'nın Oyunu",
+    "emoji": "🎮",
+    "colors": ["#FDDB92", "#D1FDFF"]
+  },
+  {
+    "slug": "mila-i-le-canan-in-siber-sehri",
+    "name": "Mila ile Canan'ın Siber Şehri",
+    "emoji": "🏙️",
+    "colors": ["#E0C3FC", "#8EC5FC"]
+  },
+  {
+    "slug": "yalin-banana",
+    "name": "Yalın Banana",
+    "emoji": "🍌",
+    "colors": ["#f7971e", "#ffd200"]
+  },
+  {
+    "slug": "eymen-zombi-defans",
+    "name": "Eymen Zombi Defans",
+    "emoji": "🧟",
+    "colors": ["#134e5e", "#71b280"]
+  }
+]
