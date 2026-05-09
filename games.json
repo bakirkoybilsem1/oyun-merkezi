@@ -3,54 +3,270 @@
     "slug": "ruzgar-ve-alp-cinar-in-demir-araba-oyunu",
     "name": "Rüzgar ve Alp Çınar'ın Demir Araba Oyunu",
     "emoji": "🏎️",
-    "colors": ["#FF6B6B", "#FF8E53"]
+    "colors": [
+      "#FF6B6B",
+      "#FF8E53"
+    ]
   },
   {
     "slug": "doruk-i-le-uzay-la-sonsuz-ucus",
     "name": "Doruk ile Uzay'la Sonsuz Uçuş",
     "emoji": "🚀",
-    "colors": ["#4ECDC4", "#44A08D"]
+    "colors": [
+      "#4ECDC4",
+      "#44A08D"
+    ]
   },
   {
     "slug": "elif-ikra-ve-karen-in-hp-oyunu",
     "name": "Elif İkra ve Karen'in HP Oyunu",
     "emoji": "🎯",
-    "colors": ["#FCCB90", "#D57EEB"]
+    "colors": [
+      "#FCCB90",
+      "#D57EEB"
+    ]
   },
   {
     "slug": "elif-naz-drone-elite-v7",
     "name": "Elif Naz DRONE ELITE v7",
     "emoji": "🚁",
-    "colors": ["#96FBC4", "#F9F586"]
+    "colors": [
+      "#96FBC4",
+      "#F9F586"
+    ]
   },
   {
     "slug": "eren-patates-click",
     "name": "Eren Patates Click",
     "emoji": "🥔",
-    "colors": ["#FBC2EB", "#A6C1EE"]
+    "colors": [
+      "#FBC2EB",
+      "#A6C1EE"
+    ]
   },
   {
     "slug": "hamza-nin-oyunu",
     "name": "Hamza'nın Oyunu",
     "emoji": "🎮",
-    "colors": ["#FDDB92", "#D1FDFF"]
+    "colors": [
+      "#FDDB92",
+      "#D1FDFF"
+    ]
   },
   {
     "slug": "mila-i-le-canan-in-siber-sehri",
     "name": "Mila ile Canan'ın Siber Şehri",
     "emoji": "🏙️",
-    "colors": ["#E0C3FC", "#8EC5FC"]
+    "colors": [
+      "#E0C3FC",
+      "#8EC5FC"
+    ]
   },
   {
     "slug": "yalin-banana",
     "name": "Yalın Banana",
     "emoji": "🍌",
-    "colors": ["#f7971e", "#ffd200"]
+    "colors": [
+      "#f7971e",
+      "#ffd200"
+    ]
   },
   {
     "slug": "eymen-zombi-defans",
     "name": "Eymen Zombi Defans",
     "emoji": "🧟",
-    "colors": ["#134e5e", "#71b280"]
+    "colors": [
+      "#134e5e",
+      "#71b280"
+    ]
+  },
+  {
+    "slug": "ali-kerem-usta-demirci",
+    "name": "USTA DEMİRCİ: RİSKLİ DÖVME",
+    "emoji": "⚔️",
+    "colors": [
+      "#FC5C7D",
+      "#6A82FB"
+    ]
+  },
+  {
+    "slug": "ali-nin-zombi-oyunu",
+    "name": "Combat Zone - FPS",
+    "emoji": "🎲",
+    "colors": [
+      "#43C6AC",
+      "#F8FFAE"
+    ]
+  },
+  {
+    "slug": "alp-cinar-ve-ruzgar-in-dovus-oyunu",
+    "name": "AI Arena: Clean Dark",
+    "emoji": "🦸",
+    "colors": [
+      "#4568DC",
+      "#B06AB3"
+    ]
+  },
+  {
+    "slug": "ata-dinotest",
+    "name": "DİNOTEST: 10 Soru 10 Cevap",
+    "emoji": "🐉",
+    "colors": [
+      "#FF416C",
+      "#FF4B2B"
+    ]
+  },
+  {
+    "slug": "canan-ile-mila-nin-oyunu",
+    "name": "Cyber Runner - Karakter Fix",
+    "emoji": "🌟",
+    "colors": [
+      "#12c2e9",
+      "#f64f59"
+    ]
+  },
+  {
+    "slug": "doruk-ile-uzay-la-sonsuz-ucus",
+    "name": "Doruk ile Uzay: Sonsuz Uçuş",
+    "emoji": "💥",
+    "colors": [
+      "#c471ed",
+      "#12c2e9"
+    ]
+  },
+  {
+    "slug": "efe-nin-dunyasi",
+    "name": "Brawl Stars 3v3 Arena",
+    "emoji": "🏰",
+    "colors": [
+      "#FF6B6B",
+      "#FF8E53"
+    ]
+  },
+  {
+    "slug": "elif-i-kra-oyunu",
+    "name": "Nevermore: Sonsuz Karanlık",
+    "emoji": "🦕",
+    "colors": [
+      "#4ECDC4",
+      "#44A08D"
+    ]
+  },
+  {
+    "slug": "eren-stratejik-tower-defense",
+    "name": "Stratejik Tower Defense - Düzeltilmiş Sürüm",
+    "emoji": "🌍",
+    "colors": [
+      "#FCCB90",
+      "#D57EEB"
+    ]
+  },
+  {
+    "slug": "eren-tower-defense",
+    "name": "Stratejik Tower Defense - Fix Sürümü",
+    "emoji": "🛸",
+    "colors": [
+      "#96FBC4",
+      "#F9F586"
+    ]
+  },
+  {
+    "slug": "eymen-arena",
+    "name": "Voxel War: Arena Mayhem",
+    "emoji": "⚒️",
+    "colors": [
+      "#FBC2EB",
+      "#A6C1EE"
+    ]
+  },
+  {
+    "slug": "eymen-kral",
+    "name": "KRAL MINECRAFT v6.1 - Yavaş Zaman",
+    "emoji": "🎮",
+    "colors": [
+      "#FDDB92",
+      "#D1FDFF"
+    ]
+  },
+  {
+    "slug": "gokce-nin-sisli-vadisi",
+    "name": "Sisli Vadi: Lale'nin Kurtulusu",
+    "emoji": "🏎️",
+    "colors": [
+      "#E0C3FC",
+      "#8EC5FC"
+    ]
+  },
+  {
+    "slug": "gokcegul-sisli-vadi",
+    "name": "gokcegul sisli vadi",
+    "emoji": "🚀",
+    "colors": [
+      "#f7971e",
+      "#ffd200"
+    ]
+  },
+  {
+    "slug": "gokcegul-un-sisli-vadisi",
+    "name": "Sisli Vadi: Lale'nin Kurtulusu",
+    "emoji": "🎯",
+    "colors": [
+      "#134e5e",
+      "#71b280"
+    ]
+  },
+  {
+    "slug": "karen-in-harry-potter-oyunu",
+    "name": "Harry Potter Efsanesi - Bilgi Yarışması",
+    "emoji": "🚁",
+    "colors": [
+      "#FC5C7D",
+      "#6A82FB"
+    ]
+  },
+  {
+    "slug": "m-yusuf-un-hayatta-kalma-savasi",
+    "name": "Final Game Pro",
+    "emoji": "🥔",
+    "colors": [
+      "#43C6AC",
+      "#F8FFAE"
+    ]
+  },
+  {
+    "slug": "okan-burak-megalodon",
+    "name": "Megalodon: Sudden Death",
+    "emoji": "🏙️",
+    "colors": [
+      "#4568DC",
+      "#B06AB3"
+    ]
+  },
+  {
+    "slug": "omer-ege-nin-aslan-oyunu",
+    "name": "Aslan Büyüt — Akıl Oyunu",
+    "emoji": "🍌",
+    "colors": [
+      "#FF416C",
+      "#FF4B2B"
+    ]
+  },
+  {
+    "slug": "omer-yekta-nin-araba-oyunu",
+    "name": "Hızlı Yarışçı",
+    "emoji": "🧟",
+    "colors": [
+      "#12c2e9",
+      "#f64f59"
+    ]
+  },
+  {
+    "slug": "pera-nin-bahcesi",
+    "name": "Çiçek Bahçesi Bilgi Yarışması 🌸",
+    "emoji": "⚔️",
+    "colors": [
+      "#c471ed",
+      "#12c2e9"
+    ]
   }
 ]
