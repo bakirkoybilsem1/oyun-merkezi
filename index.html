@@ -131,7 +131,7 @@
           const textColor = acikMi(c1) ? '#333' : 'white';
           const a = document.createElement('a');
           a.className = 'kart';
-          a.href = '/' + oyun.slug;
+          a.href = '/ac?oyun=' + oyun.slug + '&ad=' + encodeURIComponent(oyun.name);
           a.style.animationDelay = (i * 55) + 'ms';
           a.innerHTML = `
             <div class="emoji-kutu" style="background:linear-gradient(135deg,${c1},${c2});box-shadow:0 8px 24px ${c1}55">${oyun.emoji}</div>
