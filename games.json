@@ -286,5 +286,14 @@
       "#4ECDC4",
       "#44A08D"
     ]
+  },
+  {
+    "slug": "yalin-yasam-similatoru",
+    "name": "Ultimate Yaşam Simülatörü",
+    "emoji": "🐉",
+    "colors": [
+      "#FCCB90",
+      "#D57EEB"
+    ]
   }
 ]
