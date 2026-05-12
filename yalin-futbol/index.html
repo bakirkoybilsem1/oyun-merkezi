@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>FC 26 - Sınır Kilidi Modu</title>
+    <style>
+        body { background: #000; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; font-family: 'Arial Black', sans-serif; overflow: hidden; }
+        #container { position: relative; }
+        canvas { background: #1a5e20; border: 4px solid #333; border-radius: 10px; box-shadow: 0 40px 80px rgba(0,0,0,0.8); }
+        .score-ui { position: absolute; top: 20px; width: 100%; display: flex; justify-content: center; gap: 60px; font-size: 35px; pointer-events: none; z-index: 10; text-shadow: 2px 2px 5px #000; }
+        #overlay { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); padding: 40px; border: 4px solid #f1c40f; text-align: center; z-index: 100; border-radius: 15px; }
+        button { background: #f1c40f; border: none; padding: 12px 25px; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 20px; color: #000; }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <div class="score-ui">
+            <span style="color: #3498db;">MESSI <span id="s1">0</span></span>
+            <span style="color: #e74c3c;"><span id="s2">0</span> RONALDO</span>
+        </div>
+        <div id="overlay">
+            <h1 id="win-msg">GOOOL!</h1>
+            <button onclick="resetGame()">YENİDEN BAŞLA</button>
+        </div>
+        <canvas id="game" width="1000" height="600"></canvas>
+    </div>
+
+<script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const winMsg = document.getElementById('win-msg');
+
+    let score1 = 0, score2 = 0, paused = false;
+
+    // FİZİK SINIRLARI (Topun hapsolacağı alan)
+    const field = { top: 135, bottom: 565, left: 30, right: 970 };
+
+    const ball = { x: 500, y: 350, z: 0, dx: 0, dy: 0, dz: 0, r: 10, friction: 0.985 };
+    const p1 = { x: 300, y: 350, r: 24, color: '#3498db', name: "MESSI" };
+    const p2 = { x: 700, y: 350, r: 24, color: '#e74c3c', name: "RONALDO" };
+    const gk1 = { x: 70, y: 350, r: 22, color: '#1abc9c', name: "CASILLAS" };
+    const gk2 = { x: 930, y: 350, r: 22, color: '#f39c12', name: "BUFFON" };
+
+    const keys = {};
+    window.onkeydown = e => keys[e.code] = true;
+    window.onkeyup = e => keys[e.code] = false;
+
+    function resetGame() {
+        score1 = 0; score2 = 0;
+        document.getElementById('s1').innerText = 0;
+        document.getElementById('s2').innerText = 0;
+        overlay.style.display = 'none';
+        paused = false;
+        resetBall();
+    }
+
+    function resetBall() {
+        ball.x = 500; ball.y = 350; ball.z = 0; ball.dx = 0; ball.dy = 0; ball.dz = 0;
+        p1.x = 300; p1.y = 350; p2.x = 700; p2.y = 350;
+    }
+
+    function goal(who) {
+        if(who === 1) score1++; else score2++;
+        document.getElementById('s1').innerText = score1;
+        document.getElementById('s2').innerText = score2;
+        paused = true;
+        winMsg.innerText = "GOOOOOL!";
+        overlay.style.display = 'block';
+        if(score1 >= 5 || score2 >= 5) {
+            winMsg.innerText = (score1 >= 5 ? "MESSI" : "RONALDO") + " KAZANDI!";
+        } else {
+            setTimeout(() => { overlay.style.display = 'none'; paused = false; resetBall(); }, 1200);
+        }
+    }
+
+    function update() {
+        if (paused) return;
+
+        const spd = 6;
+        // Hareketler
+        if(keys['KeyW'] && p1.y > field.top) p1.y -= spd;
+        if(keys['KeyS'] && p1.y < field.bottom) p1.y += spd;
+        if(keys['KeyA'] && p1.x > field.left) p1.x -= spd;
+        if(keys['KeyD'] && p1.x < field.right) p1.x += spd;
+
+        if(keys['ArrowUp'] && p2.y > field.top) p2.y -= spd;
+        if(keys['ArrowDown'] && p2.y < field.bottom) p2.y += spd;
+        if(keys['ArrowLeft'] && p2.x > field.left) p2.x -= spd;
+        if(keys['ArrowRight'] && p2.x < field.right) p2.x += spd;
+
+        // Kaleci AI
+        [gk1, gk2].forEach(g => {
+            let targetY = ball.y;
+            if(targetY < 240) targetY = 240; if(targetY > 460) targetY = 460;
+            g.y += (targetY - g.y) * 0.12;
+        });
+
+        // Top Fizik
+        ball.x += ball.dx; ball.y += ball.dy; ball.z += ball.dz;
+        ball.dx *= ball.friction; ball.dy *= ball.friction;
+        if(ball.z > 0) ball.dz -= 0.55; else { ball.z = 0; ball.dz *= -0.3; }
+
+        // --- KESİN SINIR KONTROLÜ (Top Dışarı Kaçamaz) ---
+        // Üst ve Alt Duvar
+        if(ball.y - ball.r < field.top) { ball.y = field.top + ball.r; ball.dy *= -0.8; }
+        if(ball.y + ball.r > field.bottom) { ball.y = field.bottom - ball.r; ball.dy *= -0.8; }
+
+        // Sağ ve Sol Duvar (Gol bölgesi hariç)
+        if(ball.y < 235 || ball.y > 465) {
+            if(ball.x - ball.r < field.left) { ball.x = field.left + ball.r; ball.dx *= -0.8; }
+            if(ball.x + ball.r > field.right) { ball.x = field.right - ball.r; ball.dx *= -0.8; }
+        }
+
+        // Gol Kontrolü (Topun tamamen çizgiyi geçmesi lazım)
+        if(ball.x < 10 && ball.z < 65) goal(2);
+        if(ball.x > 990 && ball.z < 65) goal(1);
+
+        // Çarpışmalar
+        [p1, p2, gk1, gk2].forEach(p => {
+            let dx = ball.x - p.x, dy = ball.y - p.y;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            let hitZ = (p.name === "CASILLAS" || p.name === "BUFFON") ? 80 : 35;
+            if(dist < ball.r + p.r && ball.z < hitZ) {
+                let angle = Math.atan2(dy, dx);
+                let power = ((keys['ShiftLeft'] && p === p1) || (keys['Enter'] && p === p2)) ? 25 : 12;
+                ball.dx = Math.cos(angle) * power;
+                ball.dy = Math.sin(angle) * power;
+                if(power > 20) ball.dz = 6;
+                ball.x = p.x + Math.cos(angle) * (p.r + ball.r + 2); // İç içe geçmeyi önle
+            }
+        });
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, 1000, 600);
+        
+        // Saha Çizimi
+        ctx.fillStyle = "#2e7d32";
+        ctx.beginPath();
+        ctx.moveTo(100, 130); ctx.lineTo(900, 130);
+        ctx.lineTo(1000, 580); ctx.lineTo(0, 580);
+        ctx.fill();
+
+        // Saha Çizgileri
+        ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 3;
+        ctx.strokeRect(50, 130, 900, 440);
+        ctx.beginPath(); ctx.moveTo(500, 130); ctx.lineTo(500, 570); ctx.stroke();
+        ctx.beginPath(); ctx.arc(500, 350, 70, 0, Math.PI*2); ctx.stroke();
+
+        // 3D Kaleler
+        ctx.lineWidth = 6; ctx.strokeStyle = "#fff";
+        ctx.strokeRect(-5, 235, 55, 230); // Sol
+        ctx.strokeRect(950, 235, 55, 230); // Sağ
+
+        // Gölgeler
+        const shadow = (x, y, r) => {
+            ctx.fillStyle = "rgba(0,0,0,0.25)";
+            ctx.beginPath(); ctx.ellipse(x, y + 10, r, r/2, 0, 0, Math.PI*2); ctx.fill();
+        };
+        [p1, p2, gk1, gk2].forEach(p => shadow(p.x, p.y + p.r, 20));
+        shadow(ball.x, ball.y + 10, 10 - ball.z/15);
+
+        // Aktörler
+        const render = (obj, isBall = false) => {
+            ctx.save();
+            ctx.translate(obj.x, isBall ? obj.y - obj.z : obj.y);
+            if(isBall) {
+                ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(0, 0, obj.r, 0, Math.PI*2); ctx.fill();
+            } else {
+                ctx.fillStyle = obj.color; ctx.beginPath(); ctx.ellipse(0, 0, obj.r, obj.r*1.2, 0, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#ffdbac"; ctx.beginPath(); ctx.arc(0, -obj.r, obj.r/1.8, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#fff"; ctx.font = "bold 12px Arial"; ctx.textAlign = "center";
+                ctx.fillText(obj.name || "", 0, -obj.r * 2.3);
+            }
+            ctx.restore();
+        };
+
+        [gk1, gk2, p1, p2].forEach(p => render(p));
+        render(ball, true);
+
+        update();
+        requestAnimationFrame(draw);
+    }
+    draw();
+</script>
+</body>
+</html>
