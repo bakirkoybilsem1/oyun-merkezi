@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>AoH III: EMPIRE & DIPLOMACY</title>
+    <style>
+        :root { --bg: #05070a; --side: #0f1419; --accent: #e3b341; --p1: #991b1b; --p2: #1c4485; --brd: #30363d; --chat: #0d1117; }
+        body { background: var(--bg); color: #adbac7; font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        
+        #launcher { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #05070a; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .launcher-box { text-align: center; border: 2px solid var(--accent); padding: 40px; background: var(--side); border-radius: 10px; }
+
+        #game-layout { display: flex; flex-grow: 1; overflow: hidden; }
+        .sidebar { width: 340px; background: var(--side); border-right: 1px solid var(--brd); display: flex; flex-direction: column; }
+        #p2-sidebar { display: none; border-left: 1px solid var(--brd); border-right: none; }
+
+        .top-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 10px; background: #000; border-bottom: 2px solid var(--accent); }
+        .s-box { font-size: 10px; text-align: center; } .s-box b { display: block; color: var(--accent); font-size: 12px; }
+
+        .build-panel { padding: 10px; flex-grow: 1; overflow-y: auto; background: #0c1015; }
+        .cat-title { font-size: 11px; color: var(--accent); text-transform: uppercase; margin: 12px 0 5px; border-left: 3px solid var(--accent); padding-left: 8px; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .card { background: #1c2128; border: 1px solid var(--brd); padding: 10px; border-radius: 6px; cursor: pointer; position: relative; font-size: 11px; }
+        .b-count { position: absolute; top: 2px; right: 6px; color: #2ecc71; font-weight: bold; }
+
+        .action-btn { background: #333; color: #fff; border: none; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; margin-bottom: 8px; border-radius: 4px; }
+        
+        #map-area { flex-grow: 1; background: #010409; position: relative; }
+        svg { width: 100%; height: 100%; }
+        .prov { stroke: #000; stroke-width: 1.5; cursor: pointer; fill: #2a2f35; transition: 0.3s; }
+        .active { stroke: #fff !important; stroke-width: 3 !important; }
+        .label { pointer-events: none; font-size: 11px; font-weight: bold; fill: #fff; text-shadow: 1px 1px 2px #000; text-anchor: middle; }
+
+        .diplomacy { height: 200px; background: var(--chat); border-top: 1px solid var(--brd); display: flex; flex-direction: column; }
+        .msgs { flex-grow: 1; overflow-y: auto; padding: 10px; font-size: 11px; display: flex; flex-direction: column; gap: 6px; }
+        .msg { padding: 6px 10px; border-radius: 6px; max-width: 85%; line-height: 1.4; }
+        .m-own { background: #21262d; align-self: flex-end; border-right: 3px solid var(--accent); }
+        .m-other { background: #1c4485; align-self: flex-start; border-left: 3px solid #fff; }
+        .m-bot { background: #238636; align-self: center; font-style: italic; font-size: 10px; border: 1px solid #fff; }
+        
+        .typing-info { height: 15px; font-size: 9px; color: #768390; padding: 0 10px; font-style: italic; }
+        input { background: #000; border: none; border-top: 1px solid var(--brd); color: white; padding: 12px; outline: none; }
+
+        #siege-overlay { display: none; position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 280px; background: rgba(0,0,0,0.9); border: 2px solid red; padding: 10px; text-align: center; z-index: 5000; }
+        .bar-bg { width: 100%; height: 10px; background: #222; margin-top: 5px; border-radius: 5px; overflow: hidden; }
+        .bar-fill { width: 0%; height: 100%; background: red; transition: 0.3s; }
+
+        #treaty-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; align-items: center; justify-content: center; }
+        .parchment { background: #f2e1ac; padding: 40px; width: 400px; border: 10px double #8b4513; text-align: center; color: #2c1e0f; }
+    </style>
+</head>
+<body>
+
+<div id="launcher">
+    <div class="launcher-box">
+        <h1 style="color:var(--accent)">AGE OF HISTORY III</h1>
+        <select id="p-select" style="padding:10px; margin-bottom:20px; width: 220px;">
+            <option value="1">1 Oyuncu (Osmanlı vs Bot)</option>
+            <option value="2">2 Oyuncu (Osmanlı & Memlük)</option>
+        </select><br>
+        <button class="action-btn" style="background:var(--accent); color:black;" onclick="game.launch()">TAHTA GEÇ</button>
+    </div>
+</div>
+
+<div id="treaty-modal">
+    <div class="parchment">
+        <h2 id="t-title">BARIŞ ANTLAŞMASI</h2>
+        <p><i>"Sınırlar çizildi, mühürler basıldı."</i></p>
+        <button class="action-btn" style="background:#8b4513; color:white; margin-top: 20px;" onclick="game.closeTreaty()">ONAYLA</button>
+    </div>
+</div>
+
+<div id="game-layout">
+    <div id="p1-sidebar" class="sidebar">
+        <div class="top-stats">
+            <div class="s-box">💰 ALTIN <b id="p1-gold">2500</b></div>
+            <div class="s-box">📈 GELİR <b id="p1-inc">+150</b></div>
+            <div class="s-box">🔬 TEK <b id="p1-tech">1.00</b></div>
+            <div class="s-box">📅 YIL <b class="year-val">1444</b></div>
+        </div>
+        <div class="build-panel">
+            <button class="action-btn" style="background:#991b1b" onclick="game.startSiege(1)">⚔️ SEFER BAŞLAT</button>
+            <button class="action-btn" style="background:#238636" onclick="game.recruit(1)">🪖 ASKER AL (150💰)</button>
+            <div id="p1-builds"></div>
+        </div>
+        <div class="diplomacy">
+            <div id="p1-msgs" class="msgs"></div>
+            <div id="p1-typing" class="typing-info"></div>
+            <input type="text" placeholder="Diplomasi..." oninput="game.typing(1)" onkeypress="if(event.key==='Enter') game.sendChat(1, this)">
+        </div>
+    </div>
+
+    <div id="map-area">
+        <div id="siege-overlay">
+            <div id="siege-txt" style="color:white; font-size:12px;">KUŞATMA SÜRÜYOR</div>
+            <div class="bar-bg"><div id="siege-bar" class="bar-fill"></div></div>
+        </div>
+        <svg id="m-svg" viewBox="0 0 1000 600">
+            <path id="tr_bal" class="prov" d="M220,300 L380,280 L420,400 L250,420 Z" data-n="Balkanlar" />
+            <path id="tr_ana" class="prov" d="M420,280 L600,260 L650,380 L450,400 Z" data-n="Anadolu" />
+            <path id="eg_mem" class="prov" d="M450,450 L750,430 L800,580 L400,580 Z" data-n="Memlükler" />
+            <path id="eu_hun" class="prov" d="M300,80 L450,70 L480,180 L320,180 Z" data-n="Macaristan" />
+            <path id="ir_saf" class="prov" d="M650,260 L850,230 L900,400 L700,430 Z" data-n="Safeviler" />
+        </svg>
+    </div>
+
+    <div id="p2-sidebar" class="sidebar">
+        <div class="top-stats">
+            <div class="s-box">💰 ALTIN <b id="p2-gold">2500</b></div>
+            <div class="s-box">📈 GELİR <b id="p2-inc">+150</b></div>
+            <div class="s-box">🔬 TEK <b id="p2-tech">1.00</b></div>
+        </div>
+        <div class="build-panel">
+            <button class="action-btn" style="background:#991b1b" onclick="game.startSiege(2)">⚔️ SEFER BAŞLAT</button>
+            <button class="action-btn" style="background:#238636" onclick="game.recruit(2)">🪖 ASKER AL (150💰)</button>
+            <div id="p2-builds"></div>
+        </div>
+        <div class="diplomacy">
+            <div id="p2-msgs" class="msgs"></div>
+            <div id="p2-typing" class="typing-info"></div>
+            <input type="text" placeholder="Diplomasi..." oninput="game.typing(2)" onkeypress="if(event.key==='Enter') game.sendChat(2, this)">
+        </div>
+    </div>
+</div>
+
+<script>
+const game = {
+    pCount: 1, year: 1444, sel: null, inSiege: false, siegeInt: null,
+    players: { 1: { n: "Osmanlı", gold: 2500, inc: 150, tech: 1.0 }, 2: { n: "Memlük", gold: 2500, inc: 150, tech: 1.0 } },
+    states: {
+        'tr_bal': { o:'P1', a:2000, e:120, b:{}, n:'Balkanlar' },
+        'tr_ana': { o:'P1', a:1500, e:110, b:{}, n:'Anadolu' },
+        'eg_mem': { o:'E', a:3500, e:200, b:{}, n:'Memlükler' },
+        'eu_hun': { o:'E', a:2500, e:100, b:{}, n:'Macaristan' },
+        'ir_saf': { o:'E', a:3000, e:150, b:{}, n:'Safeviler' }
+    },
+    // 12 YAPI KORUNDU
+    buildings: [
+        {id:'mkt', n:'💰 Pazar', c:300, cat:'Ekonomi', v:40}, {id:'wks', n:'⚒️ Atölye', c:650, cat:'Ekonomi', v:90},
+        {id:'bnk', n:'🏦 Banka', c:2200, cat:'Ekonomi', v:500}, {id:'trs', n:'💎 Hazine', c:5000, cat:'Ekonomi', v:1200},
+        {id:'brk', n:'🏰 Kışla', c:400, cat:'Askeri', v:0}, {id:'frt', n:'🧱 Kale', c:1400, cat:'Askeri', v:0},
+        {id:'ars', n:'⚓ Tersane', c:2000, cat:'Askeri', v:0}, {id:'arm', n:'⚔️ Cephanelik', c:3000, cat:'Askeri', v:0},
+        {id:'lib', n:'📜 Kütüphane', c:500, cat:'İlim', v:0.05}, {id:'uni', n:'🎓 Üniversite', c:2500, cat:'İlim', v:0.30},
+        {id:'obs', n:'🔭 Rasathane', c:4500, cat:'İlim', v:0.70}, {id:'aca', n:'🏛️ Akademi', c:8000, cat:'İlim', v:1.50}
+    ],
+
+    launch() {
+        this.pCount = parseInt(document.getElementById('p-select').value);
+        if(this.pCount === 2) { this.states['eg_mem'].o = 'P2'; document.getElementById('p2-sidebar').style.display='flex'; }
+        document.getElementById('launcher').style.display='none';
+        this.init();
+    },
+
+    init() {
+        document.querySelectorAll('.prov').forEach(p => p.addEventListener('click', () => this.select(p.id)));
+        this.renderGrids();
+        setInterval(() => { if(!this.inSiege){ this.year++; this.incomeTick(); this.update(); }}, 4500);
+        this.update();
+    },
+
+    renderGrids() {
+        [1, 2].forEach(pIdx => {
+            const cont = document.getElementById(`p${pIdx}-builds`); cont.innerHTML = "";
+            ['Ekonomi', 'Askeri', 'İlim'].forEach(cat => {
+                const sec = document.createElement('div'); sec.innerHTML = `<div class="cat-title">${cat}</div>`;
+                const grid = document.createElement('div'); grid.className = "grid";
+                this.buildings.filter(b => b.cat === cat).forEach(b => {
+                    const card = document.createElement('div'); card.className = 'card';
+                    card.innerHTML = `${b.n} <div class="b-count" id="cnt-p${pIdx}-${b.id}"></div><br><span style="color:#e3b341; font-size:10px;">${b.c}💰</span>`;
+                    card.onclick = () => this.build(pIdx, b);
+                    grid.appendChild(card);
+                });
+                sec.appendChild(grid); cont.appendChild(sec);
+            });
+        });
+    },
+
+    select(id) {
+        this.sel = id; document.querySelectorAll('.prov').forEach(p => p.classList.remove('active'));
+        document.getElementById(id).classList.add('active'); this.update();
+    },
+
+    build(pIdx, b) {
+        const s = this.states[this.sel]; if(!s || s.o !== 'P'+pIdx || this.players[pIdx].gold < b.c) return;
+        this.players[pIdx].gold -= b.c; s.b[b.id] = (s.b[b.id] || 0) + 1;
+        if(b.cat === 'Ekonomi') s.e += b.v; if(b.cat === 'İlim') this.players[pIdx].tech += b.v;
+        this.update();
+    },
+
+    recruit(pIdx) {
+        const s = this.states[this.sel]; if(s && s.o === 'P'+pIdx && this.players[pIdx].gold >= 150) { 
+            this.players[pIdx].gold -= 150; s.a += 700; this.update(); 
+        }
+    },
+
+    incomeTick() { 
+        [1,2].forEach(i => {
+            let t = 0; Object.values(this.states).forEach(s => { if(s.o === 'P'+i) t += s.e; }); 
+            this.players[i].gold += t; this.players[i].inc = t; 
+        });
+    },
+
+    update() {
+        document.querySelectorAll('.label').forEach(l => l.remove());
+        Object.keys(this.states).forEach(id => {
+            const s = this.states[id]; const el = document.getElementById(id);
+            el.style.fill = s.o === 'P1' ? "#991b1b" : (s.o === 'P2' ? "#1c4485" : "#2a2f35");
+            const box = el.getBBox();
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", box.x + box.width/2); text.setAttribute("y", box.y + box.height/2);
+            text.setAttribute("class", "label");
+            text.innerHTML = `<tspan x="${box.x+box.width/2}" dy="-5">${s.n}</tspan><tspan x="${box.x+box.width/2}" dy="15" fill="#e3b341">⚔️ ${Math.floor(s.a)}</tspan>`;
+            document.getElementById('m-svg').appendChild(text);
+        });
+        if(this.sel) {
+            const s = this.states[this.sel]; const pIdx = s.o === 'P1' ? 1 : (s.o === 'P2' ? 2 : null);
+            this.buildings.forEach(b => {
+                const el = document.getElementById(`cnt-p${pIdx}-${b.id}`); if(el) el.innerText = (pIdx && s.b[b.id]) ? "x"+s.b[b.id] : "";
+            });
+        }
+        [1,2].forEach(i => {
+            document.getElementById(`p${i}-gold`).innerText = Math.floor(this.players[i].gold);
+            document.getElementById(`p${i}-inc`).innerText = "+" + this.players[i].inc;
+            document.getElementById(`p${i}-tech`).innerText = this.players[i].tech.toFixed(2);
+        });
+        document.querySelectorAll('.year-val').forEach(y => y.innerText = this.year);
+    },
+
+    typing(pIdx) {
+        const other = pIdx === 1 ? 2 : 1;
+        document.getElementById(`p${other}-typing`).innerText = `${this.players[pIdx].n} yazıyor...`;
+        clearTimeout(this.tT);
+        this.tT = setTimeout(() => document.getElementById(`p${other}-typing`).innerText = "", 1500);
+    },
+
+    sendChat(pIdx, inp) {
+        const val = inp.value; if(!val) return;
+        const other = pIdx === 1 ? 2 : 1;
+        this.addMsg(pIdx, val, 'm-own');
+        if(this.pCount === 2) this.addMsg(other, val, 'm-other');
+        inp.value = "";
+
+        // BOT HER İKİ OYUNCUYLA DA KONUŞUR
+        setTimeout(() => {
+            let res = "";
+            const low = val.toLowerCase();
+            if(low.includes("selam")) res = "Bot: Aleykümselam ulu hükümdar!";
+            else if(low.includes("savaş")) { res = "Bot: Savaş tamtamları çalıyor!"; this.startSiege(pIdx); }
+            else if(low.includes("barış")) { res = "Bot: Sulh her zaman iyidir."; this.openTreaty(pIdx); }
+            else if(low.includes("altın")) res = "Bot: Hazineniz bereketli olsun.";
+            
+            if(res) {
+                this.addMsg(pIdx, res, 'm-bot');
+                if(this.pCount === 2) this.addMsg(other, res, 'm-bot');
+            }
+        }, 800);
+    },
+
+    addMsg(pIdx, text, cls) {
+        const b = document.getElementById(`p${pIdx}-msgs`);
+        const d = document.createElement('div'); d.className = "msg "+cls; d.innerText = text;
+        b.appendChild(d); b.scrollTop = b.scrollHeight;
+    },
+
+    startSiege(pIdx) {
+        if(this.inSiege || !this.sel || this.states[this.sel].o === 'P'+pIdx) return;
+        this.inSiege = true; document.getElementById('siege-overlay').style.display = 'block';
+        let prg = 0; const target = this.states[this.sel];
+        this.siegeInt = setInterval(() => {
+            Object.values(this.states).forEach(s => { if(s.o === 'P'+pIdx) s.a -= 60; });
+            target.a -= (160 * this.players[pIdx].tech); prg += (7 * this.players[pIdx].tech);
+            document.getElementById('siege-bar').style.width = prg + "%";
+            if(prg >= 100 || target.a <= 0) {
+                this.inSiege = false; clearInterval(this.siegeInt);
+                document.getElementById('siege-overlay').style.display = 'none';
+                target.o = 'P'+pIdx; target.a = 800; this.update();
+            }
+            this.update();
+        }, 800);
+    },
+
+    openTreaty(pIdx) {
+        if(this.inSiege) { clearInterval(this.siegeInt); this.inSiege = false; document.getElementById('siege-overlay').style.display='none'; }
+        document.getElementById('treaty-modal').style.display = 'flex';
+    },
+
+    closeTreaty() {
+        document.getElementById('treaty-modal').style.display = 'none';
+        [1,2].forEach(p => this.addMsg(p, "Bot: Barış sağlandı.", "m-bot"));
+    }
+};
+</script>
+</body>
+</html>
