@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kağıt Uçak: Professional Inventory Edition</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1e3c72, #0a1128);
+            font-family: 'Segoe UI', sans-serif;
+            user-select: none;
+            color: white;
+        }
+
+        #ui-container {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+            max-height: 95vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #4caf50 transparent;
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            min-width: 280px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        .stat-line { font-size: 18px; margin-bottom: 5px; font-weight: bold; border-left: 4px solid #4caf50; padding-left: 8px; }
+        .multiplier-badge { color: #ffeb3b; }
+        .speed-badge { color: #00d2ff; }
+
+        .shop-title { border-bottom: 1px solid #444; margin: 10px 0; padding-bottom: 5px; display: block; font-weight: bold; color: #aaa; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
+
+        .item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13px; }
+        .egg-chance { font-size: 10px; color: #888; margin-top: 4px; line-height: 1.4; }
+
+        #inventory-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .inv-slot {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+            position: relative;
+        }
+
+        .inv-slot:hover { background: rgba(255,255,255,0.15); }
+        .inv-slot.equipped { border: 2px solid #ffeb3b; background: rgba(255, 235, 59, 0.1); }
+        .inv-slot .mult-tag { position: absolute; bottom: 1px; font-size: 8px; color: #ffeb3b; }
+
+        button {
+            background: linear-gradient(135deg, #4caf50, #2e7d32);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        button:disabled { background: #333; cursor: not-allowed; opacity: 0.5; }
+
+        #pet-display {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .pet-slot {
+            width: 75px;
+            height: 75px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            border: 2px dashed rgba(255,255,255,0.2);
+            position: relative;
+        }
+        .pet-slot.active { border: 2px solid #4caf50; background: rgba(76, 175, 80, 0.1); }
+        .pet-slot span { font-size: 10px; position: absolute; bottom: 5px; color: #ffeb3b; }
+
+        #plane {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            z-index: 9999; 
+            cursor: grab;
+            display: block !important;
+            visibility: visible !important;
+            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.8));
+        }
+
+        canvas { position: absolute; top: 0; left: 0; z-index: 1; }
+    </style>
+</head>
+<body>
+
+<div id="ui-container">
+    <div class="panel">
+        <div class="stat-line">💰 Puan: <span id="totalPoints">0</span></div>
+        <div class="stat-line">🚀 Çarpan: <span id="totalMult" class="multiplier-badge">1.0x</span></div>
+        <div class="stat-line">⚡ Hız: <span id="totalSpeed" class="speed-badge">0.5x</span></div>
+    </div>
+
+    <div class="panel">
+        <span class="shop-title">🥚 Yumurta Market</span>
+        <div id="egg-shop"></div>
+
+        <span class="shop-title">🎒 Envanter (Kuşanmak İçin Tıkla)</span>
+        <div id="inventory-grid"></div>
+    </div>
+
+    <div class="panel">
+        <span class="shop-title">🎨 Çizgi Mağazası</span>
+        <div id="trail-shop"></div>
+    </div>
+</div>
+
+<div id="pet-display">
+    <div class="pet-slot" id="slot1">?<span>BOŞ</span></div>
+    <div class="pet-slot" id="slot2">?<span>BOŞ</span></div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="plane">
+    <svg viewBox="0 0 100 100" style="width:100%; height:100%">
+        <path d="M10,50 L90,20 L75,50 L90,80 Z" fill="white" stroke="#333" stroke-width="3" stroke-linejoin="round" />
+        <path d="M10,50 L75,50" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round" />
+        <path d="M40,50 L75,50 L55,70 Z" fill="#eee" stroke="#333" stroke-width="2" stroke-linejoin="round" />
+    </svg>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const plane = document.getElementById('plane');
+    
+    let points = 0;
+    let planeX = 450, planeY = 0; 
+    let velocityX = 0, velocityY = 0;
+    let isFlying = false, isDragging = false;
+    let startX, startY, trailHistory = [];
+
+    let trailMult = 1.0, trailSpeed = 0.5, activeTrailColor = 'white';
+    let inventory = [];
+    let equippedPets = [null, null];
+
+    const trails = [
+        { name: "Yavaş Kağıt", color: "white", cost: 0, mult: 1.0, speed: 0.5 },
+        { name: "Hızlı Neon", color: "#00f2ff", cost: 1000, mult: 2.0, speed: 1.2 },
+        { name: "Fırlatma Roketi", color: "#ffd700", cost: 5000, mult: 6.0, speed: 2.5 },
+        { name: "Işık Hızı", color: "#e100ff", cost: 25000, mult: 20.0, speed: 6.0 }
+    ];
+
+    const petPool = {
+        common: { emoji: "🐤", mult: 0.5, name: "Civciv" },
+        rare: { emoji: "🐱", mult: 2.5, name: "Kedi" },
+        epic: { emoji: "🐉", mult: 10.0, name: "Ejderha" },
+        legendary: { emoji: "🦄", mult: 35.0, name: "Unicorn" }
+    };
+
+    const eggs = [
+        { name: "Normal Yumurta", cost: 500, chances: { common: 85, rare: 14, epic: 1, legendary: 0 } },
+        { name: "Nadir Yumurta", cost: 2500, chances: { common: 35, rare: 50, epic: 12, legendary: 3 } },
+        { name: "Efsanevi Yumurta", cost: 15000, chances: { common: 0, rare: 15, epic: 55, legendary: 30 } }
+    ];
+
+    let ownedTrails = ["white"];
+
+    function init() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        renderUI();
+        resetPlane();
+    }
+
+    function renderUI() {
+        const tShop = document.getElementById('trail-shop');
+        tShop.innerHTML = trails.map(t => `
+            <div class="item">
+                <div><b style="color:${t.color}">${t.name}</b><br><small>${t.mult}x P | ${t.speed}x Hız</small></div>
+                <button onclick="buyTrail('${t.color}',${t.cost},${t.mult},${t.speed})" 
+                    ${ownedTrails.includes(t.color) && activeTrailColor === t.color ? 'disabled' : ''}>
+                    ${ownedTrails.includes(t.color) ? 'Seç' : t.cost}
+                </button>
+            </div>
+        `).join('');
+
+        const eShop = document.getElementById('egg-shop');
+        eShop.innerHTML = eggs.map((e, idx) => `
+            <div class="item" style="flex-direction:column; align-items:flex-start; margin-bottom:10px; background:rgba(255,255,255,0.03); padding:5px; border-radius:8px;">
+                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                    <b>${e.name}</b>
+                    <button onclick="hatchEgg(${idx})">${e.cost} P</button>
+                </div>
+                <div class="egg-chance">
+                    ${e.chances.common ? '🐤:'+e.chances.common+'%' : ''} 
+                    ${e.chances.rare ? '🐱:'+e.chances.rare+'%' : ''} 
+                    ${e.chances.epic ? '🐉:'+e.chances.epic+'%' : ''} 
+                    ${e.chances.legendary ? '🦄:'+e.chances.legendary+'%' : ''}
+                </div>
+            </div>
+        `).join('');
+
+        const invGrid = document.getElementById('inventory-grid');
+        invGrid.innerHTML = inventory.map((pet, idx) => {
+            const isEquipped = equippedPets.some(ep => ep && ep.id === pet.id);
+            return `
+                <div class="inv-slot ${isEquipped ? 'equipped' : ''}" onclick="toggleEquip(${idx})">
+                    ${pet.emoji}
+                    <div class="mult-tag">${pet.mult}x</div>
+                </div>
+            `;
+        }).join('');
+
+        let petMultSum = equippedPets.reduce((sum, p) => sum + (p ? p.mult : 0), 1);
+        document.getElementById('totalPoints').innerText = Math.floor(points);
+        document.getElementById('totalMult').innerText = (trailMult + petMultSum - 1).toFixed(1) + "x";
+        document.getElementById('totalSpeed').innerText = trailSpeed.toFixed(1) + "x";
+
+        equippedPets.forEach((p, i) => {
+            const slot = document.getElementById('slot' + (i + 1));
+            if(p) {
+                slot.classList.add('active');
+                slot.childNodes[0].nodeValue = p.emoji;
+                slot.querySelector('span').innerText = p.mult + "x";
+            } else {
+                slot.classList.remove('active');
+                slot.childNodes[0].nodeValue = "?";
+                slot.querySelector('span').innerText = "BOŞ";
+            }
+        });
+    }
+
+    function buyTrail(color, cost, mult, speed) {
+        if (!ownedTrails.includes(color) && points >= cost) {
+            points -= cost;
+            ownedTrails.push(color);
+        }
+        if (ownedTrails.includes(color)) {
+            activeTrailColor = color;
+            trailMult = mult;
+            trailSpeed = speed;
+        }
+        renderUI();
+    }
+
+    function hatchEgg(idx) {
+        const egg = eggs[idx];
+        if (points < egg.cost) return;
+        points -= egg.cost;
+        const roll = Math.random() * 100;
+        let cumulative = 0;
+        let result = 'common';
+        if (roll < (cumulative += egg.chances.legendary)) result = 'legendary';
+        else if (roll < (cumulative += egg.chances.epic)) result = 'epic';
+        else if (roll < (cumulative += egg.chances.rare)) result = 'rare';
+        const newPet = { ...petPool[result], id: Date.now() + Math.random() };
+        inventory.push(newPet);
+        renderUI();
+    }
+
+    function toggleEquip(idx) {
+        const pet = inventory[idx];
+        const equippedIdx = equippedPets.findIndex(p => p && p.id === pet.id);
+        if (equippedIdx !== -1) {
+            equippedPets[equippedIdx] = null;
+        } else {
+            const emptySlot = equippedPets.findIndex(p => p === null);
+            if (emptySlot !== -1) { equippedPets[emptySlot] = pet; }
+            else { equippedPets[0] = pet; }
+        }
+        renderUI();
+    }
+
+    function resetPlane() {
+        isFlying = false;
+        planeX = 450; 
+        planeY = window.innerHeight / 2;
+        trailHistory = [];
+        updatePlanePos(0);
+        ctx.clearRect(0,0,canvas.width, canvas.height);
+    }
+
+    function updatePlanePos(angle) {
+        plane.style.left = planeX + 'px';
+        plane.style.top = planeY + 'px';
+        plane.style.transform = `rotate(${angle}deg)`;
+        plane.style.filter = `drop-shadow(0 0 ${15 * trailSpeed}px ${activeTrailColor}) brightness(1.5)`;
+    }
+
+    plane.onmousedown = (e) => { if(!isFlying) { isDragging = true; startX = e.clientX; startY = e.clientY; }};
+    
+    window.onmousemove = (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        ctx.clearRect(0,0,canvas.width, canvas.height);
+        ctx.beginPath();
+        ctx.setLineDash([4, 8]);
+        ctx.strokeStyle = activeTrailColor;
+        ctx.lineWidth = 2;
+        ctx.moveTo(planeX+35, planeY+35);
+        ctx.lineTo(planeX+35 - dx, planeY+35 - dy);
+        ctx.stroke();
+    };
+
+    window.onmouseup = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        velocityX = (startX - e.clientX) * 0.12 * trailSpeed;
+        velocityY = (startY - e.clientY) * 0.12 * trailSpeed;
+        if(Math.abs(velocityX) > 0.5) { isFlying = true; animate(); }
+    };
+
+    function animate() {
+        if (!isFlying) return;
+        velocityY += 0.15;
+        planeX += velocityX;
+        planeY += velocityY;
+        trailHistory.push({x: planeX+35, y: planeY+35});
+        if(trailHistory.length > 25) trailHistory.shift();
+        ctx.clearRect(0,0,canvas.width, canvas.height);
+        if(trailHistory.length > 1) {
+            ctx.beginPath();
+            ctx.setLineDash([]);
+            ctx.strokeStyle = activeTrailColor;
+            ctx.lineWidth = 5;
+            ctx.lineCap = "round";
+            ctx.moveTo(trailHistory[0].x, trailHistory[0].y);
+            trailHistory.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+        }
+        updatePlanePos(Math.atan2(velocityY, velocityX) * (180 / Math.PI));
+        if (planeY > window.innerHeight || planeX > window.innerWidth + 200) {
+            let petMultSum = equippedPets.reduce((sum, p) => sum + (p ? p.mult : 0), 1);
+            points += (planeX / 10) * (trailMult + petMultSum - 1);
+            renderUI();
+            setTimeout(resetPlane, 600);
+            return;
+        }
+        requestAnimationFrame(animate);
+    }
+
+    window.onresize = init;
+    init();
+</script>
+
+</body>
+</html>
