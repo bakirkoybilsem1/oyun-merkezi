@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Yaşam Simülatörü</title>
+    <style>
+        :root { --bg: #0b0e14; --card: #151921; --accent: #00d2ff; --text: #e2e8f0; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .container { background: var(--card); padding: 25px; border-radius: 20px; box-shadow: 0 0 40px rgba(0,0,0,0.7); width: 100%; max-width: 850px; border: 1px solid #2d3748; }
+        
+        /* Üst Panel */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        .stat { background: #1a202c; padding: 12px; border-radius: 10px; text-align: center; border: 1px solid #2d3748; transition: 0.3s; }
+        .stat:hover { border-color: var(--accent); transform: scale(1.02); }
+        .stat-val { display: block; font-size: 18px; font-weight: bold; color: var(--accent); }
+
+        /* Buton Alanı */
+        .action-sections { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .section { display: flex; flex-direction: column; gap: 8px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 10px; }
+        .section-title { font-size: 12px; color: #718096; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; border-left: 3px solid var(--accent); padding-left: 8px; }
+        
+        button { padding: 10px; border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s; background: #2d3748; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        button:hover { filter: brightness(1.3); transform: translateY(-1px); }
+        button:active { transform: translateY(1px); }
+        button:disabled { opacity: 0.2; cursor: not-allowed; }
+
+        /* Renkler */
+        .btn-next { background: linear-gradient(90deg, #ff4b2b, #ff416c); grid-column: span 3; font-size: 20px; padding: 15px; margin-bottom: 15px; }
+        .btn-work { background: #2f855a; } .btn-study { background: #2b6cb0; }
+        .btn-health { background: #97266d; } .btn-love { background: #b83232; }
+        .btn-dark { background: #4a5568; } .btn-gold { background: #b7791f; }
+        .btn-fun { background: #805ad5; } .btn-invest { background: #2c7a7b; }
+
+        #log { background: #000; border-radius: 12px; height: 180px; overflow-y: auto; padding: 15px; margin-top: 20px; font-family: 'Consolas', monospace; font-size: 12px; color: #48bb78; border: 1px solid #2d3748; }
+        .inventory { margin-top: 15px; padding: 10px; background: #1a202c; border-radius: 8px; font-size: 13px; border-left: 4px solid #f6e05e; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="setup">
+        <h1 style="text-align:center; color:var(--accent)">🧬 YAŞAM SİMÜLATÖRÜ</h1>
+        <input type="text" id="p-name" placeholder="İsminizi girin..." style="width:100%; padding:15px; margin-bottom:15px; border-radius:8px; border:none; background:#2d3748; color:white;">
+        <select id="p-trait" style="width:100%; padding:15px; margin-bottom:15px; border-radius:8px; background:#2d3748; color:white; border:none;">
+            <option value="Sıradan">Sıradan (Bonus yok)</option>
+            <option value="Dahi">Dahi (IQ hızlı artar)</option>
+            <option value="Zengin Bebek">Zengin Bebek (+10k Başlangıç)</option>
+            <option value="Sokak Çocuğu">Sokak Çocuğu (Suç riski az)</option>
+        </select>
+        <button class="btn-next" onclick="start()">HAYATA BAŞLA</button>
+    </div>
+
+    <div id="game" class="hidden">
+        <div class="stats-grid">
+            <div class="stat">🎂 Yaş <span id="s-age" class="stat-val">0</span></div>
+            <div class="stat">💰 Para <span id="s-money" class="stat-val">0</span></div>
+            <div class="stat">❤️ Sağlık <span id="s-health" class="stat-val">100</span></div>
+            <div class="stat">🧠 IQ <span id="s-iq" class="stat-val">100</span></div>
+            <div class="stat">😎 Karizma <span id="s-char" class="stat-val">0</span></div>
+            <div class="stat">⚖️ Karma <span id="s-karma" class="stat-val">0</span></div>
+            <div class="stat">📉 Stres <span id="s-stress" class="stat-val">0</span></div>
+            <div class="stat">🏆 Başarı <span id="s-score" class="stat-val">0</span></div>
+        </div>
+
+        <button class="btn-next" onclick="tick()">⏳ BİR YIL ATLA (BÜYÜ)</button>
+
+        <div class="action-sections">
+            <div class="section">
+                <div class="section-title">💼 KARİYER & EĞİTİM</div>
+                <button class="btn-work" onclick="act('work')">İşe Git</button>
+                <button class="btn-work" style="background:#276749" onclick="act('freelance')">Ek İş Yap</button>
+                <button class="btn-study" onclick="act('study')">Ders Çalış</button>
+                <button class="btn-study" style="background:#2c5282" onclick="act('course')">Sertifika Al</button>
+            </div>
+
+            <div class="section">
+                <div class="section-title">🎭 SOSYAL & EĞLENCE</div>
+                <button class="btn-love" onclick="act('date')">Randevuya Çık</button>
+                <button class="btn-love" style="background:#9b2c2c" onclick="act('family')">Aileni Ara</button>
+                <button class="btn-fun" onclick="act('party')">Partiye Katıl</button>
+                <button class="btn-fun" style="background:#553c9a" onclick="act('travel')">Tatile Git</button>
+            </div>
+
+            <div class="section">
+                <div class="section-title">🧘 SAĞLIK & RUH</div>
+                <button class="btn-health" onclick="act('gym')">Spor Yap</button>
+                <button class="btn-health" style="background:#702459" onclick="act('doctor')">Check-up Yaptır</button>
+                <button class="btn-dark" onclick="act('meditate')">Meditasyon</button>
+                <button class="btn-dark" style="background:#1a202c" onclick="act('sleep')">Erken Uyu</button>
+            </div>
+
+            <div class="section">
+                <div class="section-title">📈 EKONOMİ</div>
+                <button class="btn-invest" onclick="act('crypto')">Kripto Al</button>
+                <button class="btn-invest" style="background:#234e52" onclick="act('stock')">Borsaya Gir</button>
+                <button class="btn-gold" onclick="act('car')">Araba Al (70k)</button>
+                <button class="btn-gold" style="background:#975a16" onclick="act('house')">Villa Al (500k)</button>
+            </div>
+
+            <div class="section">
+                <div class="section-title">🥷 YERALTI DÜNYASI</div>
+                <button class="btn-dark" style="background:#c05621" onclick="act('rob')">Market Soy</button>
+                <button class="btn-dark" style="background:#742a2a" onclick="act('scam')">Telefon Dolandırıcılığı</button>
+                <button class="btn-dark" style="background:#2d3748" onclick="act('hack')">Site Hackle</button>
+                <button class="btn-dark" style="background:#000" onclick="act('mafia')">Mafyaya Gir</button>
+            </div>
+
+            <div class="section">
+                <div class="section-title">🎲 ŞANS & DİĞER</div>
+                <button class="btn-gold" onclick="act('lottery')">Loto Oyna</button>
+                <button class="btn-gold" style="background:#744210" onclick="act('casino')">Casinoya Git</button>
+                <button class="btn-fun" style="background:#2d3748" onclick="act('game')">Oyun Oyna</button>
+                <button class="btn-next" style="grid-column:auto; font-size:12px; margin:0;" onclick="act('donate')">Bağış Yap</button>
+            </div>
+        </div>
+
+        <div class="inventory">🗄️ Envanter: <span id="s-inv">Boş</span></div>
+        <div id="log">Sistem başlatıldı...</div>
+    </div>
+</div>
+
+<script>
+    let p = { age:0, money:500, health:100, iq:100, char:0, karma:0, stress:0, score:0, inv:[], trait:"" };
+
+    function start() {
+        p.trait = document.getElementById('p-trait').value;
+        if(p.trait === "Zengin Bebek") p.money = 10000;
+        document.getElementById('setup').classList.add('hidden');
+        document.getElementById('game').classList.remove('hidden');
+        addLog(`Hoş geldin ${document.getElementById('p-name').value || 'Yabancı'}! Yeni bir hayat başlıyor.`);
+    }
+
+    function addLog(m) {
+        const l = document.getElementById('log');
+        l.innerHTML = `<span style="color:#718096">[Yaş ${p.age}]</span> ${m}<br>` + l.innerHTML;
+    }
+
+    function update() {
+        document.getElementById('s-age').innerText = p.age;
+        document.getElementById('s-money').innerText = p.money.toLocaleString() + "₺";
+        document.getElementById('s-health').innerText = p.health;
+        document.getElementById('s-iq').innerText = p.iq;
+        document.getElementById('s-char').innerText = p.char;
+        document.getElementById('s-karma').innerText = p.karma;
+        document.getElementById('s-stress').innerText = p.stress;
+        document.getElementById('s-score').innerText = p.score;
+        document.getElementById('s-inv').innerText = p.inv.length > 0 ? p.inv.join(", ") : "Boş";
+        
+        if(p.health <= 0 || p.stress >= 100) {
+            addLog("🔴 HAYATINI KAYBETTİN. Skorun: " + p.score);
+            document.querySelectorAll('button').forEach(b => b.disabled = true);
+        }
+    }
+
+    function tick() {
+        p.age++; p.health -= 2; p.stress += 5;
+        if(p.age > 18) p.money += 100; // Asgari yaşam yardımı
+        addLog("Zaman akıp gidiyor...");
+        update();
+    }
+
+    function act(type) {
+        if(p.age < 15 && ['work','rob','crypto','casino'].includes(type)) {
+            addLog("❌ Bunun için henüz çok küçüksün!"); return;
+        }
+
+        switch(type) {
+            case 'work': p.money += (p.iq * 3); p.stress += 10; p.score += 5; addLog("Çalıştın, maaşını aldın."); break;
+            case 'study': p.iq += (p.trait === "Dahi" ? 10 : 5); p.stress += 5; addLog("Kütüphanede sabahladın."); break;
+            case 'gym': p.health = Math.min(100, p.health + 10); p.stress -= 5; p.money -= 200; addLog("Bas bas paraları gyme!"); break;
+            case 'date': p.money -= 1000; p.char += 10; p.stress -= 10; addLog("Güzel bir akşam geçirdin."); break;
+            case 'rob': 
+                if(Math.random() > 0.6) { p.money += 5000; p.karma -= 30; addLog("🥷 Marketten paraları kaptın!"); }
+                else { p.health -= 40; p.money -= 2000; addLog("👮 Polis fena benzetti!"); }
+                break;
+            case 'crypto':
+                let win = Math.random() > 0.5 ? 2000 : -1500;
+                p.money += win; addLog(win > 0 ? "🚀 Coin uçtu!" : "📉 Battın!"); break;
+            case 'car':
+                if(p.money >= 70000) { p.money -= 70000; p.inv.push("Araba"); p.char += 50; addLog("Altına bir BMW çektin!"); }
+                else addLog("Para yetersiz!"); break;
+            case 'meditate': p.stress = Math.max(0, p.stress - 20); p.karma += 5; addLog("Nirvanaya ulaştın."); break;
+            case 'casino':
+                p.money -= 1000;
+                if(Math.random() > 0.8) { p.money += 10000; addLog("🎰 KASAYI PATLATTIIN!"); }
+                else addLog("Her şeyi kaybettin."); break;
+            case 'donate': p.money -= 500; p.karma += 20; p.score += 50; addLog("İyilik yapmak ruhunu doyurdu."); break;
+            case 'mafia':
+                if(p.karma > -50) { addLog("Henüz yeterince karanlık değilsin."); return; }
+                p.money += 20000; p.health -= 10; p.karma -= 100; addLog("Ailenin parçası oldun."); break;
+            case 'sleep': p.health += 5; p.stress -= 10; addLog("Mışıl mışıl uyudun."); break;
+            case 'freelance': p.money += 500; p.stress += 5; addLog("İnternetten iş yaptın."); break;
+            case 'family': p.stress -= 15; p.karma += 10; addLog("Ailenle konuştun, moral depoladın."); break;
+        }
+        update();
+    }
+</script>
+</body>
+</html>
