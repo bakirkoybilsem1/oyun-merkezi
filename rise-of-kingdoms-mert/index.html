@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Kingdom Strategy Web</title>
+    <style>
+        body { margin: 0; background: #222; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+        #game-ui { position: absolute; width: 100%; padding: 10px; display: flex; justify-content: space-between; z-index: 10; }
+        .res-box { background: rgba(0,0,0,0.7); padding: 5px 15px; border-radius: 5px; border: 1px solid gold; }
+        
+        #timer { position: absolute; left: 10px; top: 60px; color: #ff4d4d; font-weight: bold; font-size: 20px; }
+        
+        #game-world { position: relative; width: 100vw; height: 100vh; background: #2ecc71; background-image: radial-gradient(#27ae60 1px, transparent 1px); background-size: 40px 40px; }
+        
+        .player { width: 50px; height: 50px; background: #3498db; position: absolute; border: 3px solid white; transition: 0.1s; }
+        .enemy { width: 50px; height: 50px; background: #e74c3c; position: absolute; border: 3px solid black; }
+        
+        /* Sağ Alt Ordu Menüsü */
+        #army-menu { position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; }
+        .upgrade-btn { background: #f1c40f; border: none; padding: 8px; margin: 5px; cursor: pointer; font-weight: bold; width: 150px;}
+
+        /* Kaynak İşaretçisi */
+        .collect-indicator { position: absolute; background: gold; color: black; padding: 2px 5px; border-radius: 50%; top: -20px; font-weight: bold; animation: bounce 1s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    </style>
+</head>
+<body>
+
+<div id="game-ui">
+    <div class="res-box">Altın: <span id="gold">500</span> | Odun: <span id="wood">500</span> | Mısır: <span id="corn">500</span></div>
+    <div class="res-box">💎 Elmas: <span id="diamond">100</span> | Ordu: <span id="army-size">0</span></div>
+</div>
+
+<div id="timer">Düşmana: 01:00</div>
+
+<div id="game-world">
+    <div id="player" class="player" style="left: 400px; top: 300px;"></div>
+    <div id="farm" style="position: absolute; left: 100px; top: 100px; width: 60px; height: 60px; background: brown;">
+        <span id="farm-ready" class="collect-indicator" style="display:none;">!</span>
+        <div style="font-size: 10px; text-align: center; margin-top: 65px;">TARLA (Seviye <span id="farm-lvl">1</span>)</div>
+    </div>
+</div>
+
+<div id="army-menu">
+    <button class="upgrade-btn" onclick="buyArmy()">Kılıçlı Al (20💎/+50)</button><br>
+    <button class="upgrade-btn" onclick="upgradeBuilding()">Tarlayı Geliştir (100💎)</button>
+</div>
+
+<script>
+    // Kaynaklar
+    let res = { gold: 500, wood: 500, corn: 500, diamond: 100, army: 0, farmLvl: 1 };
+    let enemyTimer = 60;
+    let playerPos = { x: 400, y: 300 };
+
+    // Sayaç ve Kaynak Üretimi
+    setInterval(() => {
+        if (enemyTimer > 0) {
+            enemyTimer--;
+            document.getElementById('timer').innerText = "Düşmana: 00:" + (enemyTimer < 10 ? "0" : "") + enemyTimer;
+        } else {
+            alert("Düşman Saldırısı Başladı!");
+            enemyTimer = 60; // Sıfırla
+        }
+    }, 1000);
+
+    // Her 100 saniyede bir kaynak hazır olur (Burada hızı test için 10 sn yaptım)
+    setInterval(() => {
+        document.getElementById('farm-ready').style.display = 'block';
+    }, 10000); 
+
+    // Kaynak toplama (Tarlaya tıklayınca)
+    document.getElementById('farm').onclick = () => {
+        if(document.getElementById('farm-ready').style.display === 'block') {
+            res.corn += 100 * res.farmLvl;
+            document.getElementById('farm-ready').style.display = 'none';
+            updateUI();
+        }
+    };
+
+    function buyArmy() {
+        if (res.diamond >= 20) {
+            res.diamond -= 20;
+            res.army += 50;
+            updateUI();
+        }
+    }
+
+    function upgradeBuilding() {
+        if (res.diamond >= 100) {
+            res.diamond -= 100;
+            res.farmLvl++;
+            document.getElementById('farm-lvl').innerText = res.farmLvl;
+            updateUI();
+        }
+    }
+
+    function updateUI() {
+        document.getElementById('gold').innerText = res.gold;
+        document.getElementById('wood').innerText = res.wood;
+        document.getElementById('corn').innerText = res.corn;
+        document.getElementById('diamond').innerText = res.diamond;
+        document.getElementById('army-size').innerText = res.army;
+    }
+
+    // Hareket Kontrolü
+    const player = document.getElementById('player');
+    document.addEventListener('keydown', (e) => {
+        if(e.key === "ArrowUp") playerPos.y -= 10;
+        if(e.key === "ArrowDown") playerPos.y += 10;
+        if(e.key === "ArrowLeft") playerPos.x -= 10;
+        if(e.key === "ArrowRight") playerPos.x += 10;
+        
+        player.style.left = playerPos.x + "px";
+        player.style.top = playerPos.y + "px";
+
+        // Ateş Etme (Boşluk)
+        if(e.code === "Space") {
+            console.log("Ateş ediliyor!");
+            // Mermi mekaniği buraya gelecek
+        }
+    });
+</script>
+</body>
+</html>
