@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASMR Relax - Ultra Paket</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            display: flex;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas {
+            cursor: crosshair;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        #side-panel {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 180px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+        #side-panel:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        h3 {
+            color: white;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-align: center;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+        .mode-btn {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 13px;
+        }
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
+        }
+        .mode-btn.active {
+            background: #4a90e2;
+            box-shadow: 0 0 15px rgba(74, 144, 226, 0.4);
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            color: rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+            text-align: center;
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">Yeni bir mod seç ve huzuru hisset...</div>
+
+    <div id="side-panel">
+        <h3>ASMR MENÜ</h3>
+        <button class="mode-btn active" onclick="changeMode('pixels')">Piksel Dağıtma</button>
+        <button class="mode-btn" onclick="changeMode('bubbles')">Baloncuk Oluşturma</button>
+        <button class="mode-btn" onclick="changeMode('rain')">Huzurlu Yağmur</button>
+        <button class="mode-btn" onclick="changeMode('dust')">Yıldız Tozu</button>
+        <button class="mode-btn" onclick="location.reload()">Sıfırla</button>
+    </div>
+
+    <canvas id="asmrCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('asmrCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let currentMode = 'pixels';
+        let isMouseDown = false;
+        let activeBubble = null;
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const mouse = { x: canvas.width / 2, y: canvas.height / 2, radius: 80 }
+
+        window.changeMode = function(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            if(event) event.target.classList.add('active');
+            
+            particles = []; 
+            if(mode === 'pixels') init();
+            else if(mode === 'rain') initRain();
+        }
+
+        window.addEventListener('mousedown', () => {
+            isMouseDown = true;
+            if(currentMode === 'bubbles') {
+                activeBubble = {
+                    x: mouse.x,
+                    y: mouse.y,
+                    size: 5,
+                    speedY: 0,
+                    isFloating: false
+                };
+                particles.push(activeBubble);
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isMouseDown = false;
+            if(currentMode === 'bubbles' && activeBubble) {
+                activeBubble.speedY = Math.random() * 2 + 1;
+                activeBubble.isFloating = true;
+                activeBubble = null;
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.x;
+            mouse.y = e.y;
+            playASMRSound(); 
+            
+            if(currentMode === 'dust') {
+                for(let i=0; i<2; i++) {
+                    particles.push(new DustParticle(mouse.x, mouse.y));
+                }
+            }
+            if(currentMode === 'bubbles' && activeBubble && !activeBubble.isFloating) {
+                activeBubble.x = mouse.x;
+                activeBubble.y = mouse.y;
+            }
+        });
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playASMRSound(isLand = false) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = 'sine';
+            
+            let freq;
+            if(isLand) freq = 80; // Yere düşme sesi (pes)
+            else if(currentMode === 'pixels') freq = Math.random() * 100 + 200;
+            else if(currentMode === 'rain') freq = Math.random() * 50 + 100;
+            else if(currentMode === 'dust') freq = Math.random() * 500 + 800; 
+            else freq = Math.random() * 200 + 400; 
+            
+            oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(isLand ? 0.05 : 0.02, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.15);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.15);
+        }
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                this.size = 4; this.baseX = x; this.baseY = y;
+                this.density = (Math.random() * 30) + 1;
+                this.color = `hsl(${Math.random() * 40 + 200}, 70%, 60%)`;
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+            }
+            update() {
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < mouse.radius) {
+                    let force = (mouse.radius - distance) / mouse.radius;
+                    this.x -= (dx / distance) * force * this.density;
+                    this.y -= (dy / distance) * force * this.density;
+                } else {
+                    this.x -= (this.x - this.baseX) / 20;
+                    this.y -= (this.y - this.baseY) / 20;
+                }
+            }
+        }
+
+        class DustParticle {
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                this.size = Math.random() * 3 + 1;
+                this.speedX = Math.random() * 2 - 1;
+                this.speedY = Math.random() * 2 - 1;
+                this.life = 1.0;
+                this.color = `hsl(${Math.random() * 60 + 40}, 80%, 70%)`;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.life -= 0.01;
+            }
+            draw() {
+                ctx.fillStyle = this.color.replace(')', `, ${this.life})`).replace('hsl', 'hsla');
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
+        function init() {
+            particles = [];
+            for (let y = 0; y < canvas.height; y += 15) {
+                for (let x = 0; x < canvas.width; x += 15) {
+                    particles.push(new Particle(x, y));
+                }
+            }
+        }
+
+        function initRain() {
+            particles = [];
+            for (let i = 0; i < 60; i++) {
+                particles.push({
+                    x: mouse.x + (Math.random() * 40 - 20),
+                    y: Math.random() * -canvas.height,
+                    length: Math.random() * 20 + 10,
+                    speedY: Math.random() * 5 + 5
+                });
+            }
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(26, 26, 26, 0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (currentMode === 'pixels') {
+                particles.forEach(p => { p.update(); p.draw(); });
+            } else if (currentMode === 'bubbles') {
+                if(isMouseDown && activeBubble) {
+                    activeBubble.size += 0.5;
+                }
+                for(let i = particles.length - 1; i >= 0; i--) {
+                    let p = particles[i];
+                    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.stroke();
+                    if(p.isFloating) {
+                        p.y -= p.speedY;
+                    }
+                    if (p.y < -100) particles.splice(i, 1);
+                }
+            } else if (currentMode === 'rain') {
+                // Her karede imleçten yeni damla ekle (yağmurun devamlılığı için)
+                if (particles.length < 100) {
+                    particles.push({
+                        x: mouse.x + (Math.random() * 30 - 15),
+                        y: -20,
+                        length: Math.random() * 20 + 10,
+                        speedY: Math.random() * 5 + 5
+                    });
+                }
+                ctx.strokeStyle = 'rgba(174, 194, 224, 0.5)';
+                ctx.lineWidth = 1;
+                particles.forEach((p, index) => {
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x, p.y + p.length);
+                    ctx.stroke();
+                    p.y += p.speedY;
+                    
+                    if (p.y > canvas.height) {
+                        playASMRSound(true); // Yere düşme sesi
+                        p.y = -20;
+                        p.x = mouse.x + (Math.random() * 30 - 15); // İmleç hizasına geri taşı
+                    }
+                });
+            } else if (currentMode === 'dust') {
+                for(let i = particles.length - 1; i >= 0; i--) {
+                    particles[i].update();
+                    particles[i].draw();
+                    if(particles[i].life <= 0) particles.splice(i, 1);
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        init();
+        animate();
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            changeMode(currentMode);
+        });
+    </script>
+</body>
+</html>
