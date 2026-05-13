@@ -358,5 +358,14 @@
       "#FC5C7D",
       "#6A82FB"
     ]
+  },
+  {
+    "slug": "deniz-in-zombi-oyunu",
+    "name": "deniz in zombi oyunu",
+    "emoji": "🎮",
+    "colors": [
+      "#43C6AC",
+      "#F8FFAE"
+    ]
   }
 ]
