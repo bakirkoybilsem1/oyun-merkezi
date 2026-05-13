@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Bubble Grow IO - Şakşak</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: radial-gradient(circle, #1a1a2e, #16213e); font-family: 'Segoe UI', sans-serif; }
+        canvas { display: block; cursor: none; }
+        #ui {
+            position: absolute; top: 20px; left: 20px; color: white;
+            pointer-events: none; text-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+        }
+        .stat { font-size: 24px; margin-bottom: 5px; }
+        #level-up {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #00d2ff; font-size: 48px; font-weight: bold; opacity: 0;
+            transition: opacity 0.5s; pointer-events: none; text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div class="stat">Boyut: <span id="size-text">10</span></div>
+        <div class="stat">Seviye: <span id="level-text">1</span></div>
+        <div class="stat">Kostüm: <span id="skin-text">Yeni Yetme</span></div>
+    </div>
+    <div id="level-up">SEVİYE ATLADIN!<br><span id="new-skin" style="font-size: 24px; color: #fff;"></span></div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let score = 0;
+    let currentLevel = 1;
+    const skins = [
+        "Yeni Yetme", "Mavi İnci", "Süper Balon", "Gümüş Küre", 
+        "Altın Parıltı", "Plazma", "Kara Delik", "Galaksi Yutan", 
+        "Evrenin Hakimi", "ŞAKŞAK MODU"
+    ];
+
+    const player = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        radius: 15,
+        color: "#00d2ff",
+        targetRadius: 15
+    };
+
+    const bubbles = [];
+    const particles = [];
+
+    // Fare takibi
+    let mouse = { x: canvas.width/2, y: canvas.height/2 };
+    window.addEventListener('mousemove', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+    });
+
+    function spawnBubble() {
+        const radius = Math.random() * (player.radius * 1.5) + 5;
+        bubbles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            radius: radius,
+            color: radius < player.radius ? "#4ecca3" : "#e94560", // Yenebilirler yeşil, tehlikeliler kırmızı
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 2
+        });
+    }
+
+    // Başlangıç baloncukları
+    for(let i=0; i<50; i++) spawnBubble();
+
+    function createExplosion(x, y, color) {
+        for(let i=0; i<10; i++) {
+            particles.push({
+                x, y,
+                vx: (Math.random()-0.5)*10,
+                vy: (Math.random()-0.5)*10,
+                life: 20,
+                color
+            });
+        }
+    }
+
+    function update() {
+        // Oyuncu hareketi (Yumuşak takip)
+        player.x += (mouse.x - player.x) * 0.1;
+        player.y += (mouse.y - player.y) * 0.1;
+
+        // Boyut geçiş yumuşatması
+        if(player.radius < player.targetRadius) player.radius += 0.2;
+
+        bubbles.forEach((b, i) => {
+            b.x += b.vx;
+            b.y += b.vy;
+
+            // Ekran sınırları
+            if(b.x < 0 || b.x > canvas.width) b.vx *= -1;
+            if(b.y < 0 || b.y > canvas.height) b.vy *= -1;
+
+            // Çarpışma ve Yeme
+            const dx = player.x - b.x;
+            const dy = player.y - b.y;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+
+            if(distance < player.radius) {
+                if(player.radius > b.radius) {
+                    // Yutma
+                    player.targetRadius += b.radius * 0.1;
+                    createExplosion(b.x, b.y, b.color);
+                    bubbles.splice(i, 1);
+                    spawnBubble();
+                    checkLevelUp();
+                } else {
+                    // Ölüm (Sadece çok büyükse)
+                    if(b.radius > player.radius * 1.2) {
+                        player.targetRadius = 15;
+                        player.radius = 15;
+                        currentLevel = 1;
+                        updateUI();
+                    }
+                }
+            }
+        });
+
+        particles.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.life--;
+            if(p.life <= 0) particles.splice(i, 1);
+        });
+        
+        updateUI();
+    }
+
+    function checkLevelUp() {
+        let newLevel = Math.floor(player.radius / 20) + 1;
+        if(newLevel > currentLevel && currentLevel < 10) {
+            currentLevel = newLevel;
+            showLevelAnim();
+        }
+    }
+
+    function showLevelAnim() {
+        const el = document.getElementById("level-up");
+        document.getElementById("new-skin").innerText = "Yeni Kostüm: " + skins[currentLevel-1];
+        el.style.opacity = "1";
+        setTimeout(() => el.style.opacity = "0", 2000);
+    }
+
+    function updateUI() {
+        document.getElementById("size-text").innerText = Math.floor(player.radius);
+        document.getElementById("level-text").innerText = currentLevel;
+        document.getElementById("skin-text").innerText = skins[currentLevel-1];
+        
+        // Seviyeye göre oyuncu rengi değişsin
+        const colors = ["#00d2ff", "#3498db", "#9b59b6", "#e74c3c", "#f1c40f", "#2ecc71", "#1abc9c", "#e67e22", "#ecf0f1", "#000"];
+        player.color = colors[currentLevel-1] || "#00d2ff";
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Arkaplan ızgarası (Hareket hissi için)
+        ctx.strokeStyle = "rgba(255,255,255,0.05)";
+        for(let i=0; i<canvas.width; i+=50) {
+            ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, canvas.height); ctx.stroke();
+        }
+        for(let i=0; i<canvas.height; i+=50) {
+            ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width, i); ctx.stroke();
+        }
+
+        // Oyuncu
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2);
+        ctx.fillStyle = player.color;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = player.color;
+        ctx.fill();
+        ctx.closePath();
+
+        // Baloncuklar
+        bubbles.forEach(b => {
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2);
+            ctx.fillStyle = b.color;
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = b.color;
+            ctx.fill();
+            ctx.closePath();
+        });
+
+        // Parçacıklar
+        particles.forEach(p => {
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.life / 20;
+            ctx.fillRect(p.x, p.y, 4, 4);
+        });
+        ctx.globalAlpha = 1;
+
+        update();
+        requestAnimationFrame(draw);
+    }
+
+    draw();
+
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+</script>
+</body>
+</html>
