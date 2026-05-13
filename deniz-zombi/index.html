@@ -1,211 +1,400 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <title>Starship Defender: ULTRA BOMBAY</title>
-    <style>
-        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        canvas { display: block; filter: contrast(1.2) brightness(1.1); }
-        #ui {
-            position: absolute; top: 20px; left: 20px;
-            color: #00d2ff; font-size: 28px; font-weight: bold; pointer-events: none;
-            text-shadow: 0 0 15px rgba(0, 210, 255, 0.7);
-        }
-        #instructions {
-            position: absolute; bottom: 20px; width: 100%; text-align: center;
-            color: rgba(255, 255, 255, 0.5); font-size: 14px;
-        }
-    </style>
-</head>
-<body>
-    <div id="ui">SKOR: <span id="score">0</span></div>
-    <div id="instructions">SAĞ/SOL OK: Hareket | BOŞLUK: Ateş</div>
-    <canvas id="gameCanvas"></canvas>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Creepster&family=Rajdhani:wght@400;500;600&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --blood: #c0392b;
+  --dark-blood: #7b241c;
+  --green: #27ae60;
+  --dark: #0d0d0d;
+  --panel: #141414;
+  --border: #2a2a2a;
+  --text: #d4cfc8;
+  --muted: #6b6560;
+  --amber: #e67e22;
+}
+
+body { background: var(--dark); color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 15px; }
+
+.game-wrap { max-width: 680px; margin: 0 auto; padding: 12px; min-height: 600px; display: flex; flex-direction: column; gap: 10px; }
+
+.header { text-align: center; padding: 12px 0 4px; }
+.header h1 { font-family: 'Creepster', cursive; font-size: 36px; color: var(--blood); letter-spacing: 3px; text-shadow: 0 0 20px #c0392b66; }
+.header p { font-size: 12px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+
+.status-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stat { background: var(--panel); border: 0.5px solid var(--border); border-radius: 8px; padding: 8px 10px; text-align: center; }
+.stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.stat-value { font-size: 20px; font-weight: 600; margin-top: 2px; }
+.stat-value.can { color: var(--blood); }
+.stat-value.enerji { color: var(--amber); }
+.stat-value.gun { color: var(--text); }
+.stat-value.konum { color: #7fb3d3; font-size: 13px; margin-top: 4px; }
+
+.bar-wrap { height: 4px; border-radius: 2px; background: #222; margin-top: 5px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+.bar-can { background: var(--blood); }
+.bar-enerji { background: var(--amber); }
+
+.log-box { background: var(--panel); border: 0.5px solid var(--border); border-radius: 8px; padding: 12px 14px; min-height: 140px; max-height: 200px; overflow-y: auto; font-size: 14px; line-height: 1.7; }
+.log-box::-webkit-scrollbar { width: 4px; }
+.log-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.log-entry { padding: 2px 0; border-bottom: 0.5px solid #1a1a1a; }
+.log-entry:last-child { border-bottom: none; color: var(--text); }
+.log-entry.danger { color: #e74c3c; }
+.log-entry.success { color: #2ecc71; }
+.log-entry.info { color: #7fb3d3; }
+.log-entry.warn { color: var(--amber); }
+.log-entry.muted { color: var(--muted); }
+
+.envanter { background: var(--panel); border: 0.5px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+.env-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.env-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.env-item { background: #1e1e1e; border: 0.5px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 13px; color: var(--text); }
+.env-item.weapon { border-color: #c0392b55; color: #e07070; }
+.env-item.food { border-color: #27ae6055; color: #70c090; }
+.env-item.med { border-color: #3498db55; color: #70a8d0; }
+
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.action-btn { background: #141414; border: 0.5px solid var(--border); border-radius: 8px; padding: 12px 14px; cursor: pointer; text-align: left; color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 15px; transition: all 0.15s; display: flex; align-items: center; gap: 10px; }
+.action-btn:hover:not(:disabled) { background: #1e1e1e; border-color: #444; }
+.action-btn:active:not(:disabled) { transform: scale(0.98); }
+.action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.action-btn.danger { border-color: #c0392b44; }
+.action-btn.danger:hover:not(:disabled) { border-color: var(--blood); background: #1a1010; }
+.action-btn .btn-icon { font-size: 22px; }
+.btn-title { font-weight: 600; font-size: 15px; }
+.btn-sub { font-size: 12px; color: var(--muted); }
+
+.combat-box { background: #0e0a0a; border: 1px solid var(--blood); border-radius: 8px; padding: 14px; display: none; }
+.combat-box.active { display: block; }
+.combat-title { font-family: 'Creepster', cursive; font-size: 24px; color: var(--blood); margin-bottom: 10px; text-align: center; }
+.zombi-health { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.zombi-health-label { font-size: 13px; color: var(--muted); min-width: 70px; }
+.combat-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.name-screen { text-align: center; padding: 30px 20px; }
+.name-screen h2 { font-family: 'Creepster', cursive; font-size: 28px; color: var(--blood); margin-bottom: 8px; }
+.name-screen p { color: var(--muted); font-size: 13px; margin-bottom: 20px; line-height: 1.6; }
+.name-input { width: 100%; background: var(--panel); border: 0.5px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 16px; outline: none; margin-bottom: 12px; }
+.name-input:focus { border-color: var(--blood); }
+.start-btn { background: var(--blood); border: none; border-radius: 8px; padding: 12px 32px; color: #fff; font-family: 'Creepster', cursive; font-size: 20px; cursor: pointer; letter-spacing: 2px; transition: background 0.2s; }
+.start-btn:hover { background: var(--dark-blood); }
+
+.game-over { text-align: center; padding: 30px 20px; }
+.game-over h2 { font-family: 'Creepster', cursive; font-size: 40px; margin-bottom: 8px; }
+.game-over.dead h2 { color: var(--blood); }
+.game-over.win h2 { color: var(--green); }
+.restart-btn { background: var(--panel); border: 0.5px solid var(--border); border-radius: 8px; padding: 10px 24px; color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 15px; cursor: pointer; margin-top: 16px; transition: all 0.2s; }
+.restart-btn:hover { border-color: var(--blood); color: var(--blood); }
+
+.screen { display: none; }
+.screen.active { display: block; }
+</style>
+
+<div class="game-wrap">
+  <div class="header">
+    <h1>☠ ZOMBİ ŞEHRİ ☠</h1>
+    <p>Hayatta kal. Kaç. Ya da öl.</p>
+  </div>
+
+  <div id="screen-name" class="screen active">
+    <div class="name-screen">
+      <h2>Yeni Hayatta Kalan</h2>
+      <p>Şehir düştü. Zombiler her yerde.<br>Adını söyle ve mücadeleni başlat.</p>
+      <input class="name-input" id="isim-input" type="text" placeholder="Karakterinin adı..." maxlength="20" />
+      <br>
+      <button class="start-btn" onclick="oyunuBaslat()">HAYATTA KAL</button>
+    </div>
+  </div>
+
+  <div id="screen-game" class="screen">
+    <div class="status-bar">
+      <div class="stat">
+        <div class="stat-label">Can</div>
+        <div class="stat-value can" id="can-val">100</div>
+        <div class="bar-wrap"><div class="bar-fill bar-can" id="can-bar" style="width:100%"></div></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Enerji</div>
+        <div class="stat-value enerji" id="enerji-val">100</div>
+        <div class="bar-wrap"><div class="bar-fill bar-enerji" id="enerji-bar" style="width:100%"></div></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Gün</div>
+        <div class="stat-value gun" id="gun-val">1</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Konum</div>
+        <div class="stat-value konum" id="konum-val">Güvenli Ev</div>
+      </div>
+    </div>
+
+    <div class="log-box" id="log-box"></div>
+
+    <div class="envanter">
+      <div class="env-title">Envanter</div>
+      <div class="env-items" id="env-items"></div>
+    </div>
+
+    <div class="combat-box" id="combat-box">
+      <div class="combat-title">⚠ ZOMBİ SALDIRISI!</div>
+      <div class="zombi-health">
+        <span class="zombi-health-label">Zombi canı</span>
+        <div class="bar-wrap" style="flex:1"><div class="bar-fill bar-can" id="zombi-bar" style="width:100%"></div></div>
+        <span id="zombi-can-num" style="font-size:13px;color:var(--blood);min-width:30px">40</span>
+      </div>
+      <div class="combat-actions">
+        <button class="action-btn danger" onclick="savasEylemi('saldir')">
+          <span class="btn-icon">⚔</span>
+          <div><div class="btn-title">Saldır</div><div class="btn-sub">Hasar ver</div></div>
+        </button>
+        <button class="action-btn" onclick="savasEylemi('kac')">
+          <span class="btn-icon">🏃</span>
+          <div><div class="btn-title">Kaç</div><div class="btn-sub">%50 şans</div></div>
+        </button>
+      </div>
+    </div>
+
+    <div class="actions" id="main-actions">
+      <button class="action-btn" onclick="kesif()">
+        <span class="btn-icon">🔍</span>
+        <div><div class="btn-title">Keşfe Çık</div><div class="btn-sub">Yiyecek ve eşya ara</div></div>
+      </button>
+      <button class="action-btn" onclick="dinlen()">
+        <span class="btn-icon">🛏</span>
+        <div><div class="btn-title">Dinlen</div><div class="btn-sub">Can +20, enerji dolar</div></div>
+      </button>
+      <button class="action-btn danger" onclick="finalSavas()">
+        <span class="btn-icon">🚗</span>
+        <div><div class="btn-title">Şehirden Kaç</div><div class="btn-sub">Son hamle — tehlikeli</div></div>
+      </button>
+      <button class="action-btn" onclick="showHelp()">
+        <span class="btn-icon">?</span>
+        <div><div class="btn-title">Durum</div><div class="btn-sub">İpuçlarını gör</div></div>
+      </button>
+    </div>
+  </div>
+
+  <div id="screen-over" class="screen">
+    <div class="game-over" id="game-over-box">
+      <h2 id="over-title">ÖLDÜN</h2>
+      <p id="over-msg" style="color:var(--muted);margin-top:8px;line-height:1.6"></p>
+      <div id="over-stats" style="margin:16px 0;font-size:14px;color:var(--muted)"></div>
+      <button class="restart-btn" onclick="yenidenBaslat()">Yeniden Oyna</button>
+    </div>
+  </div>
+</div>
 
 <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    const scoreElement = document.getElementById("score");
+let oyuncu = {};
+let savasDurumu = null;
+let aktifEkran = 'name';
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+const silahlar = ['Paslı Balta','Tabanca','Av Tüfeği','Çekiç'];
+const yiyecekler = ['Konserve','Su Şişesi','Enerji Barı','Pastırma'];
+const medkit = ['İlk Yardım Kiti','Bandaj','Ağrı Kesici'];
 
-    let score = 0;
-    let gameActive = true;
-    let shakeIntensity = 0;
+function esyaTipi(e) {
+  if (silahlar.includes(e)) return 'weapon';
+  if (yiyecekler.includes(e)) return 'food';
+  if (medkit.includes(e)) return 'med';
+  return '';
+}
 
-    // Arkaplan Yıldızları
-    const stars = Array.from({length: 100}, () => ({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        size: Math.random() * 2,
-        speed: Math.random() * 2 + 0.5
-    }));
+function log(metin, tip = '') {
+  const box = document.getElementById('log-box');
+  const div = document.createElement('div');
+  div.className = 'log-entry ' + tip;
+  div.textContent = metin;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
 
-    const player = {
-        x: canvas.width / 2,
-        y: canvas.height - 80,
-        w: 30,
-        h: 45,
-        speed: 10,
-        color: "#00d2ff",
-        fireRate: 200,
-        lastFired: 0
-    };
+function ekranGoster(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  aktifEkran = id;
+}
 
-    const bullets = [];
-    const enemies = [];
-    const particles = [];
+function durumGuncelle() {
+  document.getElementById('can-val').textContent = oyuncu.can;
+  document.getElementById('enerji-val').textContent = oyuncu.enerji;
+  document.getElementById('gun-val').textContent = oyuncu.gun;
+  document.getElementById('konum-val').textContent = oyuncu.konum;
+  document.getElementById('can-bar').style.width = oyuncu.can + '%';
+  document.getElementById('enerji-bar').style.width = oyuncu.enerji + '%';
 
-    const keys = {};
-    window.onkeydown = (e) => keys[e.code] = true;
-    window.onkeyup = (e) => keys[e.code] = false;
+  const envEl = document.getElementById('env-items');
+  envEl.innerHTML = '';
+  oyuncu.envanter.forEach(e => {
+    const d = document.createElement('div');
+    d.className = 'env-item ' + esyaTipi(e);
+    d.textContent = e;
+    envEl.appendChild(d);
+  });
+}
 
-    function spawnEnemy() {
-        if(!gameActive) return;
-        const size = Math.random() * 30 + 25;
-        enemies.push({
-            x: Math.random() * (canvas.width - size),
-            y: -size,
-            w: size,
-            h: size,
-            speed: Math.random() * 2 + 3,
-            color: `hsl(${Math.random() * 60 + 340}, 80%, 60%)`,
-            hp: Math.ceil(size / 15)
-        });
-        setTimeout(spawnEnemy, Math.max(400, 1000 - score/10));
+function oyunuBaslat() {
+  const isim = document.getElementById('isim-input').value.trim() || 'Hayatta Kalan';
+  oyuncu = { isim, can: 100, enerji: 100, envanter: ['Eski Bıçak'], gun: 1, konum: 'Güvenli Ev' };
+  ekranGoster('game');
+  durumGuncelle();
+  document.getElementById('log-box').innerHTML = '';
+  document.getElementById('combat-box').classList.remove('active');
+  document.getElementById('main-actions').style.display = 'grid';
+  log(`Gözlerini açıyorsun, ${oyuncu.isim}. Şehir düşmüş. Hayatta kal.`, 'info');
+}
+
+function kesif() {
+  if (oyuncu.enerji < 20) { log('Çok yorgunsun. Önce dinlen!', 'warn'); return; }
+  oyuncu.enerji = Math.max(0, oyuncu.enerji - 20);
+  oyuncu.konum = 'Harabe Binalar';
+  durumGuncelle();
+  log('Harabelere doğru ilerliyorsun...', 'muted');
+
+  const olay = Math.random();
+  setTimeout(() => {
+    if (olay < 0.4) {
+      baslatSavas();
+    } else if (olay < 0.75) {
+      const havuz = [...silahlar.slice(1), ...yiyecekler, ...medkit];
+      const esya = havuz[Math.floor(Math.random() * havuz.length)];
+      oyuncu.envanter.push(esya);
+      log(`Şanslısın! Bir ${esya} buldun.`, 'success');
+      // bonus: medkit kullan
+      if (medkit.includes(esya) && oyuncu.can < 80) {
+        oyuncu.can = Math.min(100, oyuncu.can + 15);
+        log('İlk yardım malzemesini hemen kullandın. +15 can.', 'success');
+      }
+      durumGuncelle();
+    } else {
+      log('Etraf sessiz. Hiçbir şey bulamadın ama sağ döndün.', 'muted');
+    }
+    olumKontrol();
+  }, 600);
+}
+
+function baslatSavas() {
+  const zombiCan = 40 + Math.floor(Math.random() * 20);
+  savasDurumu = { can: zombiCan, maxCan: zombiCan };
+  document.getElementById('combat-box').classList.add('active');
+  document.getElementById('main-actions').style.display = 'none';
+  zombiBarGuncelle();
+  log('BİRRRRGHRRR! Bir zombi önüne çıktı!', 'danger');
+}
+
+function zombiBarGuncelle() {
+  const pct = Math.max(0, (savasDurumu.can / savasDurumu.maxCan) * 100);
+  document.getElementById('zombi-bar').style.width = pct + '%';
+  document.getElementById('zombi-can-num').textContent = Math.max(0, savasDurumu.can);
+}
+
+function savasEylemi(eylem) {
+  if (eylem === 'saldir') {
+    let hasar = 10 + Math.floor(Math.random() * 16);
+    if (oyuncu.envanter.includes('Tabanca')) hasar += 20;
+    else if (oyuncu.envanter.includes('Av Tüfeği')) hasar += 30;
+    else if (oyuncu.envanter.includes('Paslı Balta') || oyuncu.envanter.includes('Çekiç')) hasar += 10;
+
+    savasDurumu.can -= hasar;
+    log(`Zombiye ${hasar} hasar verdin!`, 'success');
+    zombiBarGuncelle();
+
+    if (savasDurumu.can <= 0) {
+      log('Zombiyi alt ettin!', 'success');
+      savasi_bitir();
+      return;
     }
 
-    function createExplosion(x, y, color) {
-        shakeIntensity = 10;
-        for(let i=0; i<15; i++) {
-            particles.push({
-                x, y,
-                vx: (Math.random()-0.5)*12,
-                vy: (Math.random()-0.5)*12,
-                life: 30,
-                size: Math.random() * 4,
-                color: color
-            });
-        }
+    const zombiH = 5 + Math.floor(Math.random() * 15);
+    oyuncu.can -= zombiH;
+    log(`Zombi seni ısırdı! ${zombiH} hasar aldın.`, 'danger');
+    durumGuncelle();
+    olumKontrol();
+
+  } else {
+    if (Math.random() > 0.5) {
+      log('Kaçmayı başardın!', 'info');
+      savasi_bitir();
+    } else {
+      log('Kaçamadın! Zombi seni yakaladı.', 'warn');
+      oyuncu.can -= 10;
+      durumGuncelle();
+      olumKontrol();
     }
+  }
+}
 
-    function update() {
-        if(!gameActive) return;
+function savasi_bitir() {
+  savasDurumu = null;
+  document.getElementById('combat-box').classList.remove('active');
+  document.getElementById('main-actions').style.display = 'grid';
+  oyuncu.konum = 'Harabe Binalar';
+  durumGuncelle();
+}
 
-        // Yıldızlar
-        stars.forEach(s => {
-            s.y += s.speed;
-            if(s.y > canvas.height) s.y = 0;
-        });
+function dinlen() {
+  oyuncu.enerji = 100;
+  oyuncu.can = Math.min(100, oyuncu.can + 20);
+  oyuncu.gun += 1;
+  oyuncu.konum = 'Güvenli Ev';
+  durumGuncelle();
+  log(`${oyuncu.gun - 1}. günü atlattın. Dinlendin. Can +20.`, 'info');
+  log(`Gün ${oyuncu.gun} — yeni tehlikeler sizi bekliyor.`, 'muted');
+}
 
-        // Hareket
-        if(keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
-        if(keys["ArrowRight"] && player.x < canvas.width - player.w) player.x += player.speed;
-        
-        // Ateşleme Sistemi (Seri Atış)
-        const now = Date.now();
-        if(keys["Space"] && now - player.lastFired > player.fireRate) {
-            bullets.push({x: player.x + player.w/2 - 2, y: player.y, w: 4, h: 20});
-            player.lastFired = now;
-        }
+function finalSavas() {
+  oyuncu.konum = 'Şehir Köprüsü';
+  durumGuncelle();
+  log('Şehir sınırındaki köprüye ulaştın. Dev bir sürü yolu kapatmış!', 'warn');
+  const tabancaVar = oyuncu.envanter.includes('Tabanca') || oyuncu.envanter.includes('Av Tüfeği');
+  const saglikliMi = oyuncu.can > 50;
+  const envarterYeterli = oyuncu.envanter.length >= 3;
 
-        bullets.forEach((b, i) => {
-            b.y -= 15;
-            if(b.y < 0) bullets.splice(i, 1);
-        });
-
-        enemies.forEach((en, i) => {
-            en.y += en.speed;
-            
-            if(en.x < player.x + player.w && en.x + en.w > player.x && en.y < player.y + player.h && en.y + en.h > player.y) {
-                gameActive = false;
-                alert("GEMİ PARÇALANDI! SKORUN: " + score);
-                location.reload();
-            }
-
-            bullets.forEach((b, bi) => {
-                if(b.x < en.x + en.w && b.x + b.w > en.x && b.y < en.y + en.h && b.y + b.h > en.y) {
-                    en.hp--;
-                    bullets.splice(bi, 1);
-                    if(en.hp <= 0) {
-                        createExplosion(en.x + en.w/2, en.y + en.h/2, en.color);
-                        enemies.splice(i, 1);
-                        score += 10;
-                        scoreElement.innerText = score;
-                    }
-                }
-            });
-
-            if(en.y > canvas.height) enemies.splice(i, 1);
-        });
-
-        particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy; p.life--;
-            if(p.life <= 0) particles.splice(i, 1);
-        });
-
-        if(shakeIntensity > 0) shakeIntensity *= 0.9;
+  setTimeout(() => {
+    if (tabancaVar && saglikliMi) {
+      log('Tabancanı boşaltıp sürüyü yardın. Şehirden kaçmayı başardın!', 'success');
+      oyunuBitir('win', `${oyuncu.gun} günde hayatta kaldın ve şehirden kaçtın!`);
+    } else if (envarterYeterli && saglikliMi) {
+      log('İyi hazırlanmıştın. Zorlu bir çatışmadan sonra şehirden kaçtın.', 'success');
+      oyunuBitir('win', `${oyuncu.gun} günde hayatta kaldın ve kaçtın!`);
+    } else {
+      log('Hazırlıksız yakalandın. Sürü seni yuttu...', 'danger');
+      oyunuBitir('dead', 'Şehirden kaçmak için daha fazla hazırlanman gerekiyordu.');
     }
+  }, 800);
+}
 
-    function draw() {
-        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset
-        ctx.fillStyle = "black";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+function showHelp() {
+  log('— İpuçları: Tabanca veya Av Tüfeği al, en az 3 eşya topla, canını 50+ tut, sonra kaç!', 'info');
+}
 
-        // Ekran Sarsıntısı Uygula
-        if(shakeIntensity > 0.5) {
-            ctx.translate((Math.random()-0.5)*shakeIntensity, (Math.random()-0.5)*shakeIntensity);
-        }
+function olumKontrol() {
+  if (oyuncu.can <= 0) {
+    oyunuBitir('dead', 'Zombiler akşam yemeğini yedi...');
+  }
+}
 
-        // Yıldızlar
-        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-        stars.forEach(s => ctx.fillRect(s.x, s.y, s.size, s.size));
+function oyunuBitir(sonuc, mesaj) {
+  document.getElementById('combat-box').classList.remove('active');
+  ekranGoster('over');
+  const box = document.getElementById('game-over-box');
+  box.className = 'game-over ' + sonuc;
+  document.getElementById('over-title').textContent = sonuc === 'win' ? '🏆 KAZANDIN!' : '☠ ÖLDÜN';
+  document.getElementById('over-msg').textContent = mesaj;
+  document.getElementById('over-stats').innerHTML =
+    `${oyuncu.gun} gün hayatta kaldın &nbsp;·&nbsp; Envanter: ${oyuncu.envanter.join(', ')}`;
+}
 
-        // Oyuncu (Modern Üçgen Tasarım)
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = player.color;
-        ctx.fillStyle = player.color;
-        ctx.beginPath();
-        ctx.moveTo(player.x + player.w/2, player.y);
-        ctx.lineTo(player.x + player.w, player.y + player.h);
-        ctx.lineTo(player.x, player.y + player.h);
-        ctx.fill();
+function yenidenBaslat() {
+  document.getElementById('isim-input').value = '';
+  ekranGoster('name');
+}
 
-        // Mermiler
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = "#fff";
-        ctx.fillStyle = "#fff";
-        bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
-
-        // Düşmanlar
-        enemies.forEach(en => {
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = en.color;
-            ctx.fillStyle = en.color;
-            ctx.fillRect(en.x, en.y, en.w, en.h);
-        });
-
-        // Parçacıklar
-        ctx.shadowBlur = 0;
-        particles.forEach(p => {
-            ctx.fillStyle = p.color;
-            ctx.globalAlpha = p.life / 30;
-            ctx.fillRect(p.x, p.y, p.size, p.size);
-        });
-        ctx.globalAlpha = 1.0;
-
-        requestAnimationFrame(draw);
-        update();
-    }
-
-    spawnEnemy();
-    draw();
-
-    window.addEventListener('resize', () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    });
+document.getElementById('isim-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') oyunuBaslat();
+});
 </script>
-</body>
-</html>
