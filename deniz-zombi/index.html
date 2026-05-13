@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Starship Defender: ULTRA BOMBAY</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; filter: contrast(1.2) brightness(1.1); }
+        #ui {
+            position: absolute; top: 20px; left: 20px;
+            color: #00d2ff; font-size: 28px; font-weight: bold; pointer-events: none;
+            text-shadow: 0 0 15px rgba(0, 210, 255, 0.7);
+        }
+        #instructions {
+            position: absolute; bottom: 20px; width: 100%; text-align: center;
+            color: rgba(255, 255, 255, 0.5); font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">SKOR: <span id="score">0</span></div>
+    <div id="instructions">SAĞ/SOL OK: Hareket | BOŞLUK: Ateş</div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreElement = document.getElementById("score");
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let score = 0;
+    let gameActive = true;
+    let shakeIntensity = 0;
+
+    // Arkaplan Yıldızları
+    const stars = Array.from({length: 100}, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2,
+        speed: Math.random() * 2 + 0.5
+    }));
+
+    const player = {
+        x: canvas.width / 2,
+        y: canvas.height - 80,
+        w: 30,
+        h: 45,
+        speed: 10,
+        color: "#00d2ff",
+        fireRate: 200,
+        lastFired: 0
+    };
+
+    const bullets = [];
+    const enemies = [];
+    const particles = [];
+
+    const keys = {};
+    window.onkeydown = (e) => keys[e.code] = true;
+    window.onkeyup = (e) => keys[e.code] = false;
+
+    function spawnEnemy() {
+        if(!gameActive) return;
+        const size = Math.random() * 30 + 25;
+        enemies.push({
+            x: Math.random() * (canvas.width - size),
+            y: -size,
+            w: size,
+            h: size,
+            speed: Math.random() * 2 + 3,
+            color: `hsl(${Math.random() * 60 + 340}, 80%, 60%)`,
+            hp: Math.ceil(size / 15)
+        });
+        setTimeout(spawnEnemy, Math.max(400, 1000 - score/10));
+    }
+
+    function createExplosion(x, y, color) {
+        shakeIntensity = 10;
+        for(let i=0; i<15; i++) {
+            particles.push({
+                x, y,
+                vx: (Math.random()-0.5)*12,
+                vy: (Math.random()-0.5)*12,
+                life: 30,
+                size: Math.random() * 4,
+                color: color
+            });
+        }
+    }
+
+    function update() {
+        if(!gameActive) return;
+
+        // Yıldızlar
+        stars.forEach(s => {
+            s.y += s.speed;
+            if(s.y > canvas.height) s.y = 0;
+        });
+
+        // Hareket
+        if(keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
+        if(keys["ArrowRight"] && player.x < canvas.width - player.w) player.x += player.speed;
+        
+        // Ateşleme Sistemi (Seri Atış)
+        const now = Date.now();
+        if(keys["Space"] && now - player.lastFired > player.fireRate) {
+            bullets.push({x: player.x + player.w/2 - 2, y: player.y, w: 4, h: 20});
+            player.lastFired = now;
+        }
+
+        bullets.forEach((b, i) => {
+            b.y -= 15;
+            if(b.y < 0) bullets.splice(i, 1);
+        });
+
+        enemies.forEach((en, i) => {
+            en.y += en.speed;
+            
+            if(en.x < player.x + player.w && en.x + en.w > player.x && en.y < player.y + player.h && en.y + en.h > player.y) {
+                gameActive = false;
+                alert("GEMİ PARÇALANDI! SKORUN: " + score);
+                location.reload();
+            }
+
+            bullets.forEach((b, bi) => {
+                if(b.x < en.x + en.w && b.x + b.w > en.x && b.y < en.y + en.h && b.y + b.h > en.y) {
+                    en.hp--;
+                    bullets.splice(bi, 1);
+                    if(en.hp <= 0) {
+                        createExplosion(en.x + en.w/2, en.y + en.h/2, en.color);
+                        enemies.splice(i, 1);
+                        score += 10;
+                        scoreElement.innerText = score;
+                    }
+                }
+            });
+
+            if(en.y > canvas.height) enemies.splice(i, 1);
+        });
+
+        particles.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.life--;
+            if(p.life <= 0) particles.splice(i, 1);
+        });
+
+        if(shakeIntensity > 0) shakeIntensity *= 0.9;
+    }
+
+    function draw() {
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Ekran Sarsıntısı Uygula
+        if(shakeIntensity > 0.5) {
+            ctx.translate((Math.random()-0.5)*shakeIntensity, (Math.random()-0.5)*shakeIntensity);
+        }
+
+        // Yıldızlar
+        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+        stars.forEach(s => ctx.fillRect(s.x, s.y, s.size, s.size));
+
+        // Oyuncu (Modern Üçgen Tasarım)
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = player.color;
+        ctx.fillStyle = player.color;
+        ctx.beginPath();
+        ctx.moveTo(player.x + player.w/2, player.y);
+        ctx.lineTo(player.x + player.w, player.y + player.h);
+        ctx.lineTo(player.x, player.y + player.h);
+        ctx.fill();
+
+        // Mermiler
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#fff";
+        ctx.fillStyle = "#fff";
+        bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
+
+        // Düşmanlar
+        enemies.forEach(en => {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = en.color;
+            ctx.fillStyle = en.color;
+            ctx.fillRect(en.x, en.y, en.w, en.h);
+        });
+
+        // Parçacıklar
+        ctx.shadowBlur = 0;
+        particles.forEach(p => {
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.life / 30;
+            ctx.fillRect(p.x, p.y, p.size, p.size);
+        });
+        ctx.globalAlpha = 1.0;
+
+        requestAnimationFrame(draw);
+        update();
+    }
+
+    spawnEnemy();
+    draw();
+
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+</script>
+</body>
+</html>
