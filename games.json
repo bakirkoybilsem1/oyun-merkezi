@@ -331,5 +331,14 @@
       "#E0C3FC",
       "#8EC5FC"
     ]
+  },
+  {
+    "slug": "ali-cyber-snake",
+    "name": "Cyber-Snake | Pro Versiyon",
+    "emoji": "🌍",
+    "colors": [
+      "#f7971e",
+      "#ffd200"
+    ]
   }
 ]
