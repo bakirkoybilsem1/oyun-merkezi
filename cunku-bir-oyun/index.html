@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>SHAKSHAK ARENA 100 - HAREKET FIX</title>
+    <style>
+        :root { --p-color: #00d4ff; --e-color: #ff2e63; --gold: #ffd700; --bg: #030308; }
+        body { background: var(--bg); color: #fff; font-family: 'Arial', sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
+        .page { position: fixed; inset: 0; background: #000; z-index: 200; display: none; flex-direction: column; align-items: center; padding: 20px; overflow-y: auto; }
+        .active-page { display: flex; }
+        .btn { width: 260px; padding: 15px; margin: 10px; border: none; border-radius: 15px; cursor: pointer; font-size: 18px; font-weight: bold; background: #1a1a1a; color: #fff; border: 2px solid #333; }
+        .btn-play { background: #00b300; border-color: #00ff00; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; width: 100%; max-width: 900px; padding: 20px; }
+        .h-card { background: #111; border: 2px solid #333; border-radius: 12px; padding: 10px; text-align: center; cursor: pointer; position: relative; }
+        .h-card.selected { border-color: var(--p-color); box-shadow: 0 0 15px var(--p-color); }
+        .h-card.locked { opacity: 0.3; filter: grayscale(1); }
+        .cost-tag { position: absolute; top: -5px; right: -5px; background: var(--p-color); color: #000; font-size: 12px; padding: 2px 6px; border-radius: 50%; font-weight: bold; }
+        #game-screen { display: none; width: 100%; height: 100vh; flex-direction: column; align-items: center; }
+        #arena { position: relative; width: 400px; height: 500px; background: #080808; border: 5px solid #222; border-radius: 20px; overflow: hidden; margin-top: 10px; cursor: crosshair; }
+        .tower { position: absolute; width: 100px; height: 35px; left: 150px; border-radius: 8px; border: 2px solid #fff; display: flex; justify-content: center; align-items: center; font-weight: bold; z-index: 10; }
+        .unit { position: absolute; width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 18px; border: 2px solid #fff; z-index: 5; pointer-events: none; }
+        #hand { display: flex; gap: 5px; width: 410px; padding: 10px; background: #111; margin-top: 10px; border-radius: 15px; }
+        .stat-box { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 10px; z-index: 300; border: 1px solid #444; }
+    </style>
+</head>
+<body>
+
+    <div class="stat-box">🏆 Kupa: <span id="m-kupa">0</span></div>
+
+    <div id="main-menu" class="page active-page">
+        <h1 style="color:var(--p-color); font-size: 45px; margin-top: 50px;">SHAK ARENA</h1>
+        <button class="btn btn-play" onclick="openSelection()">SAVAŞÇI SEÇİMİ</button>
+        <button class="btn" onclick="openPage('collection-page')">KOLEKSİYON</button>
+        <button class="btn" onclick="resetGame()" style="color:red; font-size: 12px;">Sıfırla</button>
+    </div>
+
+    <div id="selection-page" class="page">
+        <h2>ORDUNU KUR (<span id="sel-count">0</span>/8)</h2>
+        <div id="hero-grid" class="grid"></div>
+        <button id="start-btn" class="btn btn-play" style="display:none;" onclick="startGame()">BAŞLA!</button>
+        <button class="btn" onclick="openPage('main-menu')">GERİ</button>
+    </div>
+
+    <div id="collection-page" class="page">
+        <h2>KOLEKSİYON</h2>
+        <div id="coll-grid" class="grid"></div>
+        <button class="btn" onclick="openPage('main-menu')">GERİ</button>
+    </div>
+
+    <div id="game-screen">
+        <div style="color:cyan; font-size:20px; margin: 10px;">ENERJİ: <span id="e-val">10</span></div>
+        <div id="arena" onclick="deploy(event)">
+            <div id="etower" class="tower" style="top:10px; background:var(--e-color)">3000</div>
+            <div id="ptower" class="tower" style="bottom:10px; background:var(--p-color)">3000</div>
+        </div>
+        <div id="hand"></div>
+    </div>
+
+    <script>
+        const emojis = ['⚔️','🏹','🛡️','🔥','❄️','⚡','🧙','👹','🧛','🤖','💣','🧪','👻','👽','💀','🐼','🦂','🦅','💎','🔨','🔫','🌀','🌋','🌊','🎋','🍄','🪐','✨','🦾','👒','🦉','🦄','🦊','🦎','🐙','🦀','🦖','🦍','🎃','🥊','🥋','🎸','🚑','🚜','🚀','🛸','🛰️','👑','🍎','🍊','🍓','🥔','🥕','🌽','🍔','🍕','🍦','🎮','🎸','🎲','📱','⌚','💻','🧤','🧣','🧢','👓','💍','🎒','🔋','💡','🕯️','🔑','🛡️','🏹','🗡️','🧪','🔭','🧬','🧲','🧪','🛹','🚲','🛴','🛵','🏎️','🛶','🛸','🚁','🌋','🏔️','🌵','🌲','🌑','🌍','🌞'];
+        
+        let user = JSON.parse(localStorage.getItem('shak100_v4')) || { trophies: 0 };
+        let allHeroes = [], myDeck = [], activeUnits = [], selectedHero = null;
+        let gold = 10, enemyGold = 10, pHP = 3000, eHP = 3000, gameOn = false;
+        let lastEnemySpawn = 0;
+
+        function initHeroes() {
+            allHeroes = [];
+            for(let i=0; i<100; i++) {
+                let kupaReq = i < 10 ? 0 : i * 10;
+                let grp = Math.floor(kupaReq / 10);
+                allHeroes.push({
+                    id: i, emoji: emojis[i % emojis.length], cost: (i % 3) + 3,
+                    hp: 300 + (grp * 50), dmg: 30 + (grp * 10),
+                    range: (i % 5 === 0) ? 150 : 40, kupa: kupaReq
+                });
+            }
+        }
+
+        function openPage(id) {
+            document.querySelectorAll('.page, #game-screen').forEach(p => p.style.display = 'none');
+            document.getElementById(id).style.display = 'flex';
+            document.getElementById('m-kupa').innerText = user.trophies;
+            if(id === 'collection-page') renderGrid('coll-grid', false);
+        }
+
+        function openSelection() {
+            openPage('selection-page');
+            myDeck = [];
+            document.getElementById('sel-count').innerText = "0";
+            document.getElementById('start-btn').style.display = 'none';
+            renderGrid('hero-grid', true);
+        }
+
+        function renderGrid(targetId, selectable) {
+            const grid = document.getElementById(targetId);
+            grid.innerHTML = '';
+            allHeroes.forEach(h => {
+                const isLocked = user.trophies < h.kupa;
+                const card = document.createElement('div');
+                card.className = `h-card ${isLocked ? 'locked' : ''}`;
+                card.innerHTML = `<div class="cost-tag">${h.cost}</div><div style="font-size:30px">${h.emoji}</div><small>${isLocked ? h.kupa+' 🏆' : 'AÇIK'}</small>`;
+                if(!isLocked && selectable) {
+                    card.onclick = () => {
+                        if(myDeck.includes(h)) { myDeck = myDeck.filter(x => x !== h); card.classList.remove('selected'); }
+                        else if(myDeck.length < 8) { myDeck.push(h); card.classList.add('selected'); }
+                        document.getElementById('sel-count').innerText = myDeck.length;
+                        document.getElementById('start-btn').style.display = myDeck.length === 8 ? 'block' : 'none';
+                    };
+                }
+                grid.appendChild(card);
+            });
+        }
+
+        function startGame() {
+            openPage('game-screen');
+            pHP = 3000; eHP = 3000; gold = 10; enemyGold = 10; activeUnits = []; gameOn = true;
+            const hand = document.getElementById('hand');
+            hand.innerHTML = '';
+            myDeck.forEach(h => {
+                const c = document.createElement('div');
+                c.className = 'h-card'; c.style.minWidth = '45px';
+                c.innerHTML = `<div>${h.emoji}</div><small>${h.cost}</small>`;
+                c.onclick = () => {
+                    selectedHero = h;
+                    document.querySelectorAll('#hand .h-card').forEach(x => x.style.borderColor = '#333');
+                    c.style.borderColor = 'cyan';
+                };
+                hand.appendChild(c);
+            });
+            loop();
+        }
+
+        function deploy(e) {
+            if(!selectedHero || gold < selectedHero.cost) return;
+            const r = document.getElementById('arena').getBoundingClientRect();
+            const x = e.clientX - r.left - 15;
+            const y = e.clientY - r.top - 15;
+            if(y < 250) return; // Kendi sahana koyabilirsin
+            spawn(x, y, selectedHero, true);
+            gold -= selectedHero.cost;
+        }
+
+        function spawn(x, y, data, isP) {
+            const el = document.createElement('div');
+            el.className = 'unit'; el.innerHTML = data.emoji;
+            el.style.borderColor = isP ? 'cyan' : 'red';
+            document.getElementById('arena').appendChild(el);
+            activeUnits.push({ el, x, y, isP, ...data, curHP: data.hp, lastAtk: 0 });
+        }
+
+        function loop() {
+            if(!gameOn) return;
+
+            let diff = 1 + (user.trophies / 1500);
+            if(gold < 12) { gold += 0.04; enemyGold += 0.04 * diff; }
+            document.getElementById('e-val').innerText = Math.floor(gold);
+
+            // Rakip Spawn
+            let delay = Math.max(1200, 3500 - (user.trophies * 3));
+            if(enemyGold >= 5 && Date.now() - lastEnemySpawn > delay) {
+                const limit = Math.min(100, Math.floor(user.trophies/10) + 15);
+                const enemyHero = allHeroes[Math.floor(Math.random() * limit)];
+                spawn(Math.random()*370, 20, enemyHero, false);
+                enemyGold -= enemyHero.cost;
+                lastEnemySpawn = Date.now();
+            }
+
+            activeUnits.forEach(u => {
+                let target = null;
+                let minDist = 9999;
+                
+                // En yakın düşmanı bul
+                activeUnits.forEach(o => {
+                    if(u.isP !== o.isP) {
+                        let d = Math.hypot(u.x - o.x, u.y - o.y);
+                        if(d < minDist) { minDist = d; target = o; }
+                    }
+                });
+
+                // Kule hedefi
+                let goalX = 185, goalY = u.isP ? 25 : 445;
+                let distToGoal = Math.hypot(u.x - goalX, u.y - goalY);
+
+                if(!target || distToGoal < minDist) {
+                    // Kuleye yürü
+                    if(distToGoal < u.range + 10) {
+                        if(Date.now() - u.lastAtk > 1000) {
+                            if(u.isP) eHP -= u.dmg; else pHP -= u.dmg;
+                            u.lastAtk = Date.now();
+                        }
+                    } else {
+                        u.x += (goalX - u.x) / distToGoal * 2.2;
+                        u.y += (goalY - u.y) / distToGoal * 2.2;
+                    }
+                } else {
+                    // Düşmana yürü
+                    if(minDist < u.range) {
+                        if(Date.now() - u.lastAtk > 1000) {
+                            target.curHP -= u.dmg;
+                            u.lastAtk = Date.now();
+                        }
+                    } else {
+                        u.x += (target.x - u.x) / minDist * 2.2;
+                        u.y += (target.y - u.y) / minDist * 2.2;
+                    }
+                }
+                u.el.style.left = u.x + 'px';
+                u.el.style.top = u.y + 'px';
+            });
+
+            document.getElementById('etower').innerText = Math.max(0, Math.floor(eHP));
+            document.getElementById('ptower').innerText = Math.max(0, Math.floor(pHP));
+
+            if(pHP <= 0 || eHP <= 0) {
+                gameOn = false;
+                let win = eHP <= 0;
+                user.trophies += win ? 30 : -20;
+                localStorage.setItem('shak100_v4', JSON.stringify(user));
+                alert(win ? "KAZANDIN!" : "KAYBETTİN!");
+                location.reload();
+            }
+
+            activeUnits = activeUnits.filter(u => {
+                if(u.curHP <= 0) u.el.remove();
+                return u.curHP > 0;
+            });
+
+            requestAnimationFrame(loop);
+        }
+
+        function resetGame() { localStorage.clear(); location.reload(); }
+        initHeroes();
+        document.getElementById('m-kupa').innerText = user.trophies;
+    </script>
+</body>
+</html>
