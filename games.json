@@ -340,5 +340,14 @@
       "#f7971e",
       "#ffd200"
     ]
+  },
+  {
+    "slug": "ali-starship-defender",
+    "name": "Starship Defender: ULTRA BOMBAY",
+    "emoji": "🛸",
+    "colors": [
+      "#134e5e",
+      "#71b280"
+    ]
   }
 ]
