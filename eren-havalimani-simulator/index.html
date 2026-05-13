@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Airport Tycoon Pro - 2026</title>
+    <style>
+        :root { --bg: #1a1a2e; --panel: #16213e; --accent: #4ecca3; --danger: #e94560; --text: #ffffff; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        
+        /* Dashboard */
+        #header { width: 100%; max-width: 1200px; display: flex; justify-content: space-between; align-items: center; background: var(--panel); padding: 20px; border-radius: 15px; border: 1px solid #0f3460; margin-bottom: 20px; }
+        .stat-card { text-align: center; }
+        .stat-card div:first-child { font-size: 14px; opacity: 0.8; }
+        .stat-card div:last-child { font-size: 24px; font-weight: bold; color: var(--accent); }
+
+        #game-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; width: 100%; max-width: 1200px; }
+
+        /* Havalimanı Görseli */
+        #airport-view { background: #535c68; height: 550px; border-radius: 15px; position: relative; border: 5px solid #333; overflow: hidden; box-shadow: inset 0 0 50px rgba(0,0,0,0.5); }
+        .runway { position: absolute; top: 40px; width: 100%; height: 60px; background: #2d3436; border-top: 3px dashed #fff; border-bottom: 3px dashed #fff; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.2); font-weight: bold; letter-spacing: 10px; }
+        
+        .gate-grid { position: absolute; bottom: 20px; width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 0 20px; }
+        .gate { height: 130px; background: #95a5a6; border: 4px solid #bdc3c7; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; transition: 0.3s; color: #2c3e50; }
+        .gate.locked { background: #34495e; border-style: dotted; color: #7f8c8d; }
+        .gate.occupied { border-color: var(--danger); background: #fff; }
+        .gate-label { font-weight: bold; margin-bottom: 5px; }
+
+        /* Yan Paneller */
+        .side-panel { display: flex; flex-direction: column; gap: 20px; }
+        .box { background: var(--panel); border-radius: 15px; padding: 15px; border: 1px solid #0f3460; }
+        h3 { margin-top: 0; color: var(--accent); border-bottom: 1px solid #0f3460; padding-bottom: 10px; }
+
+        /* Market & Geliştirme */
+        .shop-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #0f3460; }
+        .shop-btn { background: var(--accent); border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .shop-btn:disabled { background: #535c68; opacity: 0.5; }
+
+        /* Uçak & Animasyon */
+        .plane { position: absolute; font-size: 45px; z-index: 100; transition: all 2s ease-in-out; pointer-events: none; }
+        
+        /* FIDS Tablo */
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { text-align: left; opacity: 0.7; padding-bottom: 10px; }
+        td { padding: 5px 0; }
+        .btn-depart { background: var(--danger); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+        
+        .main-btn { background: var(--accent); color: var(--bg); border: none; padding: 15px 40px; border-radius: 30px; font-size: 18px; font-weight: bold; cursor: pointer; margin-bottom: 20px; transition: 0.3s; }
+        .main-btn:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <div class="stat-card"><div>HAZİNE</div><div id="money">1000</div></div>
+        <div class="stat-card"><div>AKTİF KAPILAR</div><div id="active-gates">2 / 8</div></div>
+        <div class="stat-card"><div>UÇUŞ KAZANCI</div><div id="multiplier">x100%</div></div>
+    </div>
+
+    <button class="main-btn" id="land-btn" onclick="requestLanding()">KULE: İniş İzni Ver (Maliyet: 50$)</button>
+
+    <div id="game-grid">
+        <div id="airport-view">
+            <div class="runway">RUNWAY 09L - 27R</div>
+            <div class="gate-grid" id="gate-container">
+                </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="box">
+                <h3>Market & Geliştirmeler</h3>
+                <div class="shop-item">
+                    <span>Yeni Kapı Aç (Gate)</span>
+                    <button class="shop-btn" id="buy-gate-btn" onclick="buyGate()">Satın Al ($<span id="gate-price">1500</span>)</button>
+                </div>
+                <div class="shop-item">
+                    <span>Bilet Fiyatlarını Artır</span>
+                    <button class="shop-btn" id="upgrade-profit-btn" onclick="upgradeProfit()">Geliştir ($<span id="profit-price">1000</span>)</button>
+                </div>
+            </div>
+
+            <div class="box">
+                <h3>Uçuş Bilgi Ekranı</h3>
+                <table>
+                    <thead>
+                        <tr><th>Kod</th><th>Rota</th><th>Kazanç</th><th>İşlem</th></tr>
+                    </thead>
+                    <tbody id="fids-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Oyun Verileri
+        let gameState = {
+            money: 1000,
+            gateCount: 2,
+            gatePrice: 1500,
+            profitLevel: 1,
+            profitPrice: 1000,
+            baseIncome: 500,
+            maxGates: 8
+        };
+
+        const cities = ["İstanbul", "Tokyo", "London", "Berlin", "Dubai", "New York", "Rome", "Paris"];
+        let gates = [];
+
+        // Başlatma
+        function init() {
+            for(let i=0; i < gameState.maxGates; i++) {
+                gates.push({ id: i, occupied: false, planeData: null, locked: i >= gameState.gateCount });
+            }
+            updateUI();
+            renderGates();
+        }
+
+        function updateUI() {
+            document.getElementById('money').innerText = gameState.money;
+            document.getElementById('active-gates').innerText = `${gameState.gateCount} / ${gameState.maxGates}`;
+            document.getElementById('multiplier').innerText = `x${100 + (gameState.profitLevel-1)*20}%`;
+            document.getElementById('gate-price').innerText = gameState.gatePrice;
+            document.getElementById('profit-price').innerText = gameState.profitPrice;
+            
+            // Buton kontrolleri
+            document.getElementById('buy-gate-btn').disabled = (gameState.money < gameState.gatePrice || gameState.gateCount >= gameState.maxGates);
+            document.getElementById('upgrade-profit-btn').disabled = (gameState.money < gameState.profitPrice);
+            document.getElementById('land-btn').disabled = (gates.filter(g => !g.occupied && !g.locked).length === 0 || gameState.money < 50);
+            
+            renderFIDS();
+        }
+
+        function renderGates() {
+            const container = document.getElementById('gate-container');
+            container.innerHTML = "";
+            gates.forEach(g => {
+                const div = document.createElement('div');
+                div.className = `gate ${g.locked ? 'locked' : ''} ${g.occupied ? 'occupied' : ''}`;
+                div.innerHTML = g.locked ? `🔒<br><small>$${gameState.gatePrice}</small>` : 
+                                `<div class="gate-label">G${g.id+1}</div><small>${g.occupied ? g.planeData.id : 'BOŞ'}</small>`;
+                container.appendChild(div);
+            });
+        }
+
+        function renderFIDS() {
+            const body = document.getElementById('fids-body');
+            body.innerHTML = "";
+            gates.forEach(g => {
+                if(g.occupied && g.planeData) {
+                    const p = g.planeData;
+                    const income = Math.floor(gameState.baseIncome * (1 + (gameState.profitLevel-1)*0.2));
+                    body.innerHTML += `<tr>
+                        <td>${p.id}</td>
+                        <td>${p.dest}</td>
+                        <td>$${income}</td>
+                        <td>${p.ready ? `<button class="btn-depart" onclick="depart(${g.id})">KALKIŞ</button>` : '⌛'}</td>
+                    </tr>`;
+                }
+            });
+        }
+
+        // --- Aksiyonlar ---
+
+        function buyGate() {
+            if(gameState.money >= gameState.gatePrice && gameState.gateCount < gameState.maxGates) {
+                gameState.money -= gameState.gatePrice;
+                gates[gameState.gateCount].locked = false;
+                gameState.gateCount++;
+                gameState.gatePrice = Math.floor(gameState.gatePrice * 1.8);
+                renderGates();
+                updateUI();
+            }
+        }
+
+        function upgradeProfit() {
+            if(gameState.money >= gameState.profitPrice) {
+                gameState.money -= gameState.profitPrice;
+                gameState.profitLevel++;
+                gameState.profitPrice = Math.floor(gameState.profitPrice * 2.5);
+                updateUI();
+            }
+        }
+
+        function requestLanding() {
+            const freeGate = gates.find(g => !g.occupied && !g.locked);
+            if(!freeGate) return;
+
+            gameState.money -= 50;
+            const flightID = "FL" + Math.floor(100 + Math.random() * 900);
+            const dest = cities[Math.floor(Math.random() * cities.length)];
+            
+            freeGate.occupied = true;
+            freeGate.planeData = { id: flightID, dest: dest, ready: false, domId: 'p-' + flightID };
+            
+            // Görsel Uçak
+            const plane = document.createElement('div');
+            plane.id = freeGate.planeData.domId;
+            plane.className = 'plane';
+            plane.innerHTML = '✈️';
+            plane.style.left = '-100px';
+            plane.style.top = '45px';
+            document.getElementById('airport-view').appendChild(plane);
+
+            updateUI();
+            renderGates();
+
+            // İniş sekansı
+            setTimeout(() => {
+                plane.style.left = '45%'; // Piste indi
+                setTimeout(() => {
+                    const gateEls = document.getElementsByClassName('gate');
+                    const targetGate = gateEls[freeGate.id];
+                    plane.style.left = (targetGate.offsetLeft + 30) + 'px';
+                    plane.style.top = (targetGate.offsetTop - 50) + 'px';
+                    plane.style.transform = 'rotate(90deg)';
+                    
+                    setTimeout(() => {
+                        freeGate.planeData.ready = true;
+                        updateUI();
+                    }, 2500); // Hazırlanma süresi
+                }, 1500);
+            }, 100);
+        }
+
+        function depart(gateId) {
+            const g = gates[gateId];
+            const plane = document.getElementById(g.planeData.domId);
+            const income = Math.floor(gameState.baseIncome * (1 + (gameState.profitLevel-1)*0.2));
+
+            plane.style.transform = 'rotate(0deg)';
+            plane.style.top = '45px';
+            
+            setTimeout(() => {
+                plane.style.left = '120%';
+                gameState.money += income;
+                
+                setTimeout(() => {
+                    plane.remove();
+                    g.occupied = false;
+                    g.planeData = null;
+                    renderGates();
+                    updateUI();
+                }, 2000);
+            }, 1000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
