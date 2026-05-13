@@ -385,5 +385,14 @@
       "#FF416C",
       "#FF4B2B"
     ]
+  },
+  {
+    "slug": "bu-oyun-kimin",
+    "name": "Geometry Dash — Replit Edition",
+    "emoji": "🎯",
+    "colors": [
+      "#12c2e9",
+      "#f64f59"
+    ]
   }
 ]
