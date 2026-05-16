@@ -466,5 +466,14 @@
       "#E0C3FC",
       "#8EC5FC"
     ]
+  },
+  {
+    "slug": "efe-bs-2",
+    "name": "Efe BS 2",
+    "emoji": "🐉",
+    "colors": [
+      "#f7971e",
+      "#ffd200"
+    ]
   }
 ]
