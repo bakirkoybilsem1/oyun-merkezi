@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Efe BS 2</title>
+    <style>
+        body {
+            margin: 0; padding: 0; background: #0c1020;
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh;
+        }
+        #ui {
+            position: absolute; top: 15px; left: 15px; color: #fff;
+            font-size: 24px; text-shadow: 3px 3px 0px #000; pointer-events: none; z-index: 10;
+        }
+        .bar-container {
+            background: rgba(0,0,0,0.5); padding: 8px 15px; border-radius: 6px;
+            border: 3px solid #ffcc00; margin-bottom: 8px; box-shadow: 0 4px 0 #000;
+        }
+        #ultiBox {
+            border-color: #ff00ff; color: #ff00ff; font-size: 18px; display: inline-block;
+        }
+        canvas {
+            background: #e67e22; 
+            border: 6px solid #000; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.6); cursor: crosshair;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div class="bar-container">ELMASLAR: <span id="gemCount" style="color: #00ffcc;">0</span></div>
+        <div class="bar-container" id="ultiBox">ULTİ: <span id="ultiStatus">ŞARJ OLUYOR (%0)</span></div>
+    </div>
+
+    <canvas id="arena" width="900" height="650"></canvas>
+
+    <script>
+        const canvas = document.getElementById("arena");
+        const ctx = canvas.getContext("2d");
+
+        let gems = 0;
+        let ultiCharge = 0; 
+        const mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+
+        canvas.addEventListener("mousemove", e => {
+            const r = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - r.left; 
+            mouse.y = e.clientY - r.top;
+        });
+
+        // Brawler Nesnesi
+        let brawler = {
+            x: canvas.width / 2, y: canvas.height / 2,
+            radius: 22, speed: 3.5, hp: 4000, maxHp: 4000,
+            ammo: 3, maxAmmo: 3, lastShot: 0, lastRegen: 0
+        };
+
+        let bullets = [];
+        let enemies = [];
+        let dropGems = [];
+        let fx = [];
+
+        // OYUNU SIFIRLAMA FONKSİYONU (Tarayıcıyı yenilemeden, anında temizlik)
+        function resetGame() {
+            gems = 0;
+            ultiCharge = 0;
+            document.getElementById("gemCount").innerText = gems;
+            document.getElementById("ultiStatus").innerText = "ŞARJ OLUYOR (%0)";
+            document.getElementById("ultiBox").style.color = "#ff00ff";
+            
+            brawler.x = canvas.width / 2;
+            brawler.y = canvas.height / 2;
+            brawler.hp = 4000;
+            brawler.ammo = 3;
+            
+            bullets = [];
+            enemies = [];
+            dropGems = [];
+            fx = [];
+        }
+
+        // Ateş Etme
+        canvas.addEventListener("mousedown", () => {
+            const angle = Math.atan2(mouse.y - brawler.y, mouse.x - brawler.x);
+            
+            if (ultiCharge >= 100) {
+                for(let i = -2; i <= 2; i++) {
+                    bullets.push({
+                        x: brawler.x, y: brawler.y, radius: 10, speed: 14,
+                        dx: Math.cos(angle + i*0.2) * 14, dy: Math.sin(angle + i*0.2) * 14,
+                        color: "#ff00ff", isUlti: true
+                    });
+                }
+                ultiCharge = 0;
+                document.getElementById("ultiBox").style.color = "#ff00ff";
+                document.getElementById("ultiStatus").innerText = "ŞARJ OLUYOR (%0)";
+            } else if (brawler.ammo >= 1) {
+                bullets.push({
+                    x: brawler.x, y: brawler.y, radius: 6, speed: 11,
+                    dx: Math.cos(angle) * 11, dy: Math.sin(angle) * 11,
+                    color: "#00ffff", isUlti: false
+                });
+                brawler.ammo--;
+                brawler.lastShot = Date.now();
+            }
+        });
+
+        function spawnRobot() {
+            if(enemies.length < 6) {
+                const side = Math.floor(Math.random() * 4);
+                let x, y;
+                if(side === 0) { x = Math.random()*canvas.width; y = -20; }
+                else if(side === 1) { x = canvas.width + 20; y = Math.random()*canvas.height; }
+                else if(side === 2) { x = Math.random()*canvas.width; y = canvas.height + 20; }
+                else { x = -20; y = Math.random()*canvas.height; }
+
+                enemies.push({ x: x, y: y, radius: 20, speed: 1.8, hp: 900, maxHp: 900, color: "#e74c3c" });
+            }
+        }
+        
+        // Robot spawn tetikleyicisini temiz tutmak için tek bir interval
+        clearInterval(window.robotInterval);
+        window.robotInterval = setInterval(spawnRobot, 1200);
+
+        function burst(x, y, color, count=6) {
+            for(let i=0; i<count; i++) {
+                fx.push({ x: x, y: y, dx: (Math.random()-0.5)*8, dy: (Math.random()-0.5)*8, alpha: 1, color: color, r: Math.random()*4+2 });
+            }
+        }
+
+        function update() {
+            // Fare Takip Hareketi
+            const distToMouse = Math.hypot(mouse.x - brawler.x, mouse.y - brawler.y);
+            if (distToMouse > 5) {
+                const angleToMouse = Math.atan2(mouse.y - brawler.y, mouse.x - brawler.x);
+                brawler.x += Math.cos(angleToMouse) * brawler.speed;
+                brawler.y += Math.sin(angleToMouse) * brawler.speed;
+            }
+
+            brawler.x = Math.max(brawler.radius, Math.min(canvas.width - brawler.radius, brawler.x));
+            brawler.y = Math.max(brawler.radius, Math.min(canvas.height - brawler.radius, brawler.y));
+
+            // Mermi Yenilenmesi
+            if (brawler.ammo < brawler.maxAmmo && Date.now() - brawler.lastShot > 1000) {
+                if (Date.now() - brawler.lastRegen > 1000) {
+                    brawler.ammo++;
+                    brawler.lastRegen = Date.now();
+                }
+            } else {
+                brawler.lastRegen = Date.now();
+            }
+
+            // Mermileri İlerlet
+            for(let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                b.x += b.dx; b.y += b.dy;
+                if(b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) { bullets.splice(i, 1); }
+            }
+
+            // Robotlar ve Çarpışma Kontrolü
+            for(let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                const angle = Math.atan2(brawler.y - e.y, brawler.x - e.x);
+                e.x += Math.cos(angle) * e.speed;
+                e.y += Math.sin(angle) * e.speed;
+
+                // Oyuncu Hasar Alırsa
+                if(Math.hypot(brawler.x - e.x, brawler.y - e.y) < brawler.radius + e.radius) {
+                    brawler.hp -= 8; 
+                    if(brawler.hp <= 0) {
+                        resetGame(); // HİÇBEKLEMEDEN ANINDA YENİDEN BAŞLAT!
+                        return;
+                    }
+                }
+
+                // Mermi İsabetleri
+                for(let j = bullets.length - 1; j >= 0; j--) {
+                    const b = bullets[j];
+                    if(Math.hypot(b.x - e.x, b.y - e.y) < b.radius + e.radius) {
+                        const damage = b.isUlti ? 500 : 300;
+                        e.hp -= damage;
+                        
+                        if(!b.isUlti && ultiCharge < 100) {
+                            ultiCharge += 15;
+                            if(ultiCharge >= 100) {
+                                ultiCharge = 100;
+                                document.getElementById("ultiBox").style.color = "#00ff00";
+                                document.getElementById("ultiStatus").innerText = "SÜPER HAZIR! (TIKLA)";
+                            } else {
+                                document.getElementById("ultiStatus").innerText = "ŞARJ OLUYOR (%" + ultiCharge + ")";
+                            }
+                        }
+
+                        burst(b.x, b.y, b.color, 4);
+                        bullets.splice(j, 1);
+
+                        if(e.hp <= 0) {
+                            burst(e.x, e.y, "#ff3333", 12);
+                            dropGems.push({ x: e.x, y: e.y, radius: 10 });
+                            enemies.splice(i, 1);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Elmas Toplama
+            for(let i = dropGems.length - 1; i >= 0; i--) {
+                const g = dropGems[i];
+                if(Math.hypot(brawler.x - g.x, brawler.y - g.y) < brawler.radius + g.radius) {
+                    gems++;
+                    document.getElementById("gemCount").innerText = gems;
+                    burst(g.x, g.y, "#00ffcc", 10);
+                    dropGems.splice(i, 1);
+                }
+            }
+
+            for(let i = fx.length - 1; i >= 0; i--) {
+                const p = fx[i]; p.x += p.dx; p.y += p.dy; p.alpha -= 0.04;
+                if(p.alpha <= 0) fx.splice(i, 1);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Çalılar
+            ctx.fillStyle = "#d35400";
+            ctx.fillRect(100, 100, 120, 80);
+            ctx.fillRect(650, 450, 120, 80);
+
+            // Elmaslar
+            dropGems.forEach(g => {
+                ctx.fillStyle = "#00ffcc";
+                ctx.shadowBlur = 10; ctx.shadowColor = "#00ffcc";
+                ctx.beginPath(); ctx.arc(g.x, g.y, g.radius, 0, Math.PI*2); ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            // Mermiler
+            bullets.forEach(b => {
+                ctx.fillStyle = b.color;
+                ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI*2); ctx.fill();
+            });
+
+            // Robotlar
+            enemies.forEach(e => {
+                ctx.fillStyle = e.color;
+                ctx.lineWidth = 3; ctx.strokeStyle = "#000";
+                ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                
+                const barW = 40; const barH = 6;
+                ctx.fillStyle = "#000"; ctx.fillRect(e.x - barW/2, e.y - 32, barW, barH);
+                ctx.fillStyle = "#ff3333"; ctx.fillRect(e.x - barW/2, e.y - 32, (e.hp/e.maxHp)*barW, barH);
+            });
+
+            // Mavi Savaşçı
+            ctx.fillStyle = "#3498db";
+            ctx.lineWidth = 4; ctx.strokeStyle = "#000";
+            ctx.beginPath(); ctx.arc(brawler.x, brawler.y, brawler.radius, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+            // Can ve Mermi Barları
+            const bW = 50; const bH = 6;
+            ctx.fillStyle = "#000"; ctx.fillRect(brawler.x - bW/2, brawler.y - 42, bW, bH);
+            ctx.fillStyle = "#2ecc71"; ctx.fillRect(brawler.x - bW/2, brawler.y - 42, (brawler.hp/brawler.maxHp)*bW, bH);
+            
+            for(let i=0; i<brawler.maxAmmo; i++) {
+                ctx.fillStyle = i < brawler.ammo ? "#f39c12" : "#7f8c8d";
+                ctx.fillRect(brawler.x - bW/2 + (i * 18), brawler.y - 33, 14, 4);
+            }
+
+            fx.forEach(p => {
+                ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill(); ctx.restore();
+            });
+        }
+
+        function loop() {
+            update(); draw(); requestAnimationFrame(loop);
+        }
+        loop();
+    </script>
+</body>
+</html>
