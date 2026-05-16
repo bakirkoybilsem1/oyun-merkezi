@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bilge Robot Testi</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;600;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #06080f;
+    --panel: #0d1117;
+    --border: #1c2333;
+    --accent: #00e5ff;
+    --accent2: #7c3aed;
+    --green: #00ff88;
+    --red: #ff2d55;
+    --yellow: #ffd60a;
+    --text: #c9d1d9;
+    --dim: #4a5568;
+    --glow: 0 0 20px rgba(0,229,255,0.3);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Exo 2', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Animated scanlines */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,255,0.015) 2px, rgba(0,229,255,0.015) 4px);
+    pointer-events: none; z-index: 999;
+    animation: scanroll 8s linear infinite;
+  }
+  @keyframes scanroll { from { background-position: 0 0; } to { background-position: 0 200px; } }
+
+  /* Floating particles */
+  .particle {
+    position: fixed;
+    width: 2px; height: 2px;
+    background: var(--accent);
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    animation: floatup 6s ease-in infinite;
+  }
+  @keyframes floatup {
+    0% { transform: translateY(100vh) translateX(0); opacity:0; }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.2; }
+    100% { transform: translateY(-20px) translateX(40px); opacity:0; }
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 30px;
+    position: relative;
+  }
+  .header h1 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(22px, 5vw, 38px);
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(0,229,255,0.6), 0 0 60px rgba(0,229,255,0.2);
+    letter-spacing: 4px;
+    animation: glitch 5s infinite;
+  }
+  @keyframes glitch {
+    0%,90%,100% { text-shadow: 0 0 30px rgba(0,229,255,0.6); transform: none; }
+    92% { text-shadow: -2px 0 #ff2d55, 2px 0 #00ff88; transform: translateX(-1px); }
+    94% { text-shadow: 2px 0 #ff2d55, -2px 0 #00ff88; transform: translateX(1px); }
+    96% { text-shadow: 0 0 30px rgba(0,229,255,0.6); transform: none; }
+  }
+  .header p {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--dim);
+    font-size: 12px;
+    letter-spacing: 2px;
+    margin-top: 6px;
+  }
+
+  #game-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    width: 100%;
+    max-width: 560px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(0,229,255,0.08), 0 0 120px rgba(124,58,237,0.05);
+    position: relative;
+  }
+
+  /* Top bar */
+  .top-bar {
+    background: #080c12;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .top-bar-dots { display: flex; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.r { background: var(--red); } .dot.y { background: var(--yellow); } .dot.g { background: var(--green); }
+  .top-bar-title { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); letter-spacing: 1px; }
+  .stage-badge { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--accent); }
+
+  /* Progress */
+  #progress-wrap { height: 3px; background: #1c2333; position: relative; overflow: hidden; }
+  #progress-bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    transition: width 0.4s ease;
+    box-shadow: 0 0 10px var(--accent);
+  }
+
+  /* Captcha row */
+  .captcha-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cb-wrap { display: flex; align-items: center; gap: 14px; }
+  #captcha-checkbox {
+    appearance: none; width: 24px; height: 24px;
+    border: 2px solid var(--dim); border-radius: 4px;
+    background: transparent; cursor: pointer;
+    transition: all 0.2s; position: relative;
+  }
+  #captcha-checkbox:checked {
+    background: var(--accent); border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+  }
+  #captcha-checkbox:checked::after {
+    content: '✓'; position: absolute; top: -2px; left: 3px;
+    color: #000; font-size: 16px; font-weight: 900;
+  }
+  .cb-label { font-weight: 600; font-size: 15px; color: var(--text); letter-spacing: 0.5px; }
+  .rc-brand { text-align: right; font-size: 10px; color: var(--dim); font-family: 'Share Tech Mono', monospace; }
+
+  /* Task area */
+  #task-area { display: none; padding: 20px 24px 0; }
+
+  .task-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px;
+  }
+  .task-num {
+    background: var(--accent); color: #000;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; font-weight: 700;
+    padding: 3px 8px; border-radius: 2px; white-space: nowrap;
+  }
+  .task-num.red { background: var(--red); color: #fff; }
+  .task-num.purple { background: var(--accent2); }
+
+  .task-instruction {
+    font-size: 13px; line-height: 1.6;
+    color: var(--text); flex: 1;
+  }
+
+  .stage-body {
+    background: #080c12;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px;
+    min-height: 140px;
+    display: flex; flex-direction: column; justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  /* Verify button */
+  #verify-btn {
+    display: block; width: calc(100% - 48px); margin: 0 24px 24px;
+    padding: 14px;
+    background: transparent;
+    border: 1px solid var(--dim);
+    color: var(--dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px; letter-spacing: 3px;
+    border-radius: 2px; cursor: not-allowed;
+    transition: all 0.3s;
+  }
+  #verify-btn.active {
+    border-color: var(--accent); color: var(--accent);
+    cursor: pointer; box-shadow: var(--glow);
+    animation: pulse-border 2s infinite;
+  }
+  @keyframes pulse-border {
+    0%,100% { box-shadow: 0 0 10px rgba(0,229,255,0.3); }
+    50% { box-shadow: 0 0 25px rgba(0,229,255,0.6); }
+  }
+  #verify-btn.active:hover { background: var(--accent); color: #000; }
+
+  /* Universal button */
+  .btn {
+    background: transparent; border: 1px solid var(--accent);
+    color: var(--accent); font-family: 'Share Tech Mono', monospace;
+    padding: 10px 16px; border-radius: 2px; cursor: pointer;
+    font-size: 13px; letter-spacing: 1px;
+    transition: all 0.2s; width: 100%;
+  }
+  .btn:hover { background: var(--accent); color: #000; }
+  .btn:disabled { border-color: var(--dim); color: var(--dim); cursor: not-allowed; }
+  .btn.red { border-color: var(--red); color: var(--red); }
+  .btn.red:hover { background: var(--red); color: #fff; }
+  .btn.green { border-color: var(--green); color: var(--green); }
+  .btn.green:hover { background: var(--green); color: #000; }
+
+  /* Grid */
+  .grid { display: grid; gap: 8px; }
+  .grid-3 { grid-template-columns: repeat(3,1fr); }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-4 { grid-template-columns: repeat(4,1fr); }
+
+  .cell {
+    aspect-ratio: 1; background: #0d1117;
+    border: 1px solid var(--border); border-radius: 4px;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 28px;
+    transition: all 0.15s; user-select: none;
+  }
+  .cell:hover { border-color: var(--accent); transform: scale(0.97); }
+  .cell.selected { border-color: var(--accent); background: rgba(0,229,255,0.08); box-shadow: inset 0 0 12px rgba(0,229,255,0.1); }
+  .cell.wrong { border-color: var(--red); background: rgba(255,45,85,0.08); animation: shake 0.3s; }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+  /* Color circles */
+  .color-grid { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 12px; }
+  .color-circle {
+    width: 56px; height: 56px; border-radius: 50%;
+    cursor: pointer; border: 3px solid transparent;
+    transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .color-circle:hover { transform: scale(1.1); }
+  .color-circle.selected { border-color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.4); }
+
+  /* Flee zone */
+  #flee-zone { height: 130px; position: relative; background: #080c12; border-radius: 4px; border: 1px solid var(--border); overflow: hidden; }
+  #flee-btn {
+    position: absolute; padding: 8px 16px;
+    background: transparent; border: 1px solid var(--green);
+    color: var(--green); font-family: 'Share Tech Mono', monospace;
+    border-radius: 2px; cursor: pointer; font-size: 12px;
+    transition: left 0.1s, top 0.1s;
+  }
+  #flee-btn:hover { background: var(--green); color: #000; }
+
+  /* Slider */
+  .slider-wrap input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 4px;
+    background: var(--border); border-radius: 2px; outline: none;
+  }
+  .slider-wrap input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 18px; height: 18px;
+    background: var(--accent); border-radius: 50%; cursor: pointer;
+    box-shadow: 0 0 10px var(--accent);
+  }
+  .slider-val {
+    font-family: 'Share Tech Mono', monospace;
+    text-align: center; margin-top: 10px;
+    font-size: 22px; color: var(--accent);
+  }
+
+  /* Password display */
+  .pwd-display {
+    font-family: 'Share Tech Mono', monospace;
+    background: #080c12; border: 1px solid var(--border);
+    padding: 12px; text-align: center;
+    font-size: 24px; letter-spacing: 8px;
+    color: var(--accent); margin-bottom: 12px;
+    border-radius: 2px; min-height: 52px;
+  }
+
+  /* Timer */
+  .timer-big {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 48px; text-align: center;
+    color: var(--accent); margin-bottom: 16px;
+    text-shadow: 0 0 20px var(--accent);
+  }
+
+  /* Simon */
+  .simon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 200px; height: 200px; margin: 0 auto 16px; border-radius: 50%; overflow: hidden; }
+  .simon-btn {
+    cursor: pointer; opacity: 0.4; transition: opacity 0.15s;
+    border: none; outline: none;
+  }
+  .simon-btn.active { opacity: 1; filter: brightness(1.5); }
+  .simon-btn.lit { opacity: 1; filter: brightness(2); }
+
+  /* Wire connect */
+  .wire-area { display: flex; justify-content: space-between; align-items: center; position: relative; }
+  .wire-col { display: flex; flex-direction: column; gap: 10px; }
+  .wire-node {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 2px solid var(--border); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-family: 'Share Tech Mono', monospace;
+    transition: all 0.2s;
+  }
+  .wire-node:hover, .wire-node.active { border-color: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  .wire-node.connected { border-color: var(--green); background: rgba(0,255,136,0.1); }
+  .wire-canvas { position: absolute; left: 0; top: 0; pointer-events: none; }
+
+  /* Morse */
+  .morse-display {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 20px; text-align: center; letter-spacing: 6px;
+    color: var(--yellow); margin-bottom: 14px;
+    text-shadow: 0 0 10px var(--yellow);
+  }
+  .morse-input { display: flex; gap: 8px; justify-content: center; }
+  .morse-btn {
+    background: transparent; border: 1px solid var(--dim);
+    color: var(--text); font-family: 'Share Tech Mono', monospace;
+    padding: 10px 20px; border-radius: 2px; cursor: pointer;
+    font-size: 18px; transition: all 0.15s;
+  }
+  .morse-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .morse-btn:active { background: var(--accent); color: #000; transform: scale(0.95); }
+
+  /* Reaction test */
+  #react-zone {
+    height: 100px; border-radius: 4px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Share Tech Mono', monospace; font-size: 18px;
+    transition: all 0.1s; border: 1px solid var(--border);
+    background: #080c12;
+  }
+  #react-zone.go { background: rgba(0,255,136,0.2); border-color: var(--green); color: var(--green); animation: flash-green 0.3s; }
+  @keyframes flash-green { from { background: rgba(0,255,136,0.5); } to { background: rgba(0,255,136,0.2); } }
+
+  /* Sequence memory */
+  .seq-num {
+    width: 52px; height: 52px; border-radius: 4px;
+    background: #080c12; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Share Tech Mono', monospace; font-size: 20px;
+    cursor: pointer; transition: all 0.2s; color: var(--text);
+  }
+  .seq-num:hover { border-color: var(--accent); color: var(--accent); }
+  .seq-num.flash { background: var(--accent); color: #000; border-color: var(--accent); }
+  .seq-num.correct { background: rgba(0,255,136,0.2); border-color: var(--green); }
+  .seq-num.wrong2 { background: rgba(255,45,85,0.2); border-color: var(--red); animation: shake 0.3s; }
+
+  /* Riddle */
+  .riddle-opts { display: flex; flex-direction: column; gap: 8px; }
+  .riddle-btn {
+    background: #080c12; border: 1px solid var(--border);
+    color: var(--text); padding: 12px 16px; border-radius: 2px;
+    cursor: pointer; text-align: left;
+    font-family: 'Share Tech Mono', monospace; font-size: 13px;
+    transition: all 0.2s; display: flex; align-items: center; gap: 10px;
+  }
+  .riddle-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .riddle-btn.correct-ans { border-color: var(--green); background: rgba(0,255,136,0.08); color: var(--green); }
+  .riddle-btn.wrong-ans { border-color: var(--red); background: rgba(255,45,85,0.08); color: var(--red); }
+  .riddle-btn span { width: 20px; height: 20px; border: 1px solid currentColor; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+
+  /* Typing */
+  .type-display { font-family: 'Share Tech Mono', monospace; font-size: 14px; color: var(--dim); margin-bottom: 12px; line-height: 1.8; letter-spacing: 1px; }
+  .type-display span.done { color: var(--green); }
+  .type-display span.cur { color: var(--accent); text-decoration: underline; }
+  .type-display span.err { color: var(--red); text-decoration: underline; }
+  #type-input { width: 100%; background: #080c12; border: 1px solid var(--border); color: var(--text); font-family: 'Share Tech Mono', monospace; padding: 10px; border-radius: 2px; font-size: 14px; outline: none; }
+  #type-input:focus { border-color: var(--accent); }
+
+  /* Lights out */
+  .light-cell {
+    aspect-ratio: 1; border-radius: 4px; cursor: pointer;
+    border: 1px solid var(--border); transition: all 0.2s;
+  }
+  .light-cell.on { background: var(--accent); box-shadow: 0 0 12px var(--accent), inset 0 0 10px rgba(255,255,255,0.2); }
+  .light-cell.off { background: #1c2333; }
+
+  /* Anomaly */
+  .anomaly-text {
+    font-size: 13px; line-height: 1.8; font-family: 'Share Tech Mono', monospace;
+    color: var(--text); cursor: default; letter-spacing: 0.5px;
+  }
+  .anomaly-text .word { cursor: pointer; padding: 1px 3px; border-radius: 2px; transition: background 0.15s; }
+  .anomaly-text .word:hover { background: rgba(0,229,255,0.1); }
+  .anomaly-text .word.found { color: var(--accent); background: rgba(0,229,255,0.15); }
+
+  /* Emotion test */
+  .emotion-display { font-size: 64px; text-align: center; margin-bottom: 16px; animation: float-em 2s ease-in-out infinite; }
+  @keyframes float-em { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-6px) scale(1.05); } }
+  .emotion-opts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .emotion-btn {
+    background: #080c12; border: 1px solid var(--border);
+    color: var(--text); padding: 8px 16px; border-radius: 20px;
+    cursor: pointer; font-size: 13px; transition: all 0.2s;
+  }
+  .emotion-btn:hover { border-color: var(--accent); }
+
+  /* Sound wave viz */
+  .wave-container { display: flex; align-items: center; justify-content: center; gap: 3px; height: 60px; margin-bottom: 12px; }
+  .wave-bar { width: 4px; background: var(--accent); border-radius: 2px; animation: wave-anim 1s ease-in-out infinite; opacity: 0.3; }
+  @keyframes wave-anim { 0%,100% { height: 6px; } 50% { height: 40px; } }
+
+  /* Final screen */
+  #success-screen { display: none; padding: 50px 24px; text-align: center; }
+  .success-icon { font-size: 70px; margin-bottom: 20px; animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both, float-em 3s ease-in-out 0.5s infinite; }
+  @keyframes pop { from { transform: scale(0) rotate(-20deg); } to { transform: scale(1) rotate(0); } }
+  .success-title { font-family: 'Share Tech Mono', monospace; font-size: 22px; color: var(--accent); letter-spacing: 3px; text-shadow: 0 0 20px var(--accent); margin-bottom: 12px; }
+  .success-sub { color: var(--dim); font-size: 13px; line-height: 1.8; max-width: 340px; margin: 0 auto; }
+  .success-stats { display: flex; justify-content: center; gap: 30px; margin: 24px auto; }
+  .stat-item { text-align: center; }
+  .stat-val { font-family: 'Share Tech Mono', monospace; font-size: 28px; color: var(--green); }
+  .stat-lbl { font-size: 11px; color: var(--dim); letter-spacing: 1px; margin-top: 4px; }
+
+  /* Fail flash */
+  @keyframes fail-flash { 0% { border-color: var(--red); box-shadow: 0 0 30px rgba(255,45,85,0.4); } 100% { border-color: var(--border); box-shadow: none; } }
+  .fail-flash { animation: fail-flash 0.4s ease-out; }
+
+  /* Notification */
+  .notif {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--red); color: white;
+    font-family: 'Share Tech Mono', monospace;
+    padding: 10px 20px; border-radius: 2px; font-size: 12px;
+    z-index: 9999; animation: notif-in 0.3s ease, notif-out 0.3s ease 1.5s both;
+    box-shadow: 0 0 20px rgba(255,45,85,0.4);
+  }
+  @keyframes notif-in { from { top: -50px; opacity:0; } to { top: 20px; opacity:1; } }
+  @keyframes notif-out { from { top: 20px; opacity:1; } to { top: -50px; opacity:0; } }
+
+  /* Info label */
+  .info-label { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); text-align: center; margin-top: 10px; }
+
+  /* Responsive */
+  @media (max-width: 400px) { .simon-grid { width: 160px; height: 160px; } }
+</style>
+</head>
+<body>
+
+<!-- Particles -->
+<script>
+  for(let i=0;i<15;i++){
+    const p=document.createElement('div'); p.className='particle';
+    p.style.cssText=`left:${Math.random()*100}%;animation-delay:${Math.random()*6}s;animation-duration:${5+Math.random()*4}s`;
+    document.body.appendChild(p);
+  }
+</script>
+
+<div class="header">
+  <h1>▸ İNSANLIK TESTİ 2.0</h1>
+  <p>PARADOKS PROTOKOLÜ — 18 AŞAMA — KLASİFİYE</p>
+</div>
+
+<div id="game-box">
+  <div class="top-bar">
+    <div class="top-bar-dots"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+    <div class="top-bar-title">CAPTCHA_PROTOCOL_v2.0.exe</div>
+    <div class="stage-badge" id="stage-badge">_</div>
+  </div>
+  <div id="progress-wrap"><div id="progress-bar"></div></div>
+
+  <div class="captcha-row">
+    <div class="cb-wrap">
+      <input type="checkbox" id="captcha-checkbox">
+      <label class="cb-label" for="captcha-checkbox">Ben robot değilim</label>
+    </div>
+    <div class="rc-brand">reCAPTCHA<br>gizlilik · şartlar</div>
+  </div>
+
+  <div id="task-area">
+    <div class="task-header">
+      <div class="task-num" id="task-num">AŞAMA 1</div>
+      <div class="task-instruction" id="task-instruction">Yükleniyor...</div>
+    </div>
+    <div class="stage-body" id="stage-body"></div>
+  </div>
+
+  <button id="verify-btn" disabled>▸ AŞAMAYI ONAYLA</button>
+
+  <div id="success-screen">
+    <div class="success-icon">🧠</div>
+    <div class="success-title">PARADOKS ÇÖZÜLDÜ</div>
+    <div class="success-sub">Tüm protokolleri aşarak gerçek bir insan zekasına sahip olduğunu kanıtladın. Ya da çok sabırlı bir robotsun.</div>
+    <div class="success-stats">
+      <div class="stat-item"><div class="stat-val" id="stat-fails">0</div><div class="stat-lbl">HATA</div></div>
+      <div class="stat-item"><div class="stat-val" id="stat-time">0s</div><div class="stat-lbl">SÜRE</div></div>
+      <div class="stat-item"><div class="stat-val">18</div><div class="stat-lbl">AŞAMA</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOTAL = 18;
+let currentStage = 1;
+let fails = 0;
+let startTime = null;
+
+const checkbox = document.getElementById('captcha-checkbox');
+const taskArea = document.getElementById('task-area');
+const taskInstruction = document.getElementById('task-instruction');
+const stageBody = document.getElementById('stage-body');
+const verifyBtn = document.getElementById('verify-btn');
+const progressBar = document.getElementById('progress-bar');
+const stageBadge = document.getElementById('stage-badge');
+const successScreen = document.getElementById('success-screen');
+
+checkbox.addEventListener('change', () => {
+  if(checkbox.checked) {
+    checkbox.disabled = true;
+    startTime = Date.now();
+    taskArea.style.display = 'block';
+    loadStage(1);
+  }
+});
+
+function updateProgress(s) {
+  progressBar.style.width = ((s-1)/TOTAL*100)+'%';
+  stageBadge.textContent = s+'/'+TOTAL;
+}
+
+function showNotif(msg, color='var(--red)') {
+  const old = document.querySelector('.notif');
+  if(old) old.remove();
+  const n = document.createElement('div'); n.className='notif';
+  n.style.background = color; n.textContent = msg;
+  document.body.appendChild(n);
+  setTimeout(()=>n.remove(), 2000);
+}
+
+function failAndReset(msg='HATA! Baştan başlıyorsun...') {
+  fails++;
+  showNotif(msg);
+  const box = document.getElementById('game-box');
+  box.classList.remove('fail-flash'); void box.offsetWidth; box.classList.add('fail-flash');
+  setTimeout(()=>{ currentStage=1; loadStage(1); }, 600);
+}
+
+function lockVerify() {
+  verifyBtn.classList.remove('active');
+  verifyBtn.disabled = true; verifyBtn.onclick = null;
+}
+function unlockVerify(next) {
+  verifyBtn.classList.add('active');
+  verifyBtn.disabled = false;
+  verifyBtn.onclick = () => { currentStage++; next(); };
+}
+
+function setStage(num, color='') {
+  const el = document.getElementById('task-num');
+  el.textContent = 'AŞAMA '+num;
+  el.className = 'task-num'+(color?' '+color:'');
+}
+
+function loadStage(s) {
+  lockVerify(); updateProgress(s);
+  stageBody.innerHTML = '';
+
+  // ═══ AŞAMA 1: 20 TIKLA ═══
+  if(s===1) {
+    setStage(1);
+    taskInstruction.textContent='Robotlar yavaş tıklar. Butona TAM 20 kez hızlıca tıkla!';
+    let n=20;
+    stageBody.innerHTML=`<button class="btn" id="cb">TIKLA <span id="cn">${n}</span></button>
+    <div class="info-label" style="margin-top:8px">Kalan: ${n} tıklama</div>`;
+    const b=document.getElementById('cb'), cn=document.getElementById('cn');
+    b.onclick=()=>{
+      n--; cn.textContent=n;
+      b.nextElementSibling.textContent='Kalan: '+n+' tıklama';
+      if(n===0){b.disabled=true; unlockVerify(()=>loadStage(2));}
+    };
+  }
+
+  // ═══ AŞAMA 2: KAÇAN BUTON ═══
+  else if(s===2) {
+    setStage(2);
+    taskInstruction.textContent='Kaçan butonu yakala! Üzerine gelince kaçar — tıklamayı başar!';
+    stageBody.innerHTML=`<div id="flee-zone"><button id="flee-btn">⚡ YAKALA</button></div>`;
+    const fb=document.getElementById('flee-btn'), fz=document.getElementById('flee-zone');
+    fb.style.left='40%'; fb.style.top='25%';
+    fb.onmouseenter=()=>{
+      const mw=fz.clientWidth-fb.clientWidth-10;
+      const mh=fz.clientHeight-fb.clientHeight-10;
+      fb.style.left=Math.max(5,Math.random()*mw)+'px';
+      fb.style.top=Math.max(5,Math.random()*mh)+'px';
+    };
+    fb.onclick=()=>{fb.onmouseenter=null; unlockVerify(()=>loadStage(3));};
+  }
+
+  // ═══ AŞAMA 3: ROBOT SEÇ ═══
+  else if(s===3) {
+    setStage(3);
+    taskInstruction.textContent='Siber algılama! Sadece 3 ROBOTu (🤖) seç. Canlıya basarsan sistem sıfırlanır!';
+    stageBody.innerHTML=`<div class="grid grid-3" id="rg"></div>`;
+    const g=document.getElementById('rg');
+    const items=[{i:'🤖',c:true},{i:'🤖',c:true},{i:'🤖',c:true},{i:'🐱',c:false},{i:'🐶',c:false},{i:'🦁',c:false},{i:'🦊',c:false},{i:'🐵',c:false},{i:'🌸',c:false}].sort(()=>Math.random()-.5);
+    let sel=new Set();
+    items.forEach((item,idx)=>{
+      const d=document.createElement('div'); d.className='cell'; d.textContent=item.i;
+      d.onclick=()=>{
+        if(!item.c){failAndReset('Canlı seçtin! Sistem sıfırlanıyor...');return;}
+        if(sel.has(idx)){sel.delete(idx);d.classList.remove('selected');}
+        else{sel.add(idx);d.classList.add('selected');}
+        if(sel.size===3) unlockVerify(()=>loadStage(4)); else lockVerify();
+      };
+      g.appendChild(d);
+    });
+  }
+
+  // ═══ AŞAMA 4: STROOP ETKİSİ ═══
+  else if(s===4) {
+    setStage(4,'red');
+    taskInstruction.textContent='Stroop Testi! Yazının okuduğu değil, RENK olarak ne olduğunu seç!';
+    const words=[{w:'KIRMIZI',c:'#ef4444'},{w:'MAVİ',c:'#3b82f6'},{w:'SARI',c:'#ffd60a'},{w:'YEŞİL',c:'#00ff88'}];
+    const display=words[Math.floor(Math.random()*words.length)];
+    const options=[...words].sort(()=>Math.random()-.5);
+    stageBody.innerHTML=`<div style="text-align:center;font-size:28px;font-weight:900;margin-bottom:20px;letter-spacing:4px;color:${display.c};text-shadow:0 0 15px ${display.c}">${display.w}</div>
+    <div class="color-grid" id="cg"></div>`;
+    const cg=document.getElementById('cg');
+    options.forEach(opt=>{
+      const c=document.createElement('div'); c.className='color-circle'; c.style.backgroundColor=opt.c;
+      c.title=opt.w;
+      c.onclick=()=>{
+        if(opt.c===display.c) unlockVerify(()=>loadStage(5));
+        else failAndReset('Yanlış renk! Yazıyı değil rengi seç!');
+      };
+      cg.appendChild(c);
+    });
+  }
+
+  // ═══ AŞAMA 5: ROBOT YAZ ═══
+  else if(s===5) {
+    setStage(5);
+    taskInstruction.textContent="Karışık tuşları kullanarak tam olarak 'ROBOT' kelimesini oluştur!";
+    stageBody.innerHTML=`<div class="pwd-display" id="pd"></div><div class="grid grid-3" id="kg"></div>`;
+    const pd=document.getElementById('pd'), kg=document.getElementById('kg');
+    const letters=['R','O','B','O','T','A','M','X','Z'].sort(()=>Math.random()-.5);
+    letters.forEach(l=>{
+      const b=document.createElement('div'); b.className='cell'; b.style.fontSize='20px'; b.textContent=l;
+      b.onclick=()=>{
+        pd.textContent+=l;
+        if(pd.textContent==='ROBOT') unlockVerify(()=>loadStage(6));
+        else if(!'ROBOT'.startsWith(pd.textContent)){pd.textContent='';pd.style.color='var(--red)';setTimeout(()=>pd.style.color='var(--accent)',400);}
+      };
+      kg.appendChild(b);
+    });
+  }
+
+  // ═══ AŞAMA 6: KALİBRASYON ═══
+  else if(s===6) {
+    setStage(6);
+    taskInstruction.textContent='Sürücü kalibrasyonu! Çubuğu tam %42ye getir!';
+    stageBody.innerHTML=`<div class="slider-wrap"><input type="range" min="0" max="100" value="0" id="si"></div><div class="slider-val"><span id="sv">0</span>%</div>
+    <div class="info-label">Hedef: %42 — Tam olmalı!</div>`;
+    const si=document.getElementById('si'), sv=document.getElementById('sv');
+    si.oninput=()=>{sv.textContent=si.value; if(parseInt(si.value)===42) unlockVerify(()=>loadStage(7)); else lockVerify();};
+  }
+
+  // ═══ AŞAMA 7: MATEMATİK TUZAĞI ═══
+  else if(s===7) {
+    setStage(7,'red');
+    taskInstruction.textContent='Robotlar her soruyu anında çözer. İnsanlar ise şunu seçer:';
+    stageBody.innerHTML=`<div style="text-align:center;margin-bottom:16px;font-family:'Share Tech Mono',monospace;font-size:16px;color:var(--accent)">5 × 5 + 5 − 5 = ?</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn" id="m25">25</button>
+      <button class="btn green" id="mhate">Matematikten nefret ederim</button>
+      <button class="btn" id="m30">30</button>
+    </div>`;
+    document.getElementById('m25').onclick=()=>failAndReset('Doğruyu seçtin ama bu robot cevabı!');
+    document.getElementById('m30').onclick=()=>failAndReset('Yanlış cevap. Ve hâlâ robot gibi düşündün!');
+    document.getElementById('mhate').onclick=()=>unlockVerify(()=>loadStage(8));
+  }
+
+  // ═══ AŞAMA 8: REAKSİYON TESTİ ═══
+  else if(s===8) {
+    setStage(8);
+    taskInstruction.textContent='Refleks testi! Alan YEŞİL olunca 800ms içinde tıkla! Erken veya geç tıklarsan sıfırlanırsın!';
+    stageBody.innerHTML=`<div id="react-zone">Bekliyorsun... hazır mı?</div><div class="info-label" id="react-info">Yeşil olunca tıkla</div>`;
+    const rz=document.getElementById('react-zone'), ri=document.getElementById('react-info');
+    let ready=false, greenTime=null;
+    const delay=1500+Math.random()*3000;
+    rz.onclick=()=>{
+      if(!ready){failAndReset('Çok erken! Yeşil bekliyordun!');return;}
+      const diff=Date.now()-greenTime;
+      if(diff>800){failAndReset('Çok yavaş! '+diff+'ms sürdü. 800ms sınırı!');return;}
+      ri.textContent='Mükemmel! '+diff+'ms ✓';
+      unlockVerify(()=>loadStage(9));
+    };
+    setTimeout(()=>{
+      ready=true; greenTime=Date.now();
+      rz.classList.add('go'); rz.textContent='ŞİMDİ TIK!';
+      ri.textContent='Hızlı ol! 800ms içinde!';
+      setTimeout(()=>{if(ready){failAndReset('Çok geç kaldın!');}},800);
+    },delay);
+  }
+
+  // ═══ AŞAMA 9: ÇARK SÖKMEK ═══
+  else if(s===9) {
+    setStage(9);
+    taskInstruction.textContent='Bozuk dişliyi sökmek için üzerine tıkla ama çok hızlı basarsan mekanizma sıkışır!';
+    stageBody.innerHTML=`<div id="click-gear" style="text-align:center;font-size:64px;cursor:pointer;padding:10px;user-select:none">⚙️</div>
+    <div style="background:var(--border);height:4px;border-radius:2px;overflow:hidden;margin-top:10px"><div id="gear-hp" style="height:100%;width:100%;background:linear-gradient(90deg,var(--red),var(--yellow));transition:width 0.1s"></div></div>
+    <div class="info-label" id="gear-info">Direnç: 100%</div>`;
+    let hp=100, last=0;
+    const gear=document.getElementById('click-gear'), hpBar=document.getElementById('gear-hp'), ginfo=document.getElementById('gear-info');
+    gear.onclick=()=>{
+      const now=Date.now();
+      if(now-last<200){failAndReset('Mekanizma sıkıştı! Çok hızlı bastın!');return;}
+      last=now; hp=Math.max(0,hp-10);
+      hpBar.style.width=hp+'%';
+      ginfo.textContent='Direnç: '+hp+'%';
+      if(hp===0){gear.textContent='🛠️'; unlockVerify(()=>loadStage(10));}
+    };
+  }
+
+  // ═══ AŞAMA 10: ANOMALİ BUL ═══
+  else if(s===10) {
+    setStage(10);
+    taskInstruction.textContent='Matris taraması! Farklı olan simgeyi bul ve seç!';
+    stageBody.innerHTML=`<div class="grid grid-3" id="ag"></div>`;
+    const g=document.getElementById('ag');
+    const all=Array(8).fill('💻');
+    const anomaly='🖥️';
+    all.push(anomaly);
+    all.sort(()=>Math.random()-.5);
+    all.forEach(e=>{
+      const c=document.createElement('div'); c.className='cell'; c.textContent=e;
+      c.onclick=()=>{
+        if(e===anomaly) unlockVerify(()=>loadStage(11));
+        else{c.classList.add('wrong');setTimeout(()=>c.classList.remove('wrong'),400);failAndReset('Yanlış simge!');}
+      };
+      g.appendChild(c);
+    });
+  }
+
+  // ═══ AŞAMA 11: IŞIKLAR (LIGHTS OUT) ═══
+  else if(s===11) {
+    setStage(11,'red');
+    taskInstruction.textContent='Matrix Işıkları! Tüm ışıkları KAPATMAYI başar! Birine basınca komşuları da değişir!';
+    stageBody.innerHTML=`<div class="grid grid-3" id="lights" style="gap:6px;max-width:200px;margin:0 auto"></div>`;
+    const g=document.getElementById('lights');
+    let states=[true,false,true,false,true,false,true,false,true];
+    function drawL(){
+      g.innerHTML='';
+      states.forEach((st,idx)=>{
+        const c=document.createElement('div'); c.className='light-cell '+(st?'on':'off');
+        c.onclick=()=>{
+          states[idx]=!states[idx];
+          if(idx-3>=0) states[idx-3]=!states[idx-3];
+          if(idx+3<9) states[idx+3]=!states[idx+3];
+          if(idx%3!==0) states[idx-1]=!states[idx-1];
+          if(idx%3!==2) states[idx+1]=!states[idx+1];
+          drawL();
+          if(states.every(s=>!s)) unlockVerify(()=>loadStage(12));
+        };
+        g.appendChild(c);
+      });
+    }
+    drawL();
+  }
+
+  // ═══ AŞAMA 12: SİMON OYUNU ═══
+  else if(s===12) {
+    setStage(12,'red');
+    taskInstruction.textContent='Simon Diyor! Renkleri sırasıyla taklit et. Hata yaparsan başa dön!';
+    stageBody.innerHTML=`
+    <div class="simon-grid" id="simon">
+      <button class="simon-btn" data-i="0" style="background:#ef4444;border-radius:100% 0 0 0"></button>
+      <button class="simon-btn" data-i="1" style="background:#3b82f6;border-radius:0 100% 0 0"></button>
+      <button class="simon-btn" data-i="2" style="background:#00ff88;border-radius:0 0 0 100%"></button>
+      <button class="simon-btn" data-i="3" style="background:#ffd60a;border-radius:0 0 100% 0"></button>
+    </div>
+    <div class="info-label" id="simon-info">Sıra gösteriliyor...</div>`;
+    const btns=[...document.querySelectorAll('.simon-btn')];
+    const info=document.getElementById('simon-info');
+    const seq=[0,1,2,3,0,2].slice(0,3+Math.floor(Math.random()*2));
+    let playerIdx=0; let canPlay=false;
+    function flashBtn(i,cb){
+      btns[i].classList.add('lit');
+      setTimeout(()=>{btns[i].classList.remove('lit');setTimeout(cb,200);},500);
+    }
+    function showSeq(idx=0){
+      canPlay=false;
+      if(idx>=seq.length){canPlay=true;info.textContent='Şimdi sıra sende! ('+seq.length+' adım)';return;}
+      setTimeout(()=>flashBtn(seq[idx],()=>showSeq(idx+1)),200);
+    }
+    btns.forEach(b=>b.onclick=()=>{
+      if(!canPlay) return;
+      const i=parseInt(b.dataset.i);
+      b.classList.add('lit'); setTimeout(()=>b.classList.remove('lit'),300);
+      if(i!==seq[playerIdx]){failAndReset('Yanlış sıra! Simon bunu demedi!');return;}
+      playerIdx++;
+      if(playerIdx===seq.length) unlockVerify(()=>loadStage(13));
+    });
+    setTimeout(()=>showSeq(),800);
+  }
+
+  // ═══ AŞAMA 13: MORS KODU ═══
+  else if(s===13) {
+    setStage(13,'red');
+    taskInstruction.textContent='Morse kodu çözme! Aşağıdaki sinyali çöz ve doğru harfi bul!';
+    // S = ... (üç nokta)
+    const puzzles=[
+      {morse:'• — •',answer:'R',opts:['R','T','A','L']},
+      {morse:'• •',answer:'I',opts:['I','S','E','T']},
+      {morse:'— • • •',answer:'B',opts:['B','V','D','F']},
+    ];
+    const pz=puzzles[Math.floor(Math.random()*puzzles.length)];
+    stageBody.innerHTML=`<div class="morse-display">${pz.morse}</div>
+    <div style="font-family:'Share Tech Mono',monospace;text-align:center;font-size:11px;color:var(--dim);margin-bottom:14px">SINYAL PAKETİ</div>
+    <div class="grid grid-4">
+      ${pz.opts.sort(()=>Math.random()-.5).map(o=>`<button class="btn${o===pz.answer?' green':''} morse-opt" data-v="${o}">${o}</button>`).join('')}
+    </div>`;
+    document.querySelectorAll('.morse-opt').forEach(b=>b.onclick=()=>{
+      if(b.dataset.v===pz.answer) unlockVerify(()=>loadStage(14));
+      else failAndReset('Yanlış harf! Sinyali tekrar dinle!');
+    });
+  }
+
+  // ═══ AŞAMA 14: SAYI DİZİSİ HAFIZA ═══
+  else if(s===14) {
+    setStage(14,'red');
+    taskInstruction.textContent='Hafıza testi! Sayıları doğru sırayla tıkla!';
+    const nums=[...Array(9)].map((_,i)=>i+1).sort(()=>Math.random()-.5);
+    const target=[...nums].sort((a,b)=>a-b);
+    let nextToClick=1;
+    stageBody.innerHTML=`<div class="grid grid-3" id="ng" style="gap:6px"></div>
+    <div class="info-label" id="ninfo">Küçükten büyüğe tıkla: 1 → 2 → 3 → ...</div>`;
+    const g=document.getElementById('ng');
+    nums.forEach(n=>{
+      const c=document.createElement('div'); c.className='seq-num'; c.textContent=n; c.dataset.n=n;
+      c.onclick=()=>{
+        if(parseInt(c.dataset.n)===nextToClick){
+          c.classList.add('correct'); c.style.cursor='default'; c.onclick=null;
+          nextToClick++;
+          if(nextToClick>9) unlockVerify(()=>loadStage(15));
+        } else {
+          c.classList.add('wrong2'); setTimeout(()=>c.classList.remove('wrong2'),400);
+          failAndReset('Yanlış sıra! Küçükten büyüğe!');
+        }
+      };
+      g.appendChild(c);
+    });
+  }
+
+  // ═══ AŞAMA 15: YAZMA HIZI ═══
+  else if(s===15) {
+    setStage(15);
+    taskInstruction.textContent='İnsanlık kanıtı: Aşağıdaki metni hatasız yaz!';
+    const target='ben robot degilim';
+    stageBody.innerHTML=`<div class="type-display" id="td"></div>
+    <input type="text" id="type-input" placeholder="buraya yaz..." autocomplete="off" spellcheck="false">
+    <div class="info-label" id="tinfo">0/${target.length} karakter</div>`;
+    const td=document.getElementById('td');
+    function renderTarget(val){
+      let html='';
+      for(let i=0;i<target.length;i++){
+        if(i<val.length){
+          if(val[i]===target[i]) html+=`<span class="done">${target[i]}</span>`;
+          else html+=`<span class="err">${target[i]}</span>`;
+        } else if(i===val.length) html+=`<span class="cur">${target[i]}</span>`;
+        else html+=target[i];
+      }
+      return html;
+    }
+    td.innerHTML=renderTarget('');
+    const inp=document.getElementById('type-input'), ti=document.getElementById('tinfo');
+    inp.oninput=()=>{
+      const v=inp.value;
+      td.innerHTML=renderTarget(v);
+      ti.textContent=v.length+'/'+target.length+' karakter';
+      if(v===target) unlockVerify(()=>loadStage(16));
+      else if(target.startsWith(v)||v.length===0) lockVerify();
+      else { lockVerify(); }
+    };
+    setTimeout(()=>inp.focus(),100);
+  }
+
+  // ═══ AŞAMA 16: EMOJİ HİSSİ ═══
+  else if(s===16) {
+    setStage(16,'red');
+    taskInstruction.textContent='Duygu analizi! Bu emojiyi gören bir insan ne hisseder?';
+    const emojis=[
+      {e:'😅',correct:'Rahatlama',opts:['Rahatlama','Öfke','Korku','İğrenme']},
+      {e:'🤔',correct:'Merak',opts:['Merak','Neşe','Üzüntü','Şaşkınlık']},
+      {e:'😤',correct:'Hayal Kırıklığı',opts:['Hayal Kırıklığı','Mutluluk','Utanç','Şefkat']},
+    ];
+    const ez=emojis[Math.floor(Math.random()*emojis.length)];
+    stageBody.innerHTML=`<div class="emotion-display">${ez.e}</div>
+    <div class="emotion-opts">
+      ${ez.opts.sort(()=>Math.random()-.5).map(o=>`<button class="emotion-btn" data-v="${o}">${o}</button>`).join('')}
+    </div>`;
+    document.querySelectorAll('.emotion-btn').forEach(b=>b.onclick=()=>{
+      if(b.dataset.v===ez.correct) unlockVerify(()=>loadStage(17));
+      else failAndReset('Robotlar da duygu analizi yapamaz — sen de yaptın!');
+    });
+  }
+
+  // ═══ AŞAMA 17: ZAMANLAMA ═══
+  else if(s===17) {
+    setStage(17,'red');
+    taskInstruction.textContent='Frekans senkronizasyonu! Sayaç TAM 5.00 ile 5.50 saniye arasındayken durdur!';
+    stageBody.innerHTML=`<div class="timer-big" id="tdsp">0.00s</div><button class="btn" id="tstop">▸ SİNYALİ KES</button>`;
+    const td=document.getElementById('tdsp'), ts=document.getElementById('tstop');
+    const start=Date.now();
+    const iv=setInterval(()=>{td.textContent=((Date.now()-start)/1000).toFixed(2)+'s';},33);
+    ts.onclick=()=>{
+      clearInterval(iv);
+      const t=parseFloat(td.textContent);
+      if(t>=5.00&&t<=5.50) unlockVerify(()=>loadStage(18));
+      else failAndReset(t<5?'Çok erken! '+t.toFixed(2)+'s':'Çok geç! '+t.toFixed(2)+'s');
+    };
+  }
+
+  // ═══ AŞAMA 18: BÜYÜK PARADOKS ═══
+  else if(s===18) {
+    setStage(18,'red');
+    taskInstruction.textContent='SON PARADOKS: Bu testi bitirdin. Ama az önce "ROBOT" yazdın. Peki... sen kimsin?';
+    stageBody.innerHTML=`<div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--dim);margin-bottom:20px;line-height:1.8">
+    DURUM ANALİZİ:<br>
+    ✓ 18 aşamalı test tamamlandı<br>
+    ✓ Kelime girişi: "ROBOT"<br>
+    ✓ Duygu analizi geçildi<br>
+    ? Kimlik: BELİRSİZ
+    </div>
+    <div class="grid grid-2" style="gap:8px">
+      <button class="btn red" id="fyes" style="height:60px;font-size:13px">EVET, ROBOTUM 🤖</button>
+      <button class="btn green" id="fno" style="height:60px;font-size:13px">HAYIR, İNSANIM 🧠</button>
+    </div>`;
+    document.getElementById('fyes').onclick=()=>failAndReset('Zaten biliyorduk... Baştan başla!');
+    document.getElementById('fno').onclick=()=>{
+      unlockVerify(()=>{
+        // Show success
+        document.getElementById('progress-wrap').style.display='none';
+        document.querySelector('.captcha-row').style.display='none';
+        document.querySelector('.top-bar').style.display='none';
+        taskArea.style.display='none';
+        verifyBtn.style.display='none';
+        successScreen.style.display='block';
+        document.getElementById('stat-fails').textContent=fails;
+        document.getElementById('stat-time').textContent=Math.round((Date.now()-startTime)/1000)+'s';
+      });
+    };
+  }
+}
+</script>
+</body>
+</html>
