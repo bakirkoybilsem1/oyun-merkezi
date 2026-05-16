@@ -493,5 +493,14 @@
       "#FC5C7D",
       "#6A82FB"
     ]
+  },
+  {
+    "slug": "bilge-robot-testi",
+    "name": "Bilge Robot Testi",
+    "emoji": "🏰",
+    "colors": [
+      "#43C6AC",
+      "#F8FFAE"
+    ]
   }
 ]
