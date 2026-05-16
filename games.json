@@ -36,7 +36,7 @@
     ]
   },
   {
-    "slug": "eren-patates-click",
+    "slug": "Eren-patates-click",
     "name": "Eren Patates Click",
     "emoji": "🥔",
     "colors": [
@@ -45,7 +45,7 @@
     ]
   },
   {
-    "slug": "hamza-nin-oyunu",
+    "slug": "Hamza-nin-oyunu",
     "name": "Hamza'nın Oyunu",
     "emoji": "🎮",
     "colors": [
@@ -54,7 +54,7 @@
     ]
   },
   {
-    "slug": "mila-i-le-canan-in-siber-sehri",
+    "slug": "Mila-i-le-canan-in-siber-sehri",
     "name": "Mila ile Canan'ın Siber Şehri",
     "emoji": "🏙️",
     "colors": [
@@ -63,7 +63,7 @@
     ]
   },
   {
-    "slug": "yalin-banana",
+    "slug": "Yalin-banana",
     "name": "Yalın Banana",
     "emoji": "🍌",
     "colors": [
@@ -72,7 +72,7 @@
     ]
   },
   {
-    "slug": "eymen-zombi-defans",
+    "slug": "Eymen-zombi-defans",
     "name": "Eymen Zombi Defans",
     "emoji": "🧟",
     "colors": [
@@ -81,8 +81,8 @@
     ]
   },
   {
-    "slug": "ali-kerem-usta-demirci",
-    "name": "USTA DEMİRCİ: RİSKLİ DÖVME",
+    "slug": "Ali-kerem-usta-demirci",
+    "name": "Ali Kerem USTA DEMİRCİ: RİSKLİ DÖVME",
     "emoji": "⚔️",
     "colors": [
       "#FC5C7D",
@@ -91,7 +91,7 @@
   },
   {
     "slug": "ali-nin-zombi-oyunu",
-    "name": "Combat Zone - FPS",
+    "name": "Ali Combat Zone - FPS",
     "emoji": "🎲",
     "colors": [
       "#43C6AC",
@@ -100,7 +100,7 @@
   },
   {
     "slug": "alp-cinar-ve-ruzgar-in-dovus-oyunu",
-    "name": "AI Arena: Clean Dark",
+    "name": "Alp Cınar AI Arena: Clean Dark",
     "emoji": "🦸",
     "colors": [
       "#4568DC",
@@ -109,7 +109,7 @@
   },
   {
     "slug": "ata-dinotest",
-    "name": "DİNOTEST: 10 Soru 10 Cevap",
+    "name": "Ata DİNOTEST: 10 Soru 10 Cevap",
     "emoji": "🐉",
     "colors": [
       "#FF416C",
@@ -118,7 +118,7 @@
   },
   {
     "slug": "canan-ile-mila-nin-oyunu",
-    "name": "Cyber Runner - Karakter Fix",
+    "name": "Canan&Mila Cyber Runner - Karakter Fix",
     "emoji": "🌟",
     "colors": [
       "#12c2e9",
@@ -136,7 +136,7 @@
   },
   {
     "slug": "efe-nin-dunyasi",
-    "name": "Brawl Stars 3v3 Arena",
+    "name": "Efe Brawl Stars 3v3 Arena",
     "emoji": "🏰",
     "colors": [
       "#FF6B6B",
@@ -145,7 +145,7 @@
   },
   {
     "slug": "elif-i-kra-oyunu",
-    "name": "Nevermore: Sonsuz Karanlık",
+    "name": "Elif İkra Nevermore: Sonsuz Karanlık",
     "emoji": "🦕",
     "colors": [
       "#4ECDC4",
@@ -154,7 +154,7 @@
   },
   {
     "slug": "eren-stratejik-tower-defense",
-    "name": "Stratejik Tower Defense - Düzeltilmiş Sürüm",
+    "name": "Eren Stratejik Tower Defense - Düzeltilmiş Sürüm",
     "emoji": "🌍",
     "colors": [
       "#FCCB90",
@@ -163,7 +163,7 @@
   },
   {
     "slug": "eren-tower-defense",
-    "name": "Stratejik Tower Defense - Fix Sürümü",
+    "name": "ErenStratejik Tower Defense - Fix Sürümü",
     "emoji": "🛸",
     "colors": [
       "#96FBC4",
@@ -172,7 +172,7 @@
   },
   {
     "slug": "eymen-arena",
-    "name": "Voxel War: Arena Mayhem",
+    "name": "Eymen Voxel War: Arena Mayhem",
     "emoji": "⚒️",
     "colors": [
       "#FBC2EB",
@@ -181,7 +181,7 @@
   },
   {
     "slug": "eymen-kral",
-    "name": "KRAL MINECRAFT v6.1 - Yavaş Zaman",
+    "name": "Eymen KRAL MINECRAFT v6.1 - Yavaş Zaman",
     "emoji": "🎮",
     "colors": [
       "#FDDB92",
@@ -190,7 +190,7 @@
   },
   {
     "slug": "gokce-nin-sisli-vadisi",
-    "name": "Sisli Vadi: Lale'nin Kurtulusu",
+    "name": "Gökce Sisli Vadi: Lale'nin Kurtulusu",
     "emoji": "🏎️",
     "colors": [
       "#E0C3FC",
@@ -199,7 +199,7 @@
   },
   {
     "slug": "gokcegul-sisli-vadi",
-    "name": "gokcegul sisli vadi",
+    "name": "Gokcegul sisli vadi",
     "emoji": "🚀",
     "colors": [
       "#f7971e",
@@ -208,7 +208,7 @@
   },
   {
     "slug": "gokcegul-un-sisli-vadisi",
-    "name": "Sisli Vadi: Lale'nin Kurtulusu",
+    "name": "Gokcegul Sisli Vadi: Lale'nin Kurtulusu",
     "emoji": "🎯",
     "colors": [
       "#134e5e",
@@ -217,7 +217,7 @@
   },
   {
     "slug": "karen-in-harry-potter-oyunu",
-    "name": "Harry Potter Efsanesi - Bilgi Yarışması",
+    "name": "Karen Harry Potter Efsanesi - Bilgi Yarışması",
     "emoji": "🚁",
     "colors": [
       "#FC5C7D",
@@ -226,7 +226,7 @@
   },
   {
     "slug": "m-yusuf-un-hayatta-kalma-savasi",
-    "name": "Final Game Pro",
+    "name": "M. Yusuf Final Game Pro",
     "emoji": "🥔",
     "colors": [
       "#43C6AC",
@@ -235,7 +235,7 @@
   },
   {
     "slug": "okan-burak-megalodon",
-    "name": "Megalodon: Sudden Death",
+    "name": "Okan Burak Megalodon: Sudden Death",
     "emoji": "🏙️",
     "colors": [
       "#4568DC",
@@ -244,7 +244,7 @@
   },
   {
     "slug": "omer-ege-nin-aslan-oyunu",
-    "name": "Aslan Büyüt — Akıl Oyunu",
+    "name": "Ömer Aslanı Büyüt — Akıl Oyunu",
     "emoji": "🍌",
     "colors": [
       "#FF416C",
@@ -253,7 +253,7 @@
   },
   {
     "slug": "omer-yekta-nin-araba-oyunu",
-    "name": "Hızlı Yarışçı",
+    "name": "Ömer Yekta Hızlı Yarışçı",
     "emoji": "🧟",
     "colors": [
       "#12c2e9",
@@ -262,7 +262,7 @@
   },
   {
     "slug": "pera-nin-bahcesi",
-    "name": "Çiçek Bahçesi Bilgi Yarışması 🌸",
+    "name": "Pera Çiçek Bahçesi Bilgi Yarışması 🌸",
     "emoji": "⚔️",
     "colors": [
       "#c471ed",
@@ -280,7 +280,7 @@
   },
   {
     "slug": "eren-kagit-ucak-ucurma-oyunu",
-    "name": "Kağıt Uçak: Professional Inventory Edition",
+    "name": "Eren Kağıt Uçak: Professional Inventory Edition",
     "emoji": "🦸",
     "colors": [
       "#4ECDC4",
@@ -289,7 +289,7 @@
   },
   {
     "slug": "yalin-yasam-similatoru",
-    "name": "Ultimate Yaşam Simülatörü",
+    "name": "Yalin Ultimate Yaşam Simülatörü",
     "emoji": "🐉",
     "colors": [
       "#FCCB90",
@@ -298,7 +298,7 @@
   },
   {
     "slug": "rise-of-kingdoms-mert",
-    "name": "Kingdom Strategy Web",
+    "name": "Mert Kingdom Strategy Web",
     "emoji": "🌟",
     "colors": [
       "#96FBC4",
@@ -307,7 +307,7 @@
   },
   {
     "slug": "yalin-futbol",
-    "name": "FC 26 - Sınır Kilidi Modu",
+    "name": "Yalin FC 26 - Sınır Kilidi Modu",
     "emoji": "💥",
     "colors": [
       "#FBC2EB",
@@ -316,7 +316,7 @@
   },
   {
     "slug": "yalin-strateji",
-    "name": "AoH III: EMPIRE & DIPLOMACY",
+    "name": "Yalin AoH III: EMPIRE & DIPLOMACY",
     "emoji": "🏰",
     "colors": [
       "#FDDB92",
@@ -325,7 +325,7 @@
   },
   {
     "slug": "cunku-bir-oyun",
-    "name": "SHAKSHAK ARENA 100 - HAREKET FIX",
+    "name": "Cunku bir oyun SHAKSHAK ARENA 100 - HAREKET FIX",
     "emoji": "🦕",
     "colors": [
       "#E0C3FC",
@@ -334,7 +334,7 @@
   },
   {
     "slug": "ali-cyber-snake",
-    "name": "Cyber-Snake | Pro Versiyon",
+    "name": "Ali Cyber-Snake | Pro Versiyon",
     "emoji": "🌍",
     "colors": [
       "#f7971e",
@@ -343,7 +343,7 @@
   },
   {
     "slug": "ali-starship-defender",
-    "name": "Starship Defender: ULTRA BOMBAY",
+    "name": "Ali Starship Defender: ULTRA BOMBAY",
     "emoji": "🛸",
     "colors": [
       "#134e5e",
@@ -352,7 +352,7 @@
   },
   {
     "slug": "deniz-zombi",
-    "name": "Starship Defender: ULTRA BOMBAY",
+    "name": "Deniz Starship Defender: ULTRA BOMBAY",
     "emoji": "⚒️",
     "colors": [
       "#FC5C7D",
@@ -370,7 +370,7 @@
   },
   {
     "slug": "ali-meta-charset",
-    "name": "Bubble Grow IO - Şakşak",
+    "name": "Ali Bubble Grow IO - Şakşak",
     "emoji": "🏎️",
     "colors": [
       "#4568DC",
@@ -379,7 +379,7 @@
   },
   {
     "slug": "eren-asmr",
-    "name": "ASMR Relax - Ultra Paket",
+    "name": "Eren ASMR Relax - Ultra Paket",
     "emoji": "🚀",
     "colors": [
       "#FF416C",
@@ -397,7 +397,7 @@
   },
   {
     "slug": "mert-kralliklarin-yukselisi",
-    "name": "Kingdom Strategy Web",
+    "name": "Mert Kingdom Strategy Web",
     "emoji": "🚁",
     "colors": [
       "#c471ed",
@@ -406,7 +406,7 @@
   },
   {
     "slug": "eren-havalimani-simulator",
-    "name": "Airport Tycoon Pro - 2026",
+    "name": "Eren Airport Tycoon Pro - 2026",
     "emoji": "🥔",
     "colors": [
       "#FF6B6B",
