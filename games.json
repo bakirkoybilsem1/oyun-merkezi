@@ -412,5 +412,59 @@
       "#FF6B6B",
       "#FF8E53"
     ]
+  },
+  {
+    "slug": "ali-kerem-usta-demirci",
+    "name": "USTA DEMİRCİ: RİSKLİ DÖVME",
+    "emoji": "🏙️",
+    "colors": [
+      "#4ECDC4",
+      "#44A08D"
+    ]
+  },
+  {
+    "slug": "eren-patates-click",
+    "name": "Top Simülatörü v8",
+    "emoji": "🍌",
+    "colors": [
+      "#FCCB90",
+      "#D57EEB"
+    ]
+  },
+  {
+    "slug": "eymen-zombi-defans",
+    "name": "Zombi Defans: 30 Günlük Savaş",
+    "emoji": "🧟",
+    "colors": [
+      "#96FBC4",
+      "#F9F586"
+    ]
+  },
+  {
+    "slug": "hamza-nin-oyunu",
+    "name": "Mini Brawl Arena",
+    "emoji": "⚔️",
+    "colors": [
+      "#FBC2EB",
+      "#A6C1EE"
+    ]
+  },
+  {
+    "slug": "mila-i-le-canan-in-siber-sehri",
+    "name": "Siber Şehir: Drone Operasyonu",
+    "emoji": "🎲",
+    "colors": [
+      "#FDDB92",
+      "#D1FDFF"
+    ]
+  },
+  {
+    "slug": "yalin-banana",
+    "name": "Survival: Duvarlar Geçilmez!",
+    "emoji": "🦸",
+    "colors": [
+      "#E0C3FC",
+      "#8EC5FC"
+    ]
   }
 ]
