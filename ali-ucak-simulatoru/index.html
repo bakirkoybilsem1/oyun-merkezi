@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ali&Uçak Simülatörü 1,000,000</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+        /* Sol Panel - Tıklama ve Uçuş Alanı */
+        .main-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 30px;
+            position: relative;
+        }
+        .stats {
+            text-align: center;
+            background: rgba(0,0,0,0.4);
+            padding: 15px 30px;
+            border-radius: 15px;
+            border: 2px solid #38bdf8;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
+            width: 90%;
+            max-width: 600px;
+        }
+        .money-display {
+            font-size: 24px;
+            color: #f59e0b;
+            font-weight: bold;
+            word-break: break-all;
+            margin-bottom: 5px;
+        }
+        .click-power-display {
+            font-size: 14px;
+            color: #38bdf8;
+        }
+        /* Kırmızı Buton */
+        .red-button {
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, #ff4d4d, #cc0000);
+            border: 8px solid #800000;
+            border-radius: 50%;
+            color: white;
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(255, 0, 0, 0.5), inset 0 5px 10px rgba(255,255,255,0.3);
+            transition: all 0.1s ease;
+            text-shadow: 1px 1px 3px #000;
+        }
+        .red-button:active {
+            transform: scale(0.92);
+            box-shadow: 0 4px 10px rgba(255, 0, 0, 0.3);
+            background: radial-gradient(circle, #cc0000, #990000);
+        }
+        /* Sağ Panel - Market / Uçaklar */
+        .shop-panel {
+            width: 400px;
+            background: rgba(15, 23, 42, 0.95);
+            border-left: 3px solid #334155;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .tabs {
+            display: flex;
+            background: #1e293b;
+        }
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: bold;
+            background: #1e293b;
+            border-bottom: 3px solid transparent;
+        }
+        .tab.active {
+            background: #0f172a;
+            border-bottom: 3px solid #ef4444;
+            color: #ef4444;
+        }
+        .shop-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: none;
+        }
+        .shop-content.active {
+            display: block;
+        }
+        .shop-item {
+            background: #1e293b;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .item-info h3 {
+            font-size: 16px;
+            color: #f8fafc;
+            margin-bottom: 4px;
+        }
+        .item-info p {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        .buy-btn {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .buy-btn:hover { background: #16a34a; }
+        .buy-btn:disabled { background: #475569; cursor: not-allowed; }
+
+        /* Gökyüzü Animasyon Alanı */
+        .sky-view {
+            width: 100%;
+            height: 250px;
+            background: linear-gradient(to bottom, #1e3a8a, #3b82f6);
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #334155;
+        }
+        .cloud {
+            position: absolute;
+            background: rgba(255,255,255,0.5);
+            border-radius: 20px;
+            animation: floatClouds linear infinite;
+        }
+        .active-plane {
+            position: absolute;
+            left: 50px;
+            top: 40%;
+            font-size: 40px;
+            transform: rotate(15deg);
+            animation: planeBob 2s ease-in-out infinite;
+            text-shadow: 2px 4px 10px rgba(0,0,0,0.3);
+        }
+        @keyframes floatClouds {
+            from { transform: translateX(600px); }
+            to { transform: translateX(-200px); }
+        }
+        @keyframes planeBob {
+            0%, 100% { transform: translateY(0) rotate(15deg); }
+            50% { transform: translateY(-15px) rotate(10deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SOL OYUN ALANI -->
+    <div class="main-panel">
+        <div class="stats">
+            <div class="money-display">Para: <span id="money">0</span> 💰</div>
+            <div class="click-power-display">Tıklama Gücü: +<span id="click-power">1</span></div>
+        </div>
+
+        <div class="sky-view">
+            <div class="cloud" style="width: 80px; height: 30px; top: 30px; animation-duration: 8s;"></div>
+            <div class="cloud" style="width: 120px; height: 40px; top: 120px; animation-duration: 12s;"></div>
+            <div class="cloud" style="width: 60px; height: 25px; top: 70px; animation-duration: 6s;"></div>
+            <div id="plane-avatar" class="active-plane">🛩️</div>
+        </div>
+
+        <button class="red-button" id="clicker-btn">KIRMIZI<br>TUŞ</button>
+        <div></div>
+    </div>
+
+    <!-- SAĞ MARKET ALANI -->
+    <div class="shop-panel">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('upgrades')">Geliştirmeler</div>
+            <div class="tab" onclick="switchTab('planes')">Uçaklar (1 Milyon)</div>
+        </div>
+
+        <!-- GELİŞTİRMELER SEKMESİ -->
+        <div id="upgrades-tab" class="shop-content active">
+            <div class="shop-item">
+                <div class="item-info">
+                    <h3>Motoru Güçlendir</h3>
+                    <p>Tıklama gücünü x2 yapar.</p>
+                    <p style="color: #f59e0b;">Maliyet: <span id="up-cost-1">50</span></p>
+                </div>
+                <button class="buy-btn" onclick="buyUpgrade(1)">Yükselt</button>
+            </div>
+            <div class="shop-item">
+                <div class="item-info">
+                    <h3>Mega Turbo V12</h3>
+                    <p>Tıklama gücünü x10 yapar.</p>
+                    <p style="color: #f59e0b;">Maliyet: <span id="up-cost-2">5000</span></p>
+                </div>
+                <button class="buy-btn" onclick="buyUpgrade(2)">Yükselt</button>
+            </div>
+            <div class="shop-item">
+                <div class="item-info">
+                    <h3>Kuantum İtici</h3>
+                    <p>Tıklama gücünü x1000 yapar.</p>
+                    <p style="color: #f59e0b;">Maliyet: <span id="up-cost-3">500000</span></p>
+                </div>
+                <button class="buy-btn" onclick="buyUpgrade(3)">Yükselt</button>
+            </div>
+        </div>
+
+        <!-- UÇAKLAR SEKMESİ -->
+        <div id="planes-tab" class="shop-content">
+            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 10px; text-align: center;">
+                Bütçene uygun sıradaki uçaklar listeleniyor...
+            </p>
+            <div id="plane-list">
+                <!-- JavaScript dinamik olarak dolduracak -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // İSTEDİĞİN EN FAZLA PARA LİMİTİ (BigInt türünde tam yazdığın sayı kadar)
+        const MAX_MONEY = BigInt("1111111111111111111111111111111111111111111111111111");
+       
+        let currentMoney = BigInt(0);
+        let clickPower = BigInt(1);
+        let activePlaneId = 1;
+
+        // Geliştirme maliyetleri
+        let upCost1 = BigInt(50);
+        let upCost2 = BigInt(5000);
+        let upCost3 = BigInt(500000);
+
+        // Uçak emojileri havuzu (1.000.000 uçak bu simgelerden türeyecek)
+        const planeEmojis = ["🛩️", "🛫", "🛬", "✈️", "🚀", "🛸", "🚁"];
+
+        // Elementler
+        const moneyEl = document.getElementById('money');
+        const clickPowerEl = document.getElementById('click-power');
+        const clickerBtn = document.getElementById('clicker-btn');
+        const planeAvatar = document.getElementById('plane-avatar');
+        const planeListEl = document.getElementById('plane-list');
+
+        // Kırmızı Tuşa Tıklama Mekaniği
+        clickerBtn.addEventListener('click', () => {
+            if (currentMoney < MAX_MONEY) {
+                currentMoney += clickPower;
+                if (currentMoney > MAX_MONEY) {
+                    currentMoney = MAX_MONEY;
+                }
+                updateUI();
+            }
+        });
+
+        function updateUI() {
+            moneyEl.innerText = currentMoney.toString();
+            clickPowerEl.innerText = clickPower.toString();
+
+            // Geliştirme buton kontrolleri
+            document.getElementById('up-cost-1').innerText = upCost1.toString();
+            document.getElementById('up-cost-2').innerText = upCost2.toString();
+            document.getElementById('up-cost-3').innerText = upCost3.toString();
+
+            // Uçak listesini bütçeye göre güncelle
+            renderPlanes();
+        }
+
+        // Market sekmeleri arası geçiş
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.shop-content').forEach(c => c.classList.remove('active'));
+
+            if (tabName === 'upgrades') {
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.getElementById('upgrades-tab').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('planes-tab').classList.add('active');
+                renderPlanes();
+            }
+        }
+
+        // Geliştirme Satın Alma
+        function buyUpgrade(type) {
+            if (type === 1 && currentMoney >= upCost1) {
+                currentMoney -= upCost1;
+                clickPower *= BigInt(2);
+                upCost1 *= BigInt(3);
+            } else if (type === 2 && currentMoney >= upCost2) {
+                currentMoney -= upCost2;
+                clickPower *= BigInt(10);
+                upCost2 *= BigInt(4);
+            } else if (type === 3 && currentMoney >= upCost3) {
+                currentMoney -= upCost3;
+                clickPower *= BigInt(1000);
+                upCost3 *= BigInt(5);
+            }
+            updateUI();
+        }
+
+        // 1.000.000 Uçağı hafızayı yormadan dinamik listeleme fonksiyonu
+        function renderPlanes() {
+            planeListEl.innerHTML = "";
+           
+            // Oyuncunun mevcut seviyesine göre alabileceği 4 uçağı gösterir
+            // Uçakların fiyatı kimlik numarasına göre katlanarak artar
+            let startId = activePlaneId;
+            let endId = Math.min(startId + 4, 1000000);
+
+            for (let i = startId; i <= endId; i++) {
+                if(i === activePlaneId && i !== 1) continue; // Zaten aktif olanı geç (başlangıç hariç)
+
+                // Her uçağın maliyeti formülü (BigInt tabanlı çılgın fiyatlar)
+                let planeCost = BigInt(i * i * 30);
+                let emoji = planeEmojis[i % planeEmojis.length];
+
+                let item = document.createElement('div');
+                item.className = "shop-item";
+               
+                let isBought = i < activePlaneId;
+                let canBuy = currentMoney >= planeCost;
+
+                item.innerHTML = `
+                    <div class="item-info">
+                        <h3>Uçak #${i} ${emoji}</h3>
+                        <p>Kazanılan Tıklama Primi: +${i * 5}</p>
+                        <p style="color: #f59e0b;">Fiyat: ${planeCost.toString()}</p>
+                    </div>
+                    <button class="buy-btn" ${!canBuy && !isBought ? 'disabled' : ''} onclick="interactPlane(${i}, ${planeCost})">
+                        ${isBought ? 'Kullan' : 'Satın Al'}
+                    </button>
+                `;
+                planeListEl.appendChild(item);
+            }
+        }
+
+        // Uçak Satın Alma veya Seçme işlemi
+        function interactPlane(id, cost) {
+            cost = BigInt(cost);
+            if (id === activePlaneId) return;
+
+            if (id > activePlaneId) {
+                // Yeni uçak alınıyor
+                currentMoney -= cost;
+                activePlaneId = id;
+                clickPower += BigInt(id * 5); // Uçak gücü tıklamaya eklenir
+            } else {
+                // Eski uçaklardan birine geri geçiş yapılıyor
+                activePlaneId = id;
+            }
+
+            // Sol taraftaki uçak simgesini güncelle
+            planeAvatar.innerText = planeEmojis[id % planeEmojis.length];
+           
+            updateUI();
+        }
+
+        // İlk kurulum
+        updateUI();
+    </script>
+</body>
+</html>
