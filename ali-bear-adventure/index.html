@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ali&Bear Adventure - Doğru Hareket Sürümü</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #050510;
+            font-family: 'Courier New', Courier, monospace;
+            user-select: none;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .ui-item {
+            background: rgba(10, 10, 25, 0.85);
+            padding: 12px 22px;
+            border-radius: 8px;
+            border: 2px solid #00ffcc;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+        }
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(5, 5, 15, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            z-index: 10;
+        }
+        #game-over-screen h1 {
+            font-size: 55px;
+            color: #ff0055;
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px #ff0055;
+        }
+        #restart-btn {
+            padding: 12px 35px;
+            font-size: 22px;
+            background: #00ffcc;
+            color: #000;
+            border: none;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 0 15px #00ffcc;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div class="ui-item">Bölge: <span id="current-zone">Kaplumbağa Köyü</span></div>
+        <div class="ui-item" style="color: #00ffcc;">Kurtarılan Ayılar: <span id="saved-bears">0</span> / 10</div>
+        <div class="ui-item" style="color: #ff3366;">Can: <span id="health-count">10</span> / <span id="max-health-count">10</span></div>
+        <div class="ui-item">Kontroller: [Ok Tuşları] Özgür Hareket (Aşağı=Bize Doğru) | [Boşluk] Zıpla | [E] Vur</div>
+        <div class="ui-item" id="buff-timer" style="display:none; border-color: #ffaa00; color: #ffaa00; font-size: 24px;">SÜPER GÜÇ (50 CAN): <span id="timer-sec">30</span>s</div>
+    </div>
+
+    <div id="game-over-screen">
+        <h1 id="game-title">OYUN BİTTİ</h1>
+        <button id="restart-btn" onclick="resetGame()">Yeniden Başla</button>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script>
+        let scene, camera, renderer;
+        let player, playerVelocity = new THREE.Vector3(), isJumping = false;
+        let attackKeyDuration = 0, isAttackBufferActive = false, attackActive = false, groundPoundActive = false;
+       
+        let platforms = [];
+        let interactables = [];
+        let enemies = [];
+       
+        let savedBearsCount = 0;
+        let health = 10;
+        let maxHealth = 10;
+        let gameOver = false;
+        let superHealthActive = false;
+        let superHealthTimer = 0;
+
+        const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, Space: false, KeyE: false };
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'jump') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(110, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.25);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.25);
+            } else if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(60, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(20, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'kill') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(95, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.25);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.25);
+            } else if (type === 'buff') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(450, audioCtx.currentTime + 0.35);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.35);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.35);
+            }
+        }
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0e1428);
+            scene.fog = new THREE.FogExp2(0x0e1428, 0.008);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            dirLight.position.set(30, 60, 20);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            createWorld();
+            createPlayer();
+
+            window.addEventListener('keydown', (e) => handleInputs(e, true));
+            window.addEventListener('keyup', (e) => handleInputs(e, false));
+            window.addEventListener('resize', onWindowResize);
+
+            animate();
+        }
+
+        function createWorld() {
+            createPlatform(0, -1, 0, 100, 2, 100, 0x274e13, "turtle_ground");
+           
+            const bearPositions = [
+                [-25, 2, -20], [-12, 3, -30], [12, 2, -25], [28, 4, -15],
+                [-28, 3, 10], [-18, 2, 25], [18, 3, 30], [32, 2, 5],
+                [-6, 4, 8], [6, 4, -12]
+            ];
+            bearPositions.forEach((pos, idx) => {
+                createPlatform(pos[0], pos[1] - 1, pos[2], 5, 1, 5, 0x3d85c6);
+                createCagedBear(pos[0], pos[1], pos[2], idx);
+            });
+
+            createTurtleEnemy(-15, 0, -10);
+            createTurtleEnemy(15, 0, -5);
+            createTurtleEnemy(-10, 0, 20);
+            createTurtleEnemy(20, 0, 15);
+
+            createPlatform(0, 4, -65, 35, 2, 35, 0x333333, "golem_arena");
+            createTurtleGolem(0, 5, -65);
+
+            createPlatform(95, -1, 0, 70, 2, 70, 0x783f04, "bee_ground");
+            createPlatform(47.5, -1, 0, 20, 1, 12, 0x5b3f11);
+
+            createBeeEnemy(80, 2, -10);
+            createBeeEnemy(100, 2, 10);
+            createBeeEnemy(90, 3, -15);
+
+            createBossPurpleBear(95, 0, -20);
+
+            createSuperHealthPotion(-35, 1, -35);
+            createSuperHealthPotion(35, 1, 35);
+            createSuperHealthPotion(75, 1, 10);
+        }
+
+        function createPlatform(x, y, z, w, h, d, color, tag = "floor") {
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.8 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.receiveShadow = true;
+            mesh.castShadow = true;
+            mesh.userData = { tag: tag, w: w, h: h, d: d };
+            scene.add(mesh);
+            platforms.push(mesh);
+        }
+
+        function createPlayer() {
+            player = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x5e483a, roughness: 0.7 });
+           
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2, 2), bodyMat);
+            body.position.y = 1.0;
+            body.castShadow = true;
+            player.add(body);
+
+            // Kafayı belirgin yapıyoruz ki nereye baktığı net anlaşılsın
+            const head = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.3, 1.3), bodyMat);
+            head.position.set(0, 2.2, 0.4);
+            head.castShadow = true;
+            player.add(head);
+
+            const snout = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.3), new THREE.MeshStandardMaterial({ color: 0xdfb17b }));
+            snout.position.set(0, 2.0, 1.1); // Pozitif Z ön taraftır
+            player.add(snout);
+
+            const earMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f });
+            const earL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.2), earMat);
+            earL.position.set(-0.6, 2.9, 0.4);
+            const earR = earL.clone(); earR.position.x = 0.6;
+            player.add(earL); player.add(earR);
+
+            player.position.set(0, 0, 15);
+            scene.add(player);
+        }
+
+        function createCagedBear(x, y, z, id) {
+            const group = new THREE.Group();
+            group.position.set(x, y, z);
+            group.userData = { type: "bear_cage", id: id, saved: false };
+
+            const bear = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 1.4), new THREE.MeshStandardMaterial({ color: 0x966f46 }));
+            bear.position.y = 0.7;
+            group.add(bear);
+
+            const cageGeo = new THREE.BoxGeometry(2.4, 2, 2.4);
+            const cageMat = new THREE.MeshStandardMaterial({ color: 0x999999, wireframe: true });
+            const cage = new THREE.Mesh(cageGeo, cageMat);
+            cage.position.y = 1.0;
+            group.add(cage);
+
+            scene.add(group);
+            interactables.push(group);
+        }
+
+        function createSuperHealthPotion(x, y, z) {
+            const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(1.2, 1.8, 1.2),
+                new THREE.MeshStandardMaterial({ color: 0xff3300, emissive: 0xff0000, roughness: 0.1 })
+            );
+            mesh.position.set(x, y, z);
+            mesh.userData = { type: "potion" };
+            scene.add(mesh);
+            interactables.push(mesh);
+        }
+
+        function createTurtleEnemy(x, y, z) {
+            const group = new THREE.Group();
+            group.position.set(x, y + 0.5, z);
+            group.userData = { type: "turtle", hp: 1, speed: 0.02, dir: 1, range: 10, startX: x };
+
+            const shell = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 2.2), new THREE.MeshStandardMaterial({ color: 0x38761d }));
+            shell.position.y = 0.5;
+            group.add(shell);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshStandardMaterial({ color: 0x6aa84f }));
+            head.position.set(0, 0.5, 1.2);
+            group.add(head);
+
+            scene.add(group);
+            enemies.push(group);
+        }
+
+        function createTurtleGolem(x, y, z) {
+            const group = new THREE.Group();
+            group.position.set(x, y, z);
+            group.userData = { type: "golem", hp: 4, attackTimer: 0 };
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(5.5, 4.5, 5.5), new THREE.MeshStandardMaterial({ color: 0x555555 }));
+            body.position.y = 2.25;
+            group.add(body);
+
+            const shell = new THREE.Mesh(new THREE.BoxGeometry(6.5, 2, 6.5), new THREE.MeshStandardMaterial({ color: 0x274e13 }));
+            shell.position.y = 3.5;
+            group.add(shell);
+
+            scene.add(group);
+            enemies.push(group);
+        }
+
+        function createBeeEnemy(x, y, z) {
+            const group = new THREE.Group();
+            group.position.set(x, y, z);
+            group.userData = { type: "bee", hp: 1, baseId: Math.random() * 100 };
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1.4), new THREE.MeshStandardMaterial({ color: '#f1c40f' }));
+            group.add(body);
+
+            scene.add(group);
+            enemies.push(group);
+        }
+
+        function createBossPurpleBear(x, y, z) {
+            const group = new THREE.Group();
+            group.position.set(x, y + 3, z);
+            group.userData = { type: "purple_bear", hp: 2 };
+
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4b0082 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(6, 6, 6), bodyMat);
+            group.add(body);
+
+            scene.add(group);
+            enemies.push(group);
+        }
+
+        function handleInputs(e, isDown) {
+            if (e.code === 'ArrowUp') keys.ArrowUp = isDown;
+            if (e.code === 'ArrowDown') keys.ArrowDown = isDown;
+            if (e.code === 'ArrowLeft') keys.ArrowLeft = isDown;
+            if (e.code === 'ArrowRight') keys.ArrowRight = isDown;
+
+            if (e.code === 'Space') {
+                if (isDown && !keys.Space && !isJumping) {
+                    playerVelocity.y = 0.35;
+                    isJumping = true;
+                    playSound('jump');
+                }
+                keys.Space = isDown;
+            }
+
+            if (e.key === 'e' || e.key === 'E') {
+                keys.KeyE = isDown;
+                if (!isDown) {
+                    if (attackKeyDuration < 12 && !groundPoundActive) {
+                        triggerNormalAttack();
+                    }
+                    attackKeyDuration = 0;
+                    isAttackBufferActive = false;
+                } else {
+                    isAttackBufferActive = true;
+                }
+            }
+        }
+
+        function triggerNormalAttack() {
+            if (attackActive) return;
+            attackActive = true;
+            setTimeout(() => { attackActive = false; }, 250);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            if (gameOver) return;
+            requestAnimationFrame(animate);
+
+            // TUŞ KONTROLLERİ VE DOĞAL YÖNLENDİRME SİSTEMİ
+            let moveX = 0;
+            let moveZ = 0;
+            let currentSpeed = 0.16;
+
+            if (keys.ArrowUp)    moveZ = -currentSpeed; // İleri (Ekranın içine doğru)
+            if (keys.ArrowDown)  moveZ = currentSpeed;  // Geri (Ekrandan bize doğru)
+            if (keys.ArrowLeft)  moveX = -currentSpeed; // Sola
+            if (keys.ArrowRight) moveX = currentSpeed;  // Sağa
+
+            // Karakteri hareket ettir
+            player.position.x += moveX;
+            player.position.z += moveZ;
+
+            // BİZE DOĞRU GELME VE BAKIŞ YÖNÜ KİLİTLEME:
+            // Eğer herhangi bir yöne basılıyorsa karakterin yüzünü (açısını) anında o yöne çevir
+            if (moveX !== 0 || moveZ !== 0) {
+                let targetAngle = Math.atan2(moveX, moveZ);
+                player.rotation.y = targetAngle;
+            }
+
+            if (isAttackBufferActive) {
+                attackKeyDuration++;
+                if (attackKeyDuration >= 12 && isJumping && !groundPoundActive) {
+                    groundPoundActive = true;
+                    playerVelocity.y = -0.7;
+                }
+            }
+
+            playerVelocity.y -= 0.014;
+            player.position.y += playerVelocity.y;
+
+            let currentZone = "Kaplumbağa Köyü";
+            if (player.position.x > 55) {
+                currentZone = "Arı Köyü";
+            }
+            document.getElementById('current-zone').innerText = currentZone;
+
+            if (superHealthActive) {
+                if (player.position.z < -45 && player.position.x > -20 && player.position.x < 20) {
+                    disableSuperHealth();
+                } else {
+                    superHealthTimer -= 0.016;
+                    document.getElementById('timer-sec').innerText = Math.ceil(superHealthTimer);
+                    if (superHealthTimer <= 0) {
+                        disableSuperHealth();
+                    }
+                }
+            }
+
+            let pBox = new THREE.Box3().setFromObject(player);
+            for (let plat of platforms) {
+                let platBox = new THREE.Box3().setFromObject(plat);
+                if (pBox.intersectsBox(platBox)) {
+                    if (playerVelocity.y <= 0 && player.position.y >= plat.position.y) {
+                        player.position.y = plat.position.y + (plat.userData.h / 2);
+                        playerVelocity.y = 0;
+                        isJumping = false;
+                        if (groundPoundActive) {
+                            triggerGroundPoundExplosion();
+                        }
+                    }
+                }
+            }
+
+            if (player.position.y < -20) {
+                takeDamage(1);
+                player.position.set(0, 5, 15);
+                playerVelocity.set(0, 0, 0);
+            }
+
+            for (let i = interactables.length - 1; i >= 0; i--) {
+                let obj = interactables[i];
+                if (player.position.distanceTo(obj.position) < 3.5) {
+                    if (obj.userData.type === "bear_cage" && !obj.userData.saved) {
+                        obj.userData.saved = true;
+                        scene.remove(obj.children[1]);
+                        savedBearsCount++;
+                        document.getElementById('saved-bears').innerText = savedBearsCount;
+                        playSound('buff');
+                    } else if (obj.userData.type === "potion") {
+                        if (!(player.position.z < -45 && player.position.x > -20 && player.position.x < 20)) {
+                            activateSuperHealth();
+                            scene.remove(obj);
+                            interactables.splice(i, 1);
+                        }
+                    }
+                }
+            }
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let enemy = enemies[i];
+               
+                if (enemy.userData.type === "turtle") {
+                    enemy.position.x += enemy.userData.speed * enemy.userData.dir;
+                    if (Math.abs(enemy.position.x - enemy.userData.startX) > enemy.userData.range) {
+                        enemy.userData.dir *= -1;
+                    }
+                }
+                if (enemy.userData.type === "bee") {
+                    enemy.position.y += Math.sin(Date.now() * 0.002 + enemy.userData.baseId) * 0.008;
+                }
+
+                let dist = player.position.distanceTo(enemy.position);
+                let hitRange = (enemy.userData.type === "golem" || enemy.userData.type === "purple_bear") ? 5.5 : 3.0;
+
+                if (dist < hitRange) {
+                    if (attackActive || groundPoundActive) {
+                        enemy.userData.hp -= (groundPoundActive ? 3 : 1);
+                        playSound('kill');
+                       
+                        if (enemy.userData.hp <= 0) {
+                            scene.remove(enemy);
+                            enemies.splice(i, 1);
+                        }
+                        attackActive = false;
+                    } else {
+                        takeDamage(1);
+                        // Hasar alınca geriye doğru fırlama
+                        player.position.x -= Math.sin(player.rotation.y) * 4;
+                        player.position.z -= Math.cos(player.rotation.y) * 4;
+                    }
+                }
+            }
+
+            // KAMERA SABİTLEMESİ: Sinematik üst/arka açıdan haritayı izler, yön değiştirip baş döndürmez
+            camera.position.set(0, 24, 45);
+            camera.lookAt(player.position.x, player.position.y, player.position.z);
+
+            renderer.render(scene, camera);
+        }
+
+        function triggerGroundPoundExplosion() {
+            groundPoundActive = false;
+            playSound('hit');
+           
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let enemy = enemies[i];
+                if (player.position.distanceTo(enemy.position) < 12.0) {
+                    enemy.userData.hp -= 4;
+                    if (enemy.userData.hp <= 0) {
+                        scene.remove(enemy);
+                        enemies.splice(i, 1);
+                        playSound('kill');
+                    }
+                }
+            }
+        }
+
+        function activateSuperHealth() {
+            superHealthActive = true;
+            superHealthTimer = 30;
+            maxHealth = 50;
+            health = 50;
+            document.getElementById('max-health-count').innerText = maxHealth;
+            document.getElementById('health-count').innerText = health;
+            document.getElementById('buff-timer').style.display = "block";
+            playSound('buff');
+        }
+
+        function disableSuperHealth() {
+            superHealthActive = false;
+            maxHealth = 10;
+            if (health > 10) health = 10;
+            document.getElementById('max-health-count').innerText = maxHealth;
+            document.getElementById('health-count').innerText = health;
+            document.getElementById('buff-timer').style.display = "none";
+        }
+
+        function takeDamage(amt) {
+            health -= amt;
+            if (health < 0) health = 0;
+            document.getElementById('health-count').innerText = health;
+            playSound('hit');
+
+            if (health <= 0) {
+                gameOver = true;
+                document.getElementById('game-over-screen').style.display = 'flex';
+            }
+        }
+
+        function resetGame() {
+            location.reload();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
