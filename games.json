@@ -520,5 +520,14 @@
       "#FF416C",
       "#FF4B2B"
     ]
+  },
+  {
+    "slug": "ali-i-le-minecraft",
+    "name": "Ali İle Minecraft",
+    "emoji": "🛸",
+    "colors": [
+      "#12c2e9",
+      "#f64f59"
+    ]
   }
 ]
