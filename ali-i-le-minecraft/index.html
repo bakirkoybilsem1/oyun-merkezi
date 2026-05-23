@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Ali İle Minecraft</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; user-select: none; }
+        #crosshair {
+            position: absolute; top: 50%; left: 50%;
+            width: 14px; height: 14px;
+            transform: translate(-50%, -50%);
+            color: white; font-weight: bold; font-size: 26px;
+            pointer-events: none; text-shadow: 2px 2px 2px rgba(0,0,0,0.8);
+        }
+        #ui {
+            position: absolute; top: 10px; left: 10px;
+            color: white; background: rgba(0,0,0,0.85);
+            padding: 15px; border-radius: 10px; pointer-events: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        #boss-bar-container {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            width: 400px; height: 24px; background: rgba(0,0,0,0.7);
+            border: 2px solid #333; border-radius: 4px; display: none; text-align: center;
+        }
+        #boss-bar {
+            width: 100%; height: 100%; background: #d500f9;
+            transition: width 0.1s;
+        }
+        #boss-title {
+            position: absolute; width: 100%; top: -20px; color: #d500f9;
+            font-weight: bold; font-size: 14px; text-shadow: 1px 1px 2px #000;
+        }
+        #hotbar {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6); padding: 5px; border-radius: 5px; display: flex; gap: 5px; pointer-events: none;
+        }
+        .hotbar-slot {
+            width: 50px; height: 50px; background: rgba(255,255,255,0.1);
+            border: 2px solid #555; border-radius: 3px; display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 11px; text-align: center; font-weight: bold;
+        }
+        .active-slot { border-color: #4CAF50; background: rgba(76, 175, 80, 0.3); }
+        #sleep-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; opacity: 0; pointer-events: none; transition: opacity 1s;
+            display: flex; align-items: center; justify-content: center; color: white; font-size: 32px; font-weight: bold;
+            z-index: 999;
+        }
+        #game-msg {
+            position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%);
+            color: #ffeb3b; font-size: 20px; font-weight: bold; text-shadow: 2px 2px 4px #000;
+            background: rgba(0,0,0,0.6); padding: 8px 15px; border-radius: 5px; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+        #weapon-view {
+            position: absolute; bottom: 0; right: 20%;
+            width: 180px; height: 150px;
+            background: #222; border: 4px solid #444; border-bottom: none;
+            border-radius: 20px 20px 0 0;
+            display: none; transform: rotate(-15deg);
+            box-shadow: inset 0 10px 20px rgba(0,0,0,0.8);
+        }
+        #weapon-laser {
+            position: absolute; top: 10px; left: 50%; width: 6px; height: 30px;
+            background: #d500f9; border-radius: 3px; display: none;
+            box-shadow: 0 0 15px #d500f9;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="crosshair">+</div>
+    <div id="sleep-overlay">Boyut Değiştiriliyor...</div>
+    <div id="game-msg">35-40 Haneli Devasa Köye Hoş Geldiniz!</div>
+
+    <div id="weapon-view"><div id="weapon-laser"></div></div>
+
+    <div id="boss-bar-container">
+        <div id="boss-title">Ender Dragon (Silahınla Ateş Et!)</div>
+        <div id="boss-bar"></div>
+    </div>
+
+    <div id="ui">
+        <strong>Kontroller:</strong> W,A,S,D - Hareket | Boşluk - Zıpla<br>
+        <strong>Sol Tık:</strong> Blok Kır / <span style="color: #d500f9;">Silahla Ateş Et</span><br>
+        <strong>Sağ Tık:</strong> Blok Koy / Yatağa Yat / Çakmak Çak<br>
+        <strong>Zaman / Durum:</strong> <span id="time-display">Gündüz</span>
+    </div>
+
+    <div id="hotbar">
+        <div id="slot-1" class="hotbar-slot active-slot">1<br>Çimen</div>
+        <div id="slot-2" class="hotbar-slot">2<br>Toprak</div>
+        <div id="slot-3" class="hotbar-slot">3<br>Taş</div>
+        <div id="slot-4" class="hotbar-slot">4<br>Odun</div>
+        <div id="slot-5" class="hotbar-slot">5<br>Su</div>
+        <div id="slot-6" class="hotbar-slot">6<br>Lav</div>
+        <div id="slot-7" class="hotbar-slot">7<br>Balçık</div>
+        <div id="slot-8" class="hotbar-slot">8<br>Yumurta</div>
+        <div id="slot-9" class="hotbar-slot" style="color: #ffeb3b;">9<br>Çakmak</div>
+        <div id="slot-10" class="hotbar-slot" style="color: #e040fb;">0<br>Obsidyen</div>
+    </div>
+
+    <script>
+        // --- Sahne Kurulumu ---
+        const scene = new THREE.Scene();
+        let skyColor = new THREE.Color(0x87CEEB);
+        scene.background = skyColor;
+        scene.fog = new THREE.FogExp2(0x87CEEB, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const sunLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        sunLight.position.set(30, 50, 20);
+        scene.add(sunLight);
+
+        // Durumlar ve Fizik Değişkenleri
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let canJump = false;
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        let prevTime = performance.now();
+        let timeCycle = 1.5; 
+        let isNight = false;
+        let currentDimension = "Overworld"; 
+
+        let objects = []; 
+        let villagers = []; 
+        let slimeBlocks = [];
+        let portalBlocks = [];
+        let bedMesh = null; 
+        const blockSize = 1;
+        const geometry = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+
+        // Ejderha (Dragon) Değişkenleri
+        let dragon = null;
+        let dragonHealth = 100;
+        let dragonAngle = 0;
+        let dragonState = 'orbit'; 
+        let dragonTimer = 0;
+
+        // Materyaller
+        const matGrass = new THREE.MeshLambertMaterial({ color: 0x5c8e32 });
+        const matDirt = new THREE.MeshLambertMaterial({ color: 0x866043 });
+        const matStone = new THREE.MeshLambertMaterial({ color: 0x7a7a7a });
+        const matWood = new THREE.MeshLambertMaterial({ color: 0x51361a });
+        const matWater = new THREE.MeshLambertMaterial({ color: 0x437ebb, transparent: true, opacity: 0.7 });
+        const matLava = new THREE.MeshBasicMaterial({ color: 0xe65c00 });
+        const matSlime = new THREE.MeshLambertMaterial({ color: 0x66cc66, transparent: true, opacity: 0.85 });
+        const matFurniture = new THREE.MeshLambertMaterial({ color: 0xb38659 });
+        const matObsidian = new THREE.MeshLambertMaterial({ color: 0x140624 }); 
+        const matPortal = new THREE.MeshBasicMaterial({ color: 0x9c27b0, transparent: true, opacity: 0.75 }); 
+        const matBed = new THREE.MeshLambertMaterial({ color: 0xcc2222 }); 
+        const matEndStone = new THREE.MeshLambertMaterial({ color: 0xddddaa });
+
+        const materials = [matGrass, matDirt, matStone, matWood, matWater, matLava, matSlime, null, null, matObsidian]; 
+        let currentSlotIndex = 0;
+
+        function createBlock(x, y, z, material, specialType = null) {
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(x + 0.5, y + 0.5, z + 0.5);
+            scene.add(cube);
+            objects.push(cube);
+            if (specialType === 'slime') slimeBlocks.push(cube);
+            if (specialType === 'portal') portalBlocks.push(cube);
+            return cube;
+        }
+
+        // --- DEVASA 40 EVLİ KÖY DÜNYASI ÜRETİMİ ---
+        function generateOverworld() {
+            const worldSize = 80; // Genişletilmiş alan
+            
+            // Geniş Zemin Dünyası
+            for (let x = -worldSize; x < worldSize; x += 2) {
+                for (let z = -worldSize; z < worldSize; z += 2) {
+                    createBlock(x, 0, z, matGrass);
+                    createBlock(x+1, 0, z, matGrass);
+                    createBlock(x, 0, z+1, matGrass);
+                    createBlock(x+1, 0, z+1, matGrass);
+                }
+            }
+
+            // ANA BAŞLANGIÇ EVİMİZ (x:0, z:0 merkezinde)
+            buildHouse(0, 0, true);
+
+            // Rastgele Dağıtılmış Ekstra 39 Ev (Toplam 40 Ev)
+            let houseCount = 0;
+            while(houseCount < 39) {
+                let rx = Math.floor((Math.random() * 120) - 60);
+                let rz = Math.floor((Math.random() * 120) - 60);
+                
+                // Evlerin üst üste binmesini veya merkeze çok yaklaşmasını engelle
+                if (Math.abs(rx) > 6 && Math.abs(rz) > 6) {
+                    buildHouse(rx, rz, false);
+                    houseCount++;
+                }
+            }
+
+            // Hazır Büyük Portal Meydanı (Merkez evin hemen yakınında)
+            const pX = 6, pY = 1, pZ = 6;
+            for(let x=0; x<4; x++) createBlock(pX+x, pY-1, pZ, matObsidian);
+            for(let h=0; h<4; h++) {
+                createBlock(pX, pY+h, pZ, matObsidian);
+                createBlock(pX+3, pY+h, pZ, matObsidian);
+            }
+            for(let x=0; x<4; x++) createBlock(pX+x, pY+4, pZ, matObsidian);
+        }
+
+        function buildHouse(startX, startZ, isMain) {
+            for (let y = 1; y < 4; y++) {
+                for (let x = -2; x <= 2; x++) {
+                    for (let z = -2; z <= 2; z++) {
+                        if (x === -2 || x === 2 || z === -2 || z === 2) {
+                            if (!(y === 1 && x === 0 && z === 2)) { 
+                                createBlock(startX + x, y, startZ + z, matStone);
+                            }
+                        }
+                    }
+                }
+            }
+            // Çatı
+            for (let x = -3; x <= 3; x++) {
+                for (let z = -3; z <= 3; z++) createBlock(startX + x, 4, startZ + z, matWood);
+            }
+            // Yatak Yerleştirme
+            if (isMain) {
+                bedMesh = createBlock(startX - 1, 1, startZ - 1, matBed);
+            } else {
+                createBlock(startX - 1, 1, startZ - 1, matBed); // Diğer evlerin yatakları dekoratif
+            }
+        }
+
+        // Dünyayı Kur
+        generateOverworld();
+
+        // Köylüler
+        const skinMat = new THREE.MeshLambertMaterial({ color: 0xbd8868 });
+        const robeMat = new THREE.MeshLambertMaterial({ color: 0x7c4c29 });
+        function spawnVillager(x, y, z) {
+            const villager = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.9, 0.4), robeMat); body.position.y = 0.75; villager.add(body);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.35), skinMat); head.position.y = 1.35; villager.add(head);
+            const nose = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.12), skinMat); nose.position.set(0, 1.3, 0.22); villager.add(nose);
+            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.35, 0.2), robeMat); leftLeg.position.set(-0.12, 0.175, 0); villager.add(leftLeg);
+            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.35, 0.2), robeMat); rightLeg.position.set(0.12, 0.175, 0); villager.add(rightLeg);
+            villager.position.set(x, y, z); scene.add(villager);
+            villagers.push({ mesh: villager, leftLeg: leftLeg, rightLeg: rightLeg, direction: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(), timer: 0, speed: 1.5, isWalking: true });
+        }
+        // Köy meydanına köylüleri yerleştir
+        for(let i=0; i<15; i++) spawnVillager((Math.random()*40)-20, 1, (Math.random()*40)-20);
+
+        // OYUNCU BAŞLANGIÇ KONUMU: Merkez ana evin içi
+        camera.position.set(0, 2, 0);
+
+        // --- Kontroller ve Kilit Sistemi ---
+        const controls = { isLocked: false, lock: function() { renderer.domElement.requestPointerLock(); } };
+        document.body.addEventListener('click', () => { if(!controls.isLocked) controls.lock(); });
+        document.addEventListener('pointerlockchange', () => { controls.isLocked = document.pointerLockElement === renderer.domElement; });
+        
+        document.addEventListener('mousemove', (event) => {
+            if (!controls.isLocked) return;
+            camera.rotation.y -= event.movementX * 0.002;
+            camera.rotation.x -= event.movementY * 0.002;
+            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+        });
+        camera.rotation.order = 'YXZ';
+
+        document.addEventListener('keydown', (e) => {
+            if(e.code === 'KeyW') moveForward = true;
+            if(e.code === 'KeyA') moveLeft = true;
+            if(e.code === 'KeyS') moveBackward = true;
+            if(e.code === 'KeyD') moveRight = true;
+            if(e.code === 'Space' && canJump) { velocity.y += 7.5; canJump = false; }
+            if(e.key >= 1 && e.key <= 9) selectSlot(e.key - 1);
+            if(e.key === '0') selectSlot(9);
+        });
+        document.addEventListener('keyup', (e) => {
+            if(e.code === 'KeyW') moveForward = false;
+            if(e.code === 'KeyA') moveLeft = false;
+            if(e.code === 'KeyS') moveBackward = false;
+            if(e.code === 'KeyD') moveRight = false;
+        });
+        function selectSlot(index) {
+            currentSlotIndex = index;
+            for (let i = 0; i < 10; i++) document.getElementById('slot-' + (i === 9 ? 10 : i + 1)).classList.remove('active-slot');
+            document.getElementById('slot-' + (index === 9 ? 10 : index + 1)).classList.add('active-slot');
+        }
+
+        window.addEventListener('contextmenu', e => e.preventDefault());
+
+        // --- SAVAŞ VE ETKİLEŞİM SİSTEMİ ---
+        const raycaster = new THREE.Raycaster();
+        const centerMouse = new THREE.Vector2(0, 0);
+
+        window.addEventListener('mousedown', (event) => {
+            if (!controls.isLocked) return;
+
+            // --- SOL TIK: SİLAH ATEŞLEME VEYA BLOK KIRMA ---
+            if (event.button === 0) {
+                // END BOYUTUNDAYSAK SİLAH ATEŞLE
+                if (currentDimension === "End") {
+                    // Silah ateş efekti (Arayüz Lazer Flaşı)
+                    const laserEl = document.getElementById("weapon-laser");
+                    laserEl.style.display = "block";
+                    setTimeout(() => { laserEl.style.display = "none"; }, 80);
+
+                    if (dragon) {
+                        raycaster.setFromCamera(centerMouse, camera);
+                        const dragonIntersects = raycaster.intersectObjects(dragon.children, true);
+                        
+                        // Silahın çok uzun bir menzili var (150 birim uzağa vurabilir)
+                        if (dragonIntersects.length > 0 && dragonIntersects[0].distance < 150) {
+                            dragonHealth -= 12; // Güçlü silah hasarı
+                            if (dragonHealth < 0) dragonHealth = 0;
+                            document.getElementById("boss-bar").style.width = dragonHealth + "%";
+                            showGameMessage("🎯 Ejderhayı tam on ikiden vurdun! Canı azaldı.");
+                            
+                            // EJDERHA ÖLDÜĞÜNDE DİREKT KÖYE IŞINLANMA MEKANİĞİ
+                            if (dragonHealth <= 0) {
+                                scene.remove(dragon);
+                                dragon = null;
+                                document.getElementById("boss-bar-container").style.display = "none";
+                                document.getElementById("weapon-view").style.display = "none";
+                                
+                                triggerWinTeleport(); // Köye geri dönüş fonksiyonunu tetikle
+                            }
+                        }
+                    }
+                    return;
+                }
+
+                // Normal Blok Kırma (Sadece Dünyada)
+                raycaster.setFromCamera(centerMouse, camera);
+                const intersects = raycaster.intersectObjects(objects);
+                if (intersects.length > 0 && intersects[0].distance < 7) {
+                    const targetBlock = intersects[0].object;
+                    if (targetBlock === bedMesh) bedMesh = null;
+                    scene.remove(targetBlock);
+                    objects.splice(objects.indexOf(targetBlock), 1);
+                }
+            } 
+            // --- SAĞ TIK: ETKİLEŞİMLER VEYA BLOK KOYMA ---
+            else if (event.button === 2) {
+                raycaster.setFromCamera(centerMouse, camera);
+                const intersects = raycaster.intersectObjects(objects);
+                if (intersects.length > 0 && intersects[0].distance < 7) {
+                    const targetBlock = intersects[0].object;
+                    const spawnPos = targetBlock.position.clone().add(intersects[0].face.normal);
+
+                    if (targetBlock === bedMesh) {
+                        if (isNight) triggerSleep(); else showGameMessage("Sadece geceleri uyuyabilirsin!");
+                        return;
+                    }
+                    if (currentSlotIndex === 8 && targetBlock.material === matObsidian) {
+                        for (let h = 1; h <= 3; h++) {
+                            for (let w = 1; w <= 2; w++) {
+                                createBlock(targetBlock.position.x + w - 0.5, targetBlock.position.y + h - 0.5, targetBlock.position.z - 0.5, matPortal, 'portal');
+                            }
+                        }
+                        return;
+                    }
+                    if (currentSlotIndex === 7) {
+                        spawnVillager(spawnPos.x - 0.5, spawnPos.y - 0.5, spawnPos.z - 0.5);
+                        return;
+                    }
+                    if (materials[currentSlotIndex] !== null && spawnPos.distanceTo(camera.position) > 1.1) {
+                        let type = (currentSlotIndex === 6) ? 'slime' : null;
+                        createBlock(spawnPos.x - 0.5, spawnPos.y - 0.5, spawnPos.z - 0.5, materials[currentSlotIndex], type);
+                    }
+                }
+            }
+        });
+
+        function showGameMessage(text) {
+            const msgEl = document.getElementById("game-msg");
+            msgEl.innerText = text; msgEl.style.opacity = 1;
+            setTimeout(() => { msgEl.style.opacity = 0; }, 2500);
+        }
+
+        function triggerSleep() {
+            const overlay = document.getElementById("sleep-overlay");
+            overlay.style.opacity = 1;
+            setTimeout(() => { timeCycle = 1.5; overlay.style.opacity = 0; showGameMessage("Günaydın!"); }, 2000);
+        }
+
+        // --- BOYUT DEĞİŞTİRME: END BOYUTUNA GEÇİŞ ---
+        function teleportToEnd() {
+            currentDimension = "End";
+            document.getElementById("ui").innerHTML = "<strong>Boyut: END SAVAŞI</strong><br>Silahını kullanmak için Sol Tık yap!";
+            document.getElementById("boss-bar-container").style.display = "block";
+            document.getElementById("weapon-view").style.display = "block"; // Silahı görünür kıl
+
+            // Dünyayı geçici temizle
+            while(objects.length > 0) scene.remove(objects.pop());
+            slimeBlocks.length = 0; portalBlocks.length = 0; villagers.length = 0; bedMesh = null;
+
+            skyColor = new THREE.Color(0x090112);
+            scene.background = skyColor; scene.fog.color = skyColor;
+
+            // Büyük End Platformu
+            for (let x = -30; x <= 30; x++) {
+                for (let z = -30; z <= 30; z++) {
+                    if (Math.sqrt(x*x + z*z) < 25) {
+                        createBlock(x, 0, z, matEndStone);
+                    }
+                }
+            }
+            // Güvenli doğuş noktası
+            for(let x = -2; x <= 2; x++) { for(let z = -2; z <= 2; z++) { createBlock(x, 0, z, matObsidian); } }
+
+            camera.position.set(0, 3, 5);
+            velocity.set(0,0,0);
+
+            // Ejderhayı Çağır
+            buildEndDragon();
+            dragonHealth = 100;
+            document.getElementById("boss-bar").style.width = "100%";
+        }
+
+        // --- EJDERHA ÖLDÜKTEN SONRA KÖYE OTOMATİK GERİ IŞINLANMA ---
+        function triggerWinTeleport() {
+            const overlay = document.getElementById("sleep-overlay");
+            overlay.innerText = "EJDERHA ÖLDÜ! Köye Dönülüyor...";
+            overlay.style.opacity = 1; // Ekranı karart
+            
+            controls.isLocked = false;
+            document.exitPointerLock();
+
+            setTimeout(() => {
+                // Boyutu Overworld'e Çevir
+                currentDimension = "Overworld";
+                document.getElementById("ui").innerHTML = "<strong>Boyut: KÖY (Dünya)</strong><br>Ejderhayı yendin ve zaferle döndün!";
+                skyColor = new THREE.Color(0x87CEEB);
+                scene.background = skyColor; scene.fog.color = skyColor;
+
+                // Devasa 40 Evli Dünyayı Sıfırdan Tekrar Yükle
+                generateOverworld();
+                for(let i=0; i<15; i++) spawnVillager((Math.random()*40)-20, 1, (Math.random()*40)-20);
+
+                // Oyuncuyu ana başlangıç evinin içine koy
+                camera.position.set(0, 2, 0);
+                velocity.set(0,0,0);
+
+                overlay.style.opacity = 0; // Ekranı aydınlat
+                showGameMessage("🎉 Zafer Senindir! 40 Haneli Büyük Köyüne Hoş Geldin!");
+            }, 3000);
+        }
+
+        // Ejderha Çizimi (Geliştirilmiş)
+        function buildEndDragon() {
+            dragon = new THREE.Group();
+            const blackMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+            const purpleMat = new THREE.MeshBasicMaterial({ color: 0xa000e6 });
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 5), blackMat); dragon.add(body);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 2), blackMat); head.position.set(0, 1, 3.5); dragon.add(head);
+            const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), purpleMat); leftEye.position.set(0.6, 1.2, 4.5); dragon.add(leftEye);
+            const rightEye = leftEye.clone(); rightEye.position.x = -0.6; dragon.add(rightEye);
+
+            dragon.leftWing = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 2.5), blackMat); dragon.leftWing.position.set(4.3, 0.5, 0); dragon.add(dragon.leftWing);
+            dragon.rightWing = dragon.leftWing.clone(); dragon.rightWing.position.x = -4.3; dragon.add(dragon.rightWing);
+            
+            const tail = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 4), blackMat); tail.position.set(0, -0.2, -4); dragon.add(tail);
+            dragon.position.set(0, 22, -25); scene.add(dragon);
+        }
+
+        // --- ANA OYUN DÖNGÜSÜ ---
+        let clock = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (controls.isLocked) {
+                const time = performance.now();
+                const delta = (time - prevTime) / 1000;
+                clock += delta;
+
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+                velocity.y -= 9.8 * 2.5 * delta; 
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize();
+
+                if (moveForward || moveBackward) velocity.z -= direction.z * 52.0 * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * 52.0 * delta;
+
+                camera.translateX(-velocity.x * delta);
+                camera.translateZ(velocity.z * delta);
+                camera.position.y += velocity.y * delta;
+
+                // Portal Kontrolü
+                if (currentDimension === "Overworld") {
+                    for (let portal of portalBlocks) {
+                        if (camera.position.distanceTo(portal.position) < 0.8) {
+                            controls.isLocked = false;
+                            document.exitPointerLock();
+                            teleportToEnd();
+                            return;
+                        }
+                    }
+                }
+
+                // Zemin Çarpışması Koruması
+                if (camera.position.y < 1.7) {
+                    velocity.y = 0; camera.position.y = 1.7; canJump = true;
+                }
+                if (camera.position.y < -15) { camera.position.set(0, 4, 0); velocity.set(0,0,0); }
+
+                // --- EJDERHA ANİMASYON VE YAPAY ZEKASI ---
+                if (dragon) {
+                    dragonTimer += delta;
+                    
+                    // Kanat Çırpma
+                    const wingFlap = Math.sin(clock * 8) * 0.35;
+                    dragon.leftWing.rotation.z = wingFlap;
+                    dragon.rightWing.rotation.z = -wingFlap;
+
+                    if (dragonState === 'orbit') {
+                        dragonAngle += delta * 0.45;
+                        const targetX = Math.cos(dragonAngle) * 40;
+                        const targetZ = Math.sin(dragonAngle) * 40;
+                        const targetY = 18 + Math.sin(clock) * 3;
+
+                        dragon.position.lerp(new THREE.Vector3(targetX, targetY, targetZ), 0.03);
+                        dragon.lookAt(camera.position);
+
+                        if (dragonTimer > 7) { dragonState = 'dive'; dragonTimer = 0; showGameMessage("⚠️ Ejderha üzerine dalış yapıyor!"); }
+                    } 
+                    else if (dragonState === 'dive') {
+                        const targetPos = new THREE.Vector3(camera.position.x, camera.position.y + 0.5, camera.position.z);
+                        dragon.position.lerp(targetPos, 0.045);
+                        dragon.lookAt(targetPos);
+
+                        if (dragon.position.distanceTo(camera.position) < 4) {
+                            velocity.y += 4; velocity.z += 6;
+                            showGameMessage("💥 Ejderhadan darbe aldın!");
+                            dragonState = 'orbit'; dragonTimer = 0;
+                        }
+                        if (dragonTimer > 4.5) { dragonState = 'orbit'; dragonTimer = 0; }
+                    }
+                }
+
+                // Köylü Yürüyüşleri
+                villagers.forEach(v => {
+                    v.timer += delta;
+                    if (v.timer > Math.random() * 4 + 3) {
+                        v.isWalking = Math.random() > 0.2;
+                        if(v.isWalking) v.direction.set(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+                        v.timer = 0;
+                    }
+                    if (v.isWalking) {
+                        v.mesh.position.addScaledVector(v.direction, v.speed * delta);
+                        v.mesh.lookAt(v.mesh.position.clone().add(v.direction));
+                        const legSwing = Math.sin(clock * 8) * 0.4;
+                        v.leftLeg.rotation.x = legSwing; v.rightLeg.rotation.x = -legSwing;
+                    } else { v.leftLeg.rotation.x = 0; v.rightLeg.rotation.x = 0; }
+                });
+
+                // Gündüz Gece
+                if (currentDimension === "Overworld") {
+                    timeCycle += delta * 0.03;
+                    const lightIntensity = Math.sin(timeCycle);
+                    if (lightIntensity < 0) {
+                        isNight = true; document.getElementById("time-display").innerText = "Gece (Yatakta Uyuyabilirsin)";
+                    } else {
+                        isNight = false; document.getElementById("time-display").innerText = "Gündüz";
+                    }
+                    const skyLight = Math.max(0.1, lightIntensity * 0.5 + 0.5);
+                    ambientLight.intensity = skyLight * 0.5 + 0.1;
+                    sunLight.intensity = Math.max(0, lightIntensity * 0.7);
+                }
+
+                prevTime = time;
+            }
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
