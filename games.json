@@ -502,5 +502,14 @@
       "#43C6AC",
       "#F8FFAE"
     ]
+  },
+  {
+    "slug": "ben-yazarim-o-da-soyler",
+    "name": "Gelişmiş Sesli Okuyucu",
+    "emoji": "🦕",
+    "colors": [
+      "#4568DC",
+      "#B06AB3"
+    ]
   }
 ]
