@@ -529,5 +529,14 @@
       "#12c2e9",
       "#f64f59"
     ]
+  },
+  {
+    "slug": "ahmet-city",
+    "name": "Ahmet City",
+    "emoji": "⚒️",
+    "colors": [
+      "#c471ed",
+      "#12c2e9"
+    ]
   }
 ]
