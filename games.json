@@ -538,5 +538,14 @@
       "#c471ed",
       "#12c2e9"
     ]
+  },
+  {
+    "slug": "ali-k-fps-arena",
+    "name": "Ali K. FPS Arena",
+    "emoji": "🎮",
+    "colors": [
+      "#FF6B6B",
+      "#FF8E53"
+    ]
   }
 ]
