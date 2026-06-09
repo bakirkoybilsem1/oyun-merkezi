@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ahmet City</title>
+    <style>
+        :root {
+            --bg-color: #1a1a24;
+            --panel-bg: #2a2a3a;
+            --text-color: #ffffff;
+            --accent-color: #00ffcc;
+            --empty-color: #3e3e56;
+            --road-color: #555555;
+            --res-color: #2ecc71;
+            --com-color: #3498db;
+            --ind-color: #f1c40f;
+            --power-color: #e74c3c;
+            --water-color: #9b59b6;
+            --park-color: #27ae60;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            color: var(--accent-color);
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Üst Panel (Dashboard) */
+        #dashboard {
+            display: flex;
+            background: var(--panel-bg);
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            margin-bottom: 15px;
+            width: 100%;
+            max-width: 1100px;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #444;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-val {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        .stat-lbl {
+            font-size: 11px;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        /* RCI Göstergesi */
+        .rci-container {
+            display: flex;
+            gap: 5px;
+            align-items: flex-end;
+            height: 35px;
+            background: #111;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        .rci-bar {
+            width: 12px;
+            transition: height 0.3s;
+        }
+        #rci-r { background: var(--res-color); }
+        #rci-c { background: var(--com-color); }
+        #rci-i { background: var(--ind-color); }
+
+        /* Ana Alan */
+        #main-container {
+            display: flex;
+            width: 100%;
+            max-width: 1100px;
+            height: calc(100vh - 180px);
+            gap: 15px;
+        }
+
+        /* Yan Menü (Araçlar) */
+        #sidebar {
+            width: 250px;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border: 1px solid #444;
+            overflow-y: auto;
+        }
+
+        .menu-title {
+            font-size: 14px;
+            font-weight: bold;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+            color: #ccc;
+        }
+
+        .tool-btn {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #3a3a4e;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+
+        .tool-btn:hover {
+            background: #4a4a62;
+        }
+
+        .tool-btn.active {
+            border-color: var(--accent-color);
+            background: #44445c;
+        }
+
+        .tool-cost {
+            font-size: 11px;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #ffeb3b;
+        }
+
+        /* Oyun Alanı (Grid) */
+        #grid-wrapper {
+            flex-grow: 1;
+            background: #111;
+            border-radius: 8px;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #444;
+            padding: 10px;
+        }
+
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(20, 32px);
+            grid-template-rows: repeat(20, 32px);
+            gap: 2px;
+            background: #222;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .cell {
+            width: 32px;
+            height: 32px;
+            background-color: var(--empty-color);
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            position: relative;
+        }
+
+        .cell:hover {
+            filter: brightness(1.3);
+            box-shadow: inset 0 0 5px #fff;
+        }
+
+        /* Hücre Tipleri */
+        .cell.road { background-color: var(--road-color); border: 1px dashed #777; }
+        .cell.residential { background-color: var(--res-color); }
+        .cell.commercial { background-color: var(--com-color); }
+        .cell.industrial { background-color: var(--ind-color); }
+        .cell.power { background-color: var(--power-color); animation: pulse 2s infinite; }
+        .cell.water { background-color: var(--water-color); }
+        .cell.park { background-color: var(--park-color); }
+        
+        .cell.no-power::after {
+            content: '⚡';
+            position: absolute;
+            font-size: 12px;
+            color: #ff3333;
+            top: -2px; right: -2px;
+            animation: bounce 0.5s infinite alternate;
+        }
+        .cell.no-water::after {
+            content: '💧';
+            position: absolute;
+            font-size: 12px;
+            color: #33a6ff;
+            top: -2px; left: -2px;
+            animation: bounce 0.5s infinite alternate;
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-3px); }
+        }
+
+        /* Haber Bandı */
+        #news-ticker {
+            width: 100%;
+            max-width: 1100px;
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 4px;
+            overflow: hidden;
+            white-space: nowrap;
+            box-sizing: border-box;
+            border: 1px solid #333;
+        }
+
+        #news-text {
+            display: inline-block;
+            padding-left: 100%;
+            animation: ticker 25s linear infinite;
+        }
+
+        @keyframes ticker {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>SimCity Retro Lite</h1>
+
+    <!-- ÜST DASHBOARD -->
+    <div id="dashboard">
+        <div class="stat-box">
+            <div id="stat-money" class="stat-val">$20,000</div>
+            <div class="stat-lbl">Bütçe</div>
+        </div>
+        <div class="stat-box">
+            <div id="stat-income" class="stat-val">+$0</div>
+            <div class="stat-lbl">Net Gelir</div>
+        </div>
+        <div class="stat-box">
+            <div id="stat-pop" class="stat-val">0</div>
+            <div class="stat-lbl">Nüfus</div>
+        </div>
+        <div class="stat-box">
+            <div id="stat-power" class="stat-val">0 / 0 MW</div>
+            <div class="stat-lbl">Enerji (Harcanan/Kapasite)</div>
+        </div>
+        <div class="stat-box">
+            <div id="stat-water" class="stat-val">0 / 0 L</div>
+            <div class="stat-lbl">Su Üretimi</div>
+        </div>
+        <div class="stat-box">
+            <div id="stat-happy" class="stat-val">%100</div>
+            <div class="stat-lbl">Mutluluk</div>
+        </div>
+        <div class="stat-box" style="display:flex; align-items:center; gap:10px;">
+            <div class="stat-lbl">RCI Talebi</div>
+            <div class="rci-container">
+                <div id="rci-r" class="rci-bar" style="height: 50%;"></div>
+                <div id="rci-c" class="rci-bar" style="height: 40%;"></div>
+                <div id="rci-i" class="rci-bar" style="height: 60%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ANA ALAN -->
+    <div id="main-container">
+        <!-- SOL MENÜ -->
+        <div id="sidebar">
+            <div class="menu-title">Altyapı</div>
+            <button class="tool-btn active" data-type="road"><span>🛣️ Yol</span><span class="tool-cost">$10</span></button>
+            <button class="tool-btn" data-type="power"><span>⚡ Enerji Santrali</span><span class="tool-cost">$400</span></button>
+            <button class="tool-btn" data-type="water"><span>💧 Su Kulesi</span><span class="tool-cost">$250</span></button>
+            
+            <div class="menu-title">Bölgeler (Zonlar)</div>
+            <button class="tool-btn" data-type="residential"><span>🟢 Konut Alanı</span><span class="tool-cost">$50</span></button>
+            <button class="tool-btn" data-type="commercial"><span>🔵 Ticaret Alanı</span><span class="tool-cost">$100</span></button>
+            <button class="tool-btn" data-type="industrial"><span>🟡 Sanayi Alanı</span><span class="tool-cost">$150</span></button>
+            
+            <div class="menu-title">Çevre & Sosyal</div>
+            <button class="tool-btn" data-type="park"><span>🌳 Park alanı</span><span class="tool-cost">$80</span></button>
+            
+            <div class="menu-title">Yıkım</div>
+            <button class="tool-btn" data-type="bulldozer" style="background:#5a2c2c;"><span>🚜 Buldozer</span><span class="tool-cost">$5</span></button>
+        </div>
+
+        <!-- OYUN GRIDI -->
+        <div id="grid-wrapper">
+            <div id="grid"></div>
+        </div>
+    </div>
+
+    <!-- HABER BANDI -->
+    <div id="news-ticker">
+        <span id="news-text">Yeni Şehre Hoş Geldiniz Sayın Belediye Başkanı! Lütfen önce yolları ve enerji santrallerini kurun. Vatandaşlar arsa bekliyor...</span>
+    </div>
+
+    <script>
+        // OYUN AYARLARI VE DEĞİŞKENLERİ
+        const GRID_SIZE = 20;
+        let money = 20000;
+        let population = 0;
+        let happiness = 100;
+        let currentTool = 'road';
+
+        // Yapı Veritabanı ve Maliyetleri
+        const buildings = {
+            road: { cost: 10, maintenance: 1, label: '🛣️' },
+            power: { cost: 400, maintenance: 15, label: '⚡' },
+            water: { cost: 250, maintenance: 10, label: '💧' },
+            residential: { cost: 50, maintenance: 2, label: '🏠' },
+            commercial: { cost: 100, maintenance: 5, label: '🏢' },
+            industrial: { cost: 150, maintenance: 8, label: '🏭' },
+            park: { cost: 80, maintenance: 3, label: '🌳' },
+            bulldozer: { cost: 5, maintenance: 0, label: '' }
+        };
+
+        // Grid Veri Yapısı
+        let gridData = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null).map(() => ({
+            type: 'empty',
+            hasPower: false,
+            hasWater: false,
+            level: 0
+        })));
+
+        // Haber Havuzu
+        const newsFeeds = [
+            "Lama koruma derneği başkanı belediyeyi ziyaret etti.",
+            "Vatandaşlar vergilerden şikayetçi ama şehri seviyor.",
+            "Yeni yapılan parklar emlak fiyatlarını uçurdu!",
+            "Sanayi bölgelerindeki duman rengi halkı endişelendiriyor.",
+            "Trafik sorunu için toplu taşıma istekleri artıyor.",
+            "Şehirde gizemli bir şekilde beliren devasa kurbağa heykeli ilgi odağı oldu.",
+            "Su kesintileri halkı canından bezdirdi! Altyapıyı kontrol edin.",
+            "Enerji krizi kapıda! Yeni jeneratörler şart."
+        ];
+
+        // UI Elementleri
+        const gridEl = document.getElementById('grid');
+        const moneyEl = document.getElementById('stat-money');
+        const incomeEl = document.getElementById('stat-income');
+        const popEl = document.getElementById('stat-pop');
+        const powerEl = document.getElementById('stat-power');
+        const waterEl = document.getElementById('stat-water');
+        const happyEl = document.getElementById('stat-happy');
+        const newsTextEl = document.getElementById('news-text');
+
+        // Oyunu Başlat
+        function initGame() {
+            // Grid'i Oluştur
+            gridEl.innerHTML = '';
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.addEventListener('click', () => handleCellClick(r, c));
+                    gridEl.appendChild(cell);
+                }
+            }
+
+            // Yan Menü Buton Etkinlikleri
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                    const target = e.currentTarget;
+                    target.classList.add('active');
+                    currentTool = target.dataset.type;
+                });
+            });
+
+            // Döngüleri Başlat
+            setInterval(gameTick, 2500); // Her 2.5 saniyede bir ekonomi döner
+            setInterval(updateNews, 15000); // 15 saniyede bir haber değişir
+            updateUI();
+        }
+
+        // Tıklama Yönetimi (İnşaat / Yıkım)
+        function handleCellClick(r, c) {
+            const cell = gridData[r][c];
+            const tool = buildings[currentTool];
+
+            if (currentTool === 'bulldozer') {
+                if (cell.type !== 'empty') {
+                    if (money >= tool.cost) {
+                        money -= tool.cost;
+                        gridData[r][c] = { type: 'empty', hasPower: false, hasWater: false, level: 0 };
+                        triggerNews("Bir bina yerle bir edildi.");
+                    }
+                }
+            } else {
+                if (cell.type === 'empty') {
+                    if (money >= tool.cost) {
+                        money -= tool.cost;
+                        gridData[r][c].type = currentTool;
+                        gridData[r][c].level = 1;
+                    } else {
+                        triggerNews("Yetersiz bütçe! İnşaat askıya alındı.");
+                    }
+                }
+            }
+            simulationStep();
+            updateUI();
+        }
+
+        // Simülasyon Motoru (Mantık ve Hesaplamalar)
+        function simulationStep() {
+            let totalPowerProd = 0;
+            let totalWaterProd = 0;
+            let totalPowerReq = 0;
+            let totalWaterReq = 0;
+            let newPop = 0;
+            let totalIncome = 0;
+            let totalExpenses = 0;
+            let activeParks = 0;
+
+            // 1. Aşama: Kaynak Üretimlerini ve Masrafları Hesapla
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = gridData[r][c];
+                    if (cell.type === 'empty') continue;
+
+                    totalExpenses += buildings[cell.type].maintenance;
+
+                    if (cell.type === 'power') totalPowerProd += 60;
+                    if (cell.type === 'water') totalWaterProd += 50;
+                    if (cell.type === 'park') activeParks++;
+
+                    // Gereksinimler
+                    if (cell.type === 'residential') { totalPowerReq += 3; totalWaterReq += 2; }
+                    if (cell.type === 'commercial') { totalPowerReq += 5; totalWaterReq += 3; }
+                    if (cell.type === 'industrial') { totalPowerReq += 8; totalWaterReq += 5; }
+                }
+            }
+
+            // 2. Aşama: Enerji ve Su Dağıtımı Kontrolü
+            let availablePower = totalPowerProd;
+            let availableWater = totalWaterProd;
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = gridData[r][c];
+                    if (['residential', 'commercial', 'industrial'].includes(cell.type)) {
+                        let reqP = cell.type === 'residential' ? 3 : (cell.type === 'commercial' ? 5 : 8);
+                        let reqW = cell.type === 'residential' ? 2 : (cell.type === 'commercial' ? 3 : 5);
+
+                        if (availablePower >= reqP) {
+                            cell.hasPower = true;
+                            availablePower -= reqP;
+                        } else {
+                            cell.hasPower = false;
+                        }
+
+                        if (availableWater >= reqW) {
+                            cell.hasWater = true;
+                            availableWater -= reqW;
+                        } else {
+                            cell.hasWater = false;
+                        }
+
+                        // Popülasyon ve Gelir Hesaplama (Sadece altyapısı tamsa gelişir)
+                        if (cell.hasPower && cell.hasWater) {
+                            if (cell.type === 'residential') {
+                                newPop += 15 * cell.level;
+                                totalIncome += 6; // Vergi
+                            }
+                            if (cell.type === 'commercial') {
+                                totalIncome += 15;
+                            }
+                            if (cell.type === 'industrial') {
+                                totalIncome += 22;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Mutluluk Derecesi Hesaplama
+            let basicHappiness = 100;
+            if (availablePower < 0 || totalPowerProd < totalPowerReq) basicHappiness -= 20;
+            if (availableWater < 0 || totalWaterProd < totalWaterReq) basicHappiness -= 20;
+            basicHappiness += (activeParks * 2);
+            happiness = Math.max(10, Math.min(100, basicHappiness));
+
+            population = newPop;
+            
+            // Net Kar/Zarar
+            let netIncome = totalIncome - totalExpenses;
+            
+            return {
+                netIncome,
+                totalPowerProd,
+                totalPowerReq,
+                totalWaterProd,
+                totalWaterReq
+            };
+        }
+
+        // Her Zaman Diliminde Tetiklenen Fonksiyon (Tick)
+        function gameTick() {
+            const stats = simulationStep();
+            money += stats.netIncome;
+            
+            // Rastgele RCI Talebi Güncelleme
+            document.getElementById('rci-r').style.height = Math.floor(Math.random() * 90 + 10) + '%';
+            document.getElementById('rci-c').style.height = Math.floor(Math.random() * 70 + 10) + '%';
+            document.getElementById('rci-i').style.height = Math.floor(Math.random() * 80 + 10) + '%';
+
+            updateUI(stats);
+        }
+
+        // Arayüzü Güncelleme (Render)
+        function updateUI(stats = null) {
+            if (!stats) stats = simulationStep();
+
+            // Skorları Yazdır
+            moneyEl.innerText = `$${money.toLocaleString()}`;
+            incomeEl.innerText = (stats.netIncome >= 0 ? `+$${stats.netIncome}` : `-$${Math.abs(stats.netIncome)}`);
+            incomeEl.style.color = stats.netIncome >= 0 ? 'var(--res-color)' : '#e74c3c';
+            popEl.innerText = population.toLocaleString();
+            powerEl.innerText = `${stats.totalPowerReq} / ${stats.totalPowerProd} MW`;
+            waterEl.innerText = `${stats.totalWaterReq} / ${stats.totalWaterProd} L`;
+            happyEl.innerText = `%${happiness}`;
+
+            // Hücreleri Görsel Olarak Güncelle
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cellEl => {
+                const r = parseInt(cellEl.dataset.row);
+                const c = parseInt(cellEl.dataset.col);
+                const data = gridData[r][c];
+
+                // Sınıfları temizle (cell hariç)
+                cellEl.className = 'cell';
+                cellEl.innerText = '';
+
+                if (data.type !== 'empty') {
+                    cellEl.classList.add(data.type);
+                    cellEl.innerText = buildings[data.type].label;
+
+                    // Altyapı Uyarı Simgeleri
+                    if (['residential', 'commercial', 'industrial'].includes(data.type)) {
+                        if (!data.hasPower) cellEl.classList.add('no-power');
+                        if (!data.hasWater) cellEl.classList.add('no-water');
+                    }
+                }
+            });
+        }
+
+        // Haberleri Değiştirme
+        function updateNews() {
+            const randomNews = newsFeeds[Math.floor(Math.random() * newsFeeds.length)];
+            triggerNews(randomNews);
+        }
+
+        function triggerNews(text) {
+            newsTextEl.innerText = `[FLAŞ] ${text} | Şehir Nüfusu: ${population} | Mutluluk Oranı: %${happiness}`;
+        }
+
+        // Başlatıcı
+        window.onload = initGame;
+    </script>
+</body>
+</html>
