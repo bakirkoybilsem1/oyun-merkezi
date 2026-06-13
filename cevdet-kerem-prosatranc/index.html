@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Cevdet Kerem ProSatranç</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <style>
+        :root { --bg: #262421; --cell-white: #ebecd0; --cell-black: #779556; --highlight: #baca44; }
+        body { background: var(--bg); color: white; display: flex; justify-content: center; padding-top: 20px; font-family: sans-serif; }
+        #game-container { display: flex; gap: 20px; }
+        #board { display: grid; grid-template-columns: repeat(8, 70px); border: 5px solid #3d3935; pointer-events: none; }
+        .active-board { pointer-events: auto !important; }
+        .cell { width: 70px; height: 70px; display: flex; justify-content: center; align-items: center; font-size: 50px; cursor: pointer; }
+        .white { background-color: var(--cell-white); color: black; }
+        .black { background-color: var(--cell-black); color: black; }
+        .selected { background-color: var(--highlight) !important; }
+        #sidebar { width: 280px; background: #302e2c; padding: 20px; border-radius: 8px; }
+        button { width: 100%; padding: 12px; margin-top: 10px; cursor: pointer; background: #81b64c; border: none; color: white; font-weight: bold; }
+        select { width: 100%; padding: 10px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="board"></div>
+    <div id="sidebar">
+        <h2 id="timer">--:--</h2>
+        <label>Seviye:</label>
+        <select id="elo"><option value="250">Başlangıç</option><option value="1500">Usta</option></select>
+        <label>Süre:</label>
+        <select id="time"><option value="300">5 Dakika</option><option value="600">10 Dakika</option></select>
+        <button onclick="startGame()">Yeni Oyun Başlat</button>
+        <p id="status" style="margin-top:20px; color: #ccc;">Oyunu başlatmak için butona bas.</p>
+    </div>
+</div>
+
+<script>
+    let game = new Chess();
+    let timerInterval, timeLeft, gameActive = false;
+    const boardEl = document.getElementById('board');
+    let selectedSquare = null;
+
+    function startGame() {
+        game = new Chess();
+        gameActive = true;
+        timeLeft = parseInt(document.getElementById('time').value);
+        boardEl.classList.add('active-board');
+        clearInterval(timerInterval);
+        startTimer();
+        renderBoard();
+        document.getElementById('status').innerText = "Oyun başladı! Sıra: Beyaz";
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            const mins = Math.floor(timeLeft / 60);
+            const secs = timeLeft % 60;
+            document.getElementById('timer').innerText = `${mins}:${secs < 10 ? '0'+secs : secs}`;
+            if (timeLeft <= 0) { gameActive = false; clearInterval(timerInterval); alert("Süre bitti!"); }
+        }, 1000);
+    }
+
+    function renderBoard() {
+        boardEl.innerHTML = '';
+        const board = game.board();
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const s = board[r][c];
+                const pos = String.fromCharCode(97 + c) + (8 - r);
+                const cell = document.createElement('div');
+                cell.className = `cell ${(r + c) % 2 === 0 ? 'white' : 'black'} ${selectedSquare === pos ? 'selected' : ''}`;
+                cell.innerHTML = s ? {'w':{'p':'♙','r':'♖','n':'♘','b':'♗','q':'♕','k':'♔'},'b':{'p':'♟','r':'♜','n':'♞','b':'♝','q':'♛','k':'♚'}}[s.color][s.type] : '';
+                cell.onclick = () => handleMove(pos);
+                boardEl.appendChild(cell);
+            }
+        }
+    }
+
+    function handleMove(pos) {
+        if (!gameActive) return;
+        if (selectedSquare) {
+            const move = game.move({ from: selectedSquare, to: pos, promotion: 'q' });
+            if (move) {
+                selectedSquare = null;
+                renderBoard();
+                if (!game.game_over()) setTimeout(makeBotMove, 500);
+            } else {
+                selectedSquare = pos;
+            }
+        } else {
+            selectedSquare = pos;
+        }
+        renderBoard();
+    }
+
+    function makeBotMove() {
+        const moves = game.moves();
+        if (moves.length === 0) return;
+        const move = moves[Math.floor(Math.random() * moves.length)];
+        game.move(move);
+        renderBoard();
+        if (game.in_checkmate()) { document.getElementById('status').innerText = "Oyun Bitti: MAT!"; gameActive = false; }
+    }
+
+    renderBoard();
+</script>
+</body>
+</html>
