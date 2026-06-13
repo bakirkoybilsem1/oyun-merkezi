@@ -556,5 +556,14 @@
       "#4ECDC4",
       "#44A08D"
     ]
+  },
+  {
+    "slug": "cevdet-kerem-prosatranc",
+    "name": "Cevdet Kerem ProSatranç",
+    "emoji": "🚀",
+    "colors": [
+      "#FCCB90",
+      "#D57EEB"
+    ]
   }
 ]
