@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ali Frede Edition</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif;}
+body{background:#000;color:white;overflow:hidden;}
+#game{width:100vw;height:100vh;position:relative;background:radial-gradient(circle at center,#222 0%,#000 80%);}
+#office{position:absolute;inset:0;background:linear-gradient(to bottom,#1a1a1a,#000);display:flex;align-items:flex-end;justify-content:center;}
+#desk{width:500px;height:180px;background:#2d2d2d;border-top:8px solid #444;border-radius:20px 20px 0 0;margin-bottom:40px;position:relative;box-shadow:0 0 30px rgba(255,255,255,0.05);}
+#leftDoor,#rightDoor{position:absolute;top:100px;width:120px;height:380px;background:#333;border:4px solid #555;transition:0.3s;border-radius:10px;box-shadow:inset 0 0 20px #000;}
+#leftDoor{left:30px;}
+#rightDoor{right:30px;}
+.closed{background:#666 !important;box-shadow:0 0 30px red inset;}
+#controls{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:20;flex-wrap:wrap;justify-content:center;}
+button{padding:12px 18px;border:none;border-radius:10px;background:#444;color:white;cursor:pointer;font-weight:bold;transition:0.2s;}
+button:hover{background:#666;transform:scale(1.05);}
+#cameraPanel{position:absolute;top:20px;right:20px;width:300px;height:200px;background:#111;border:4px solid #444;display:none;flex-direction:column;padding:10px;z-index:30;box-shadow:0 0 20px rgba(255,255,255,0.08);}
+#cameraFeed{flex:1;background:#000;border:2px solid #555;display:flex;align-items:center;justify-content:center;color:#0f0;font-size:18px;text-align:center;padding:10px;}
+#statusBar{position:absolute;top:20px;left:20px;z-index:25;background:rgba(0,0,0,0.6);padding:12px;border-radius:12px;border:2px solid #333;font-size:18px;line-height:1.6;}
+.power-low{color:#ff4444;font-weight:bold;}
+#monster{position:absolute;width:120px;height:160px;background:#8b0000;border-radius:20px;display:none;z-index:10;box-shadow:0 0 30px red;animation:pulse 1s infinite alternate;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+#monster img{width:100px;height:100px;}
+#jumpscare{position:absolute;inset:0;background:red;display:none;align-items:center;justify-content:center;flex-direction:column;z-index:999;animation:flash 0.15s infinite alternate;}
+#jumpscare h1{font-size:70px;color:white;text-shadow:0 0 20px black;}
+#jumpscare p{margin-top:10px;font-size:24px;}
+#startScreen,#winScreen{position:absolute;inset:0;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:1000;text-align:center;padding:20px;}
+#startScreen h1,#winScreen h1{font-size:50px;margin-bottom:20px;color:#ff4444;}
+#startScreen p,#winScreen p{max-width:700px;font-size:20px;margin-bottom:20px;color:#ddd;}
+@keyframes flash{from{background:#600;}to{background:#f00;}}
+@keyframes pulse{from{transform:scale(1);}to{transform:scale(1.05);}}
+@media (max-width:768px){#cameraPanel{width:240px;height:160px;}#desk{width:300px;height:140px;}#leftDoor,#rightDoor{width:80px;height:260px;top:140px;}#jumpscare h1{font-size:40px;}}
+</style>
+</head>
+<body>
+<div id="game">
+<div id="startScreen">
+<h1>Night Shift: Frede Edition</h1>
+<p>
+Frede seni bekliyor 😈<br>
+Sabah 06:00'a kadar hayatta kal.<br>
+Kapıları kapat, kamerayı kontrol et, enerjiyi dikkatli kullan!
+</p>
+<button onclick="startGame()">OYUNU BAŞLAT</button>
+</div>
+
+<div id="office">
+<div id="leftDoor"></div>
+<div id="rightDoor"></div>
+<div id="monster"><img id="monsterImg" src="https://i.ibb.co/SfJrVbC/frede.png" alt="Frede"></div>
+<div id="desk"></div>
+</div>
+
+<div id="statusBar">
+<div id="timeText">Saat: 12 AM</div>
+<div id="powerText">Enerji: 100%</div>
+<div id="dangerText">Tehlike: Düşük</div>
+</div>
+
+<div id="cameraPanel">
+<div id="cameraFeed">Kamera Açık<br>Koridor Boş...</div>
+</div>
+
+<div id="controls">
+<button onclick="toggleLeftDoor()">Sol Kapı</button>
+<button onclick="toggleRightDoor()">Sağ Kapı</button>
+<button onclick="toggleCamera()">Kamera</button>
+<button onclick="restartGame()">Yeniden Başlat</button>
+</div>
+
+<div id="jumpscare">
+<h1>YAKALANDIN!</h1>
+<p>Frede seni yakaladı 😵</p>
+<button onclick="restartGame()">Tekrar Oyna</button>
+</div>
+
+<div id="winScreen" style="display:none;">
+<h1>KAZANDIN! 🎉</h1>
+<p>Sabah 06:00 oldu. Frede’den kurtuldun!</p>
+<button onclick="restartGame()">Tekrar Oyna</button>
+</div>
+</div>
+
+<script>
+let leftClosed=false,rightClosed=false,cameraOpen=false,power=100,hour=12,gameRunning=false,monsterSide="left",monsterStage=0;
+const leftDoor=document.getElementById("leftDoor"),rightDoor=document.getElementById("rightDoor"),cameraPanel=document.getElementById("cameraPanel"),cameraFeed=document.getElementById("cameraFeed"),powerText=document.getElementById("powerText"),timeText=document.getElementById("timeText"),dangerText=document.getElementById("dangerText"),monster=document.getElementById("monster"),monsterImg=document.getElementById("monsterImg"),jumpscare=document.getElementById("jumpscare"),startScreen=document.getElementById("startScreen"),winScreen=document.getElementById("winScreen");
+function startGame(){startScreen.style.display="none";resetValues();gameRunning=true;gameLoop=setInterval(updateGame,1000);aiLoop=setInterval(updateMonsterAI,2500);hourLoop=setInterval(updateHour,10000);}
+function resetValues(){leftClosed=false;rightClosed=false;cameraOpen=false;power=100;hour=12;monsterSide=Math.random()<0.5?"left":"right";monsterStage=0;leftDoor.classList.remove("closed");rightDoor.classList.remove("closed");cameraPanel.style.display="none";jumpscare.style.display="none";winScreen.style.display="none";updateTexts();}
+function toggleLeftDoor(){if(!gameRunning||power<=0)return;leftClosed=!leftClosed;leftDoor.classList.toggle("closed",leftClosed);}
+function toggleRightDoor(){if(!gameRunning||power<=0)return;rightClosed=!rightClosed;rightDoor.classList.toggle("closed",rightClosed);}
+function toggleCamera(){if(!gameRunning||power<=0)return;cameraOpen=!cameraOpen;cameraPanel.style.display=cameraOpen?"flex":"none";updateCameraFeed();}
+function updateGame(){if(!gameRunning)return;let usage=.5;if(leftClosed)usage+=.8;if(rightClosed)usage+=.8;if(cameraOpen)usage+=1.2;power-=usage;if(power<0)power=0;if(power<=15){powerText.innerHTML=`<span class="power-low">Enerji: ${Math.floor(power)}%</span>`;}else{powerText.textContent=`Enerji: ${Math.floor(power)}%`;}if(power<=0){leftClosed=false;rightClosed=false;leftDoor.classList.remove("closed");rightDoor.classList.remove("closed");cameraOpen=false;cameraPanel.style.display="none";dangerText.textContent="Tehlike: Enerji Bitti!";}checkLose();updateCameraFeed();}
+function updateHour(){if(!gameRunning)return;hour++;if(hour===13)hour=1;if(hour===6){winGame();return;}updateTexts();}
+function updateTexts(){timeText.textContent=`Saat: ${hour} AM`;dangerText.textContent=hour<=2?"Tehlike: Düşük":hour<=4?"Tehlike: Orta":"Tehlike: Çok Yüksek";powerText.textContent=`Enerji: ${Math.floor(power)}%`;}
+function updateMonsterAI(){if(!gameRunning)return;const aggression=hour<=2?.45:hour<=4?.65:.85;if(Math.random()<aggression){monsterStage++;}else{if(Math.random()<.3&&monsterStage>0)monsterStage--;}if(monsterStage>2)monsterStage=2;if(monsterStage<0)monsterStage=0;if(monsterStage===0&&Math.random()<.4)monsterSide=Math.random()<0.5?"left":"right";updateMonsterVisual();checkLose();updateCameraFeed();}
+function updateMonsterVisual(){if(monsterStage===0){monster.style.display="none";return;}monster.style.display="flex";monsterImg.src="https://i.ibb.co/SfJrVbC/frede.png";if(monsterSide==="left"){monster.style.left=monsterStage===1?"180px":"60px";monster.style.right="auto";monster.style.top="230px";}else{monster.style.right=monsterStage===1?"180px":"60px";monster.style.left="auto";monster.style.top="230px";}}
+function updateCameraFeed(){if(!cameraOpen)return;if(monsterStage===0){cameraFeed.innerHTML="Kamera Açık<br>Koridor Boş...";}else if(monsterStage===1){cameraFeed.innerHTML=`Kamera Açık<br>${monsterSide==="left"?"SOL":"SAĞ"} KORİDORDA BİR ŞEY VAR...`; }else{cameraFeed.innerHTML=`Kamera Açık<br>${monsterSide==="left"?"SOL":"SAĞ"} KAPIYA ÇOK YAKIN!`;} }
+function checkLose(){if(!gameRunning)return;if(monsterStage>=2){if(monsterSide==="left"&&!leftClosed){loseGame();}if(monsterSide==="right"&&!rightClosed){loseGame();}}}
+function loseGame(){gameRunning=false;clearInterval(gameLoop);clearInterval(aiLoop);clearInterval(hourLoop);jumpscare.style.display="flex";}
+function winGame(){gameRunning=false;clearInterval(gameLoop);clearInterval(aiLoop);clearInterval(hourLoop);winScreen.style.display="flex";}
+function restartGame(){clearInterval(gameLoop);clearInterval(aiLoop);clearInterval(hourLoop);startScreen.style.display="none";resetValues();gameRunning=true;gameLoop=setInterval(updateGame,1000);aiLoop=setInterval(updateMonsterAI,2500);hourLoop=setInterval(updateHour,10000);}
+</script>
+</body>
+</html>
