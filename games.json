@@ -547,5 +547,14 @@
       "#FF6B6B",
       "#FF8E53"
     ]
+  },
+  {
+    "slug": "ali-frede-edition",
+    "name": "Ali Frede Edition",
+    "emoji": "🏎️",
+    "colors": [
+      "#4ECDC4",
+      "#44A08D"
+    ]
   }
 ]
