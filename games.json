@@ -565,5 +565,14 @@
       "#FCCB90",
       "#D57EEB"
     ]
+  },
+  {
+    "slug": "alp-cinar-sonsuz-savas",
+    "name": "Alp Çınar Sonsuz Savaş",
+    "emoji": "🎯",
+    "colors": [
+      "#96FBC4",
+      "#F9F586"
+    ]
   }
 ]
