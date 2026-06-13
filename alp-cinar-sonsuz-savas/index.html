@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alp Çınar Sonsuz Savaş</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; font-family: 'Courier New', Courier, monospace; color: #fff; user-select: none; }
+        canvas { display: block; background: radial-gradient(circle, #111 0%, #000 100%); }
+        #ui-container { position: absolute; top: 10px; left: 10px; pointer-events: none; }
+        .stat { font-size: 20px; font-weight: bold; text-shadow: 0 0 5px #00f; margin-bottom: 5px; }
+        #boss-bar-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 300px; height: 20px; background: #333; border: 2px solid #ff0055; display: none; border-radius: 5px; overflow: hidden; }
+        #boss-bar { width: 100%; height: 100%; background: #ff0055; transition: width 0.1s; }
+        #menu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.9); padding: 30px; border: 3px solid #ffe81f; border-radius: 10px; text-align: center; max-width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 0 20px #ffe81f; }
+        h1 { color: #ffe81f; margin-bottom: 20px; text-shadow: 0 0 10px #ffe81f; font-size: 28px; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px; }
+        @media (max-width: 800px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+        .ship-card { background: #111; border: 2px solid #444; padding: 10px; border-radius: 5px; cursor: pointer; transition: 0.2s; position: relative; }
+        .ship-card:hover { border-color: #fff; background: #222; }
+        .ship-card.selected { border-color: #00ffcc; box-shadow: 0 0 10px #00ffcc; }
+        .ship-card.locked { opacity: 0.6; border-color: #550000; }
+        .ship-card canvas { background: transparent; margin: 0 auto; }
+        .price { color: #ffe81f; font-weight: bold; margin-top: 5px; }
+        .start-btn { margin-top: 25px; padding: 12px 40px; background: #ffe81f; color: #000; font-size: 20px; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        .start-btn:hover { background: #fff; box-shadow: 0 0 15px #fff; }
+        .ship-info { font-size: 11px; color: #aaa; margin-top: 5px; line-height: 1.2; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-container">
+        <div class="stat" id="score-display">Mesafe: 0 km</div>
+        <div class="stat" id="credits-display" style="text-shadow: 0 0 5px #ffe81f; color: #ffe81f;">Kredi: 0</div>
+    </div>
+
+    <div id="boss-bar-container">
+        <div id="boss-bar"></div>
+    </div>
+
+    <div id="menu">
+        <h1 id="menu-title">STAR WARS: 2D SAVAŞ</h1>
+        <p>Gemi seç veya yeni bir gemi satın al. Düşmanları vurarak kredi kazan!</p>
+        <div id="menu-credits" style="font-size: 22px; color: #ffe81f; margin-top: 10px; font-weight: bold;">Kredi: 0</div>
+        <div class="grid" id="ship-grid"></div>
+        <button class="start-btn" id="start-btn">SAVAŞA BAŞLA</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // OYUN DEĞİŞKENLERİ
+        let score = 0;
+        let credits = 100; // Başlangıç kredisi
+        let gameState = "MENU"; // MENU, PLAYING, GAMEOVER
+        let selectedShipIndex = 0;
+        let bossSpawned = false;
+        let bossLevel = 1;
+        let nextBossScore = 200;
+
+        const player = { x: 0, y: 0, w: 40, h: 40, targetX: 0, targetY: 0 };
+        let stars = [];
+        let playerBullets = [];
+        let enemyBullets = [];
+        let enemies = [];
+        let particles = [];
+        let keys = {};
+
+        // 20 FARKLI GEMİ TASARIMI VE ÖZELLİKLERİ
+        const SHIPS = [
+            { name: "Z-95 Headhunter", cost: 0, color: "#e0e0e0", accent: "#ff0000", speed: 0.15, fireRate: 350, damage: 1, type: "spread", desc: "Klasik başlangıç avcısı." },
+            { name: "V-Wing", cost: 80, color: "#b0c4de", accent: "#8b0000", speed: 0.18, fireRate: 300, damage: 1.2, type: "normal", desc: "Hızlı ve çevik hafif avcı." },
+            { name: "TIE Fighter", cost: 150, color: "#778899", accent: "#00ffcc", speed: 0.16, fireRate: 250, damage: 1, type: "normal", desc: "İmparatorluk standart çevik hat gemisi." },
+            { name: "Y-Wing Bomber", cost: 250, color: "#f5f5dc", accent: "#ffa500", speed: 0.10, fireRate: 500, damage: 3, type: "heavy", desc: "Yavaş ama yüksek hasarlı ağır bombalayıcı." },
+            { name: "X-Wing T-65", cost: 400, color: "#ffffff", accent: "#ff4500", speed: 0.15, fireRate: 280, damage: 1.8, type: "laser4", desc: "Asi Birliği'nin efsanevi dengeli avcısı." },
+            { name: "TIE Interceptor", cost: 550, color: "#708090", accent: "#ff0000", speed: 0.22, fireRate: 180, damage: 1.2, type: "normal", desc: "Yüksek hızlı, seri atışlı önleme uçağı." },
+            { name: "A-Wing", cost: 700, color: "#dcdcdc", accent: "#cc0000", speed: 0.25, fireRate: 220, damage: 1.4, type: "spread", desc: "Muazzam hız ve geniş atış açısı." },
+            { name: "B-Wing", cost: 900, color: "#a9a9a9", accent: "#ff8c00", speed: 0.11, fireRate: 400, damage: 4, type: "heavy", desc: "Zırhlı prototip, dikey saldırı platformu." },
+            { name: "TIE Advanced x1", cost: 1200, color: "#4f4f4f", accent: "#ff0055", speed: 0.18, fireRate: 150, damage: 2, type: "laser4", desc: "Darth Vader'ın özel modifiye edilmiş gemisi." },
+            { name: "Millennium Falcon", cost: 1600, color: "#dedede", accent: "#0066ff", speed: 0.16, fireRate: 200, damage: 2.5, type: "spread3", desc: "Galaksinin en hızlı hurdası. Çoklu atış." },
+            { name: "ARC-170", cost: 2000, color: "#f0f0f0", accent: "#b22222", speed: 0.13, fireRate: 300, damage: 3.5, type: "laser4", desc: "Klon Savaşları emektarı, ağır lazer donanımlı." },
+            { name: "Jedi Interceptor", cost: 2500, color: "#ffcc00", accent: "#111111", speed: 0.24, fireRate: 140, damage: 2.2, type: "normal", desc: "Güç hassasiyetine sahip pilotlar için ultra hızlı." },
+            { name: "TIE Defender", cost: 3200, color: "#5c6b73", accent: "#ff0033", speed: 0.20, fireRate: 120, damage: 2.8, type: "laser4", desc: "Kalkan ve muazzam ateş gücü bir arada." },
+            { name: "Slave I", cost: 4000, color: "#556b2f", accent: "#8b4513", speed: 0.14, fireRate: 250, damage: 5, type: "heavy", desc: "Boba Fett'in ölümcül ve taktiksel avcı gemisi." },
+            { name: "E-Wing", cost: 5000, color: "#e6e6fa", accent: "#000080", speed: 0.18, fireRate: 160, damage: 3.5, type: "spread3", desc: "Yeni Cumhuriyet'in gelişmiş ön hat avcısı." },
+            { name: "Gauntlet Fighter", cost: 6500, color: "#4682b4", accent: "#ffffff", speed: 0.17, fireRate: 180, damage: 4.5, type: "laser4", desc: "Mandalorian gövde tasarımı, yüksek hasar." },
+            { name: "TIE Silencer", cost: 8000, color: "#1c1c1c", accent: "#ff0000", speed: 0.21, fireRate: 100, damage: 4, type: "spread3", desc: "Kylo Ren'in agresif ve yıkıcı yeni nesil gemisi." },
+            { name: "Infiltrator", cost: 10000, color: "#2f4f4f", accent: "#ff0000", speed: 0.19, fireRate: 120, damage: 5.5, type: "heavy", desc: "Sith teknolojisi, tek atışta devasa yıkım." },
+            { name: "Star Destroyer Mini", cost: 15000, color: "#aaaaaa", accent: "#00ff00", speed: 0.08, fireRate: 200, damage: 8, type: "barrage", desc: "Küçültülmüş kruvazör. Tam bir baraj ateşi!" },
+            { name: "Death Star Prototip", cost: 25000, color: "#333333", accent: "#00ff00", speed: 0.06, fireRate: 400, damage: 25, type: "deathray", desc: "Gezegen yok edici güç artık parmaklarının ucunda." }
+        ];
+
+        let unlockedShips = [0]; // Kilidi açılan gemilerin indexleri
+        let lastShotTime = 0;
+
+        // LOCAL STORAGE YÜKLEME
+        if(localStorage.getItem("sw_credits")) {
+            credits = parseInt(localStorage.getItem("sw_credits"));
+            unlockedShips = JSON.parse(localStorage.getItem("sw_unlocked"));
+            selectedShipIndex = parseInt(localStorage.getItem("sw_selected") || 0);
+        }
+
+        function saveGame() {
+            localStorage.setItem("sw_credits", credits);
+            localStorage.setItem("sw_unlocked", JSON.stringify(unlockedShips));
+            localStorage.setItem("sw_selected", selectedShipIndex);
+        }
+
+        // YILDIZ ARKA PLANI
+        for (let i = 0; i < 100; i++) {
+            stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 2, speed: Math.random() * 3 + 1 });
+        }
+
+        // INPUT TAKİBİ (MOUSE)
+        window.addEventListener('mousemove', (e) => {
+            player.targetX = e.clientX;
+            player.targetY = e.clientY;
+        });
+
+        // KONTROLLER VE ARAYÜZ
+        const menuEl = document.getElementById("menu");
+        const startBtn = document.getElementById("start-btn");
+        const shipGridEl = document.getElementById("ship-grid");
+        const menuCreditsEl = document.getElementById("menu-credits");
+        const scoreDisplay = document.getElementById("score-display");
+        const creditsDisplay = document.getElementById("credits-display");
+        const bossBarContainer = document.getElementById("boss-bar-container");
+        const bossBar = document.getElementById("boss-bar");
+
+        function buildMenu() {
+            menuCreditsEl.innerText = "Kredi: " + credits;
+            shipGridEl.innerHTML = "";
+            
+            SHIPS.forEach((ship, index) => {
+                const card = document.createElement("div");
+                card.className = "ship-card";
+                if (!unlockedShips.includes(index)) card.classList.add("locked");
+                if (index === selectedShipIndex) card.classList.add("selected");
+
+                card.innerHTML = `
+                    <canvas id="cvs-${index}" width="60" height="60"></canvas>
+                    <div style="font-weight:bold; font-size:12px; margin-top:5px;">${ship.name}</div>
+                    <div class="ship-info">Hasar: ${ship.damage}<br>Hız: ${Math.round(ship.speed*100)}</div>
+                    <div class="price">${unlockedShips.includes(index) ? "AÇIK" : ship.cost + " Kredi"}</div>
+                `;
+
+                card.addEventListener('click', () => {
+                    if (unlockedShips.includes(index)) {
+                        selectedShipIndex = index;
+                        buildMenu();
+                        saveGame();
+                    } else {
+                        if (credits >= ship.cost) {
+                            credits -= ship.cost;
+                            unlockedShips.push(index);
+                            selectedShipIndex = index;
+                            buildMenu();
+                            saveGame();
+                        } else {
+                            alert("Yetersiz Kredi!");
+                        }
+                    }
+                });
+
+                shipGridEl.appendChild(card);
+                drawShipPreview(index, ship);
+            });
+        }
+
+        function drawShipPreview(index, ship) {
+            const c = document.getElementById(`cvs-${index}`);
+            if(!c) return;
+            const ctxS = c.getContext("2d");
+            ctxS.clearRect(0,0,60,60);
+            drawShipGraphics(ctxS, 30, 30, ship, 40);
+        }
+
+        // GEMİ ÇİZİM FONKSİYONU (TIKLANAN VEYA OYNANAN)
+        function drawShipGraphics(ctxRef, x, y, ship, size) {
+            ctxRef.save();
+            ctxRef.translate(x, y);
+            
+            // Kanatlar / Gövde Tasarımları (Vektörel Çizimler)
+            ctxRef.fillStyle = ship.color;
+            ctxRef.strokeStyle = ship.accent;
+            ctxRef.lineWidth = 2;
+
+            if (ship.type === "normal" || ship.type === "spread") {
+                // TIE tarzı yan kanatlar veya X kanat ucu
+                ctxRef.fillRect(-size/2, -size/4, size, size/8);
+                ctxRef.fillRect(-size/6, -size/2, size/3, size);
+                ctxRef.fillStyle = ship.accent;
+                ctxRef.fillRect(-size/12, -size/3, size/6, size/4);
+            } else if (ship.type === "heavy" || ship.type === "barrage") {
+                // Ağır bombardıman veya Y-Wing tarzı dikine tank gövdeler
+                ctxRef.beginPath();
+                ctxRef.moveTo(0, -size/2);
+                ctxRef.lineTo(size/3, size/2);
+                ctxRef.lineTo(-size/3, size/2);
+                ctxRef.closePath();
+                ctxRef.fill();
+                ctxRef.stroke();
+                ctxRef.fillStyle = "#555";
+                ctxRef.fillRect(-size/2, 0, size, size/6);
+            } else if (ship.type === "laser4" || ship.type === "spread3") {
+                // Gelişmiş X veya Yıldız Savaşçısı geometrisi
+                ctxRef.beginPath();
+                ctxRef.moveTo(0, -size/2);
+                ctxRef.lineTo(size/2, size/3);
+                ctxRef.lineTo(size/4, size/2);
+                ctxRef.lineTo(-size/4, size/2);
+                ctxRef.lineTo(-size/2, size/3);
+                ctxRef.closePath();
+                ctxRef.fill();
+                ctxRef.stroke();
+                // Kokpit havuzu
+                ctxRef.fillStyle = "#00ffcc";
+                ctxRef.beginPath();
+                ctxRef.arc(0, -size/8, size/8, 0, Math.PI * 2);
+                ctxRef.fill();
+            } else if (ship.type === "deathray") {
+                // Yuvarlak Ölüm Yıldızı Hücresi prototipi
+                ctxRef.beginPath();
+                ctxRef.arc(0, 0, size/2, 0, Math.PI*2);
+                ctxRef.fill();
+                ctxRef.stroke();
+                ctxRef.fillStyle = "#ff0000";
+                ctxRef.beginPath();
+                ctxRef.arc(-size/6, -size/6, size/6, 0, Math.PI*2);
+                ctxRef.fill();
+            }
+            ctxRef.restore();
+        }
+
+        startBtn.addEventListener('click', () => {
+            menuEl.style.display = "none";
+            initGame();
+        });
+
+        function initGame() {
+            score = 0;
+            bossSpawned = false;
+            bossLevel = 1;
+            nextBossScore = 200;
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 100;
+            player.targetX = player.x;
+            player.targetY = player.y;
+            playerBullets = [];
+            enemyBullets = [];
+            enemies = [];
+            particles = [];
+            gameState = "PLAYING";
+            bossBarContainer.style.display = "none";
+        }
+
+        function createExplosion(x, y, color, count = 10) {
+            for(let i=0; i<count; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    size: Math.random() * 3 + 1,
+                    alpha: 1,
+                    color: color || "#ffcc00"
+                });
+            }
+        }
+
+        // DÜŞMAN ÜRETİM MANTIĞI
+        function spawnEnemy() {
+            if (gameState !== "PLAYING" || bossSpawned) return;
+
+            // Her 200 km'de bir Boss tetiklenir
+            if (score >= nextBossScore && !bossSpawned) {
+                bossSpawned = true;
+                enemies.push({
+                    id: "BOSS",
+                    x: canvas.width / 2,
+                    y: -100,
+                    w: 120,
+                    h: 80,
+                    hp: 50 * bossLevel,
+                    maxHp: 50 * bossLevel,
+                    speed: 1,
+                    lastShot: 0,
+                    shootInterval: Math.max(300, 1000 - (bossLevel * 50)),
+                    color: "#73001a",
+                    vx: 2
+                });
+                bossBarContainer.style.display = "block";
+                bossBar.style.width = "100%";
+                return;
+            }
+
+            // Normal düşman üretimi (Skor yükseldikçe güçlenirler)
+            const types = ["TIE_Basic", "TIE_Advanced", "Bomber"];
+            const type = types[Math.floor(Math.random() * types.length)];
+            let hp = 1 + Math.floor(score / 500);
+            let color = "#e63946";
+            let w = 30, h = 30;
+
+            if(type === "TIE_Advanced") { hp *= 2; color = "#9b5de5"; w = 35; h = 35; }
+            if(type === "Bomber") { hp *= 3; color = "#f15bb5"; w = 40; h = 40; }
+
+            enemies.push({
+                id: "NORMAL",
+                type: type,
+                x: Math.random() * (canvas.width - 40) + 20,
+                y: -40,
+                w: w,
+                h: h,
+                hp: hp,
+                speed: Math.random() * 2 + 2 + (score/1000),
+                lastShot: 0,
+                shootInterval: Math.random() * 1500 + 1000
+            });
+        }
+
+        setInterval(spawnEnemy, 900);
+
+        // OYUN DÖNGÜSÜ (LOOP)
+        function update(time) {
+            // Arka Plan Yıldız Kayması
+            stars.forEach(star => {
+                star.y += star.speed;
+                if (star.y > canvas.height) { star.y = 0; star.x = Math.random() * canvas.width; }
+            });
+
+            if (gameState === "PLAYING") {
+                score += 0.1; // km ilerlemesi
+                scoreDisplay.innerText = `Mesafe: ${Math.floor(score)} km`;
+                creditsDisplay.innerText = `Kredi: ${credits}`;
+
+                const currentShip = SHIPS[selectedShipIndex];
+
+                // Oyuncu yumuşak hareket takibi (Lerp)
+                player.x += (player.targetX - player.x) * currentShip.speed;
+                player.y += (player.targetY - player.y) * currentShip.speed;
+
+                // Ekran sınırları koruması
+                if (player.x < player.w/2) player.x = player.w/2;
+                if (player.x > canvas.width - player.w/2) player.x = canvas.width - player.w/2;
+                if (player.y < player.h/2) player.y = player.h/2;
+                if (player.y > canvas.height - player.h/2) player.y = canvas.height - player.h/2;
+
+                // Otomatik Ateş Mekanizması
+                if (time - lastShotTime > currentShip.fireRate) {
+                    const dmg = currentShip.damage;
+                    if (currentShip.type === "normal") {
+                        playerBullets.push({ x: player.x, y: player.y - 20, vy: -12, dmg: dmg, color: "#00ffcc" });
+                    } else if (currentShip.type === "spread") {
+                        playerBullets.push({ x: player.x - 10, y: player.y - 20, vy: -12, vx: -1.5, dmg: dmg, color: "#ffe81f" });
+                        playerBullets.push({ x: player.x + 10, y: player.y - 20, vy: -12, vx: 1.5, dmg: dmg, color: "#ffe81f" });
+                    } else if (currentShip.type === "heavy" || currentShip.type === "deathray") {
+                        playerBullets.push({ x: player.x, y: player.y - 25, vy: -8, dmg: dmg, size: 6, color: currentShip.accent });
+                    } else if (currentShip.type === "laser4") {
+                        playerBullets.push({ x: player.x - 15, y: player.y - 10, vy: -14, dmg: dmg, color: "#ff0055" });
+                        playerBullets.push({ x: player.x - 5, y: player.y - 20, vy: -14, dmg: dmg, color: "#ff0055" });
+                        playerBullets.push({ x: player.x + 5, y: player.y - 20, vy: -14, dmg: dmg, color: "#ff0055" });
+                        playerBullets.push({ x: player.x + 15, y: player.y - 10, vy: -14, dmg: dmg, color: "#ff0055" });
+                    } else if (currentShip.type === "spread3" || currentShip.type === "barrage") {
+                        playerBullets.push({ x: player.x, y: player.y - 20, vy: -12, vx: 0, dmg: dmg, color: "#0066ff" });
+                        playerBullets.push({ x: player.x - 12, y: player.y - 15, vy: -11, vx: -3, dmg: dmg, color: "#0066ff" });
+                        playerBullets.push({ x: player.x + 12, y: player.y - 15, vy: -11, vx: 3, dmg: dmg, color: "#0066ff" });
+                    }
+                    lastShotTime = time;
+                }
+
+                // Oyuncu Mermileri Güncelleme
+                playerBullets.forEach((b, bIdx) => {
+                    b.y += b.vy;
+                    if(b.vx) b.x += b.vx;
+                    if (b.y < -20) playerBullets.splice(bIdx, 1);
+                });
+
+                // Düşman Mermileri Güncelleme
+                enemyBullets.forEach((eb, ebIdx) => {
+                    eb.y += eb.vy;
+                    if(eb.vx) eb.x += eb.vx;
+                    if (eb.y > canvas.height + 20) enemyBullets.splice(ebIdx, 1);
+
+                    // Oyuncu Vuruldu mu? (Hitbox kontrolü)
+                    let distY = Math.abs(eb.y - player.y);
+                    let distX = Math.abs(eb.x - player.x);
+                    if (distX < player.w / 2 && distY < player.h / 2) {
+                        createExplosion(player.x, player.y, "#ff3300", 40);
+                        gameState = "GAMEOVER";
+                        bossBarContainer.style.display = "none";
+                        saveGame();
+                        setTimeout(() => {
+                            document.getElementById("menu-title").innerText = "GEMİN YOK EDİLDİ!";
+                            menuEl.style.display = "block";
+                            buildMenu();
+                        }, 1000);
+                    }
+                });
+
+                // Düşmanların Güncellenmesi
+                enemies.forEach((e, eIdx) => {
+                    if (e.id === "BOSS") {
+                        // Boss Hareket Şeması (Yukarıdan girer, sağa sola gezinir)
+                        if (e.y < 100) e.y += 2;
+                        e.x += e.vx;
+                        if (e.x < e.w || e.x > canvas.width - e.w) e.vx *= -1;
+
+                        // Boss Ateş Mekanizması
+                        if (time - e.lastShot > e.shootInterval) {
+                            enemyBullets.push({ x: e.x - 30, y: e.y + 20, vy: 5, vx: -1, color: "#ff0055" });
+                            enemyBullets.push({ x: e.x, y: e.y + 30, vy: 6, vx: 0, color: "#ff0055" });
+                            enemyBullets.push({ x: e.x + 30, y: e.y + 20, vy: 5, vx: 1, color: "#ff0055" });
+                            e.lastShot = time;
+                        }
+                    } else {
+                        // Normal Düşman Hareketi
+                        e.y += e.speed;
+                        if (e.y > canvas.height + 40) enemies.splice(eIdx, 1);
+
+                        // Normal Düşman Ateşi
+                        if (time - e.lastShot > e.shootInterval) {
+                            enemyBullets.push({ x: e.x, y: e.y + 15, vy: 6, color: "#ff4d4d" });
+                            e.lastShot = time;
+                        }
+                    }
+
+                    // Oyuncu mermileri düşmana çarptı mı?
+                    playerBullets.forEach((pb, pbIdx) => {
+                        if (Math.abs(pb.x - e.x) < e.w / 1.5 && Math.abs(pb.y - e.y) < e.h / 1.5) {
+                            e.hp -= pb.dmg;
+                            playerBullets.splice(pbIdx, 1);
+                            createExplosion(pb.x, pb.y, "#ffcc00", 3);
+
+                            if (e.hp <= 0) {
+                                createExplosion(e.x, e.y, e.color || "#ff3300", e.id === "BOSS" ? 50 : 12);
+                                if (e.id === "BOSS") {
+                                    credits += 100 * bossLevel;
+                                    bossSpawned = false;
+                                    bossLevel++;
+                                    nextBossScore += 200; // Sonraki boss baremi arttı
+                                    bossBarContainer.style.display = "none";
+                                } else {
+                                    credits += 5; // Normal düşman öldürme ödülü
+                                }
+                                enemies.splice(eIdx, 1);
+                            } else if (e.id === "BOSS") {
+                                // Boss can barı güncelle
+                                let hpPct = (e.hp / e.maxHp) * 100;
+                                bossBar.style.width = hpPct + "%";
+                            }
+                        }
+                    });
+                });
+            }
+
+            // Parçacık (Efekt) Sistemi Güncellemesi
+            particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.02;
+                if (p.alpha <= 0) particles.splice(index, 1);
+            });
+        }
+
+        // ÇİZİM FONKSİYONU (RENDER)
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Yıldızlar
+            ctx.fillStyle = "#fff";
+            stars.forEach(star => {
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+
+            // 2. Parçacıklar (Patlamalar)
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+                ctx.restore();
+            });
+
+            if (gameState === "PLAYING") {
+                // 3. Oyuncu Gemisi Çizimi
+                drawShipGraphics(ctx, player.x, player.y, SHIPS[selectedShipIndex], player.w);
+
+                // 4. Oyuncu Mermileri
+                playerBullets.forEach(b => {
+                    ctx.fillStyle = b.color || "#00ffcc";
+                    let s = b.size || 4;
+                    ctx.fillRect(b.x - s/2, b.y, s, 15);
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = b.color || "#00ffcc";
+                });
+                ctx.shadowBlur = 0; // Gölgeyi sıfırla
+
+                // 5. Düşman Mermileri
+                enemyBullets.forEach(eb => {
+                    ctx.fillStyle = eb.color || "#ff0000";
+                    ctx.fillRect(eb.x - 2, eb.y, 4, 12);
+                });
+
+                // 6. Düşmanlar
+                enemies.forEach(e => {
+                    ctx.save();
+                    if (e.id === "BOSS") {
+                        // Boss Kruvazör Görseli
+                        ctx.fillStyle = "#2b2b2b";
+                        ctx.strokeStyle = "#ff0055";
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.moveTo(e.x, e.y + e.h);
+                        ctx.lineTo(e.x - e.w, e.y - e.h/2);
+                        ctx.lineTo(e.x - e.w/2, e.y - e.h);
+                        ctx.lineTo(e.x + e.w/2, e.y - e.h);
+                        ctx.lineTo(e.x + e.w, e.y - e.h/2);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+
+                        // Komuta köprüsü detayı
+                        ctx.fillStyle = "#ff0055";
+                        ctx.fillRect(e.x - 15, e.y - e.h/2, 30, 10);
+                    } else {
+                        // Standart İmparatorluk Avcıları Tasarımı
+                        ctx.fillStyle = "#444";
+                        ctx.strokeStyle = e.type === "Bomber" ? "#f15bb5" : "#e63946";
+                        ctx.lineWidth = 2;
+                        
+                        // İki yan panel kanat
+                        ctx.fillRect(e.x - e.w/2, e.y - e.h/2, 4, e.h);
+                        ctx.fillRect(e.x + e.w/2 - 4, e.y - e.h/2, 4, e.h);
+                        // Merkez eksen bağı
+                        ctx.fillRect(e.x - e.w/2, e.y - 2, e.w, 4);
+                        // Kokpit küresi
+                        ctx.beginPath();
+                        ctx.arc(e.x, e.y, e.w/4, 0, Math.PI * 2);
+                        ctx.fillStyle = "#1d3557";
+                        ctx.fill();
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                });
+            }
+        }
+
+        // ANA MOTOR LOOP AYARI
+        function gameLoop(time) {
+            update(time);
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // İlk menü inşası ve döngü başlangıcı
+        buildMenu();
+        requestAnimationFrame(gameLoop);
+
+    </script>
+</body>
+</html>
