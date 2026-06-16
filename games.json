@@ -601,5 +601,14 @@
       "#E0C3FC",
       "#8EC5FC"
     ]
+  },
+  {
+    "slug": "eymen-engine-guncel",
+    "name": "Eymen ENGINE (Güncel)",
+    "emoji": "🍌",
+    "colors": [
+      "#f7971e",
+      "#ffd200"
+    ]
   }
 ]
