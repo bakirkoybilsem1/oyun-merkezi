@@ -583,5 +583,14 @@
       "#FBC2EB",
       "#A6C1EE"
     ]
+  },
+  {
+    "slug": "eymen-zombi-guncelleme",
+    "name": "Eymen Zombi (Güncelleme)",
+    "emoji": "🥔",
+    "colors": [
+      "#FDDB92",
+      "#D1FDFF"
+    ]
   }
 ]
