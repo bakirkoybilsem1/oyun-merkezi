@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eymen'in Gizemli Kasabası (Güncel)</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --card-bg: #16213e;
+            --accent: #e94560;
+            --text: #ffffff;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        h1, h2, h3 { text-align: center; color: var(--accent); }
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            margin: 5px;
+            transition: 0.2s;
+        }
+        button:hover { opacity: 0.9; transform: scale(1.02); }
+        button:disabled { background-color: #555; cursor: not-allowed; }
+        .setup-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+            background: rgba(255,255,255,0.05);
+            padding: 8px 15px;
+            border-radius: 8px;
+        }
+        .setup-row input[type="number"] {
+            width: 50px;
+            padding: 5px;
+            text-align: center;
+            border-radius: 5px;
+            border: none;
+        }
+        .hidden { display: none !important; }
+        .help-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #4e54c8;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            padding: 0;
+            font-size: 20px;
+        }
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #222;
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid var(--accent);
+            z-index: 100;
+            max-width: 80%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 99;
+        }
+        .player-card {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.05);
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+            align-items: center;
+        }
+        .log-box {
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 14px;
+            margin: 10px 0;
+            border-left: 4px solid var(--accent);
+        }
+        .names-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 15px 0;
+            padding: 5px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        .name-input-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .name-input-row input[type="text"] {
+            flex: 1;
+            margin-left: 10px;
+            padding: 5px;
+            border-radius: 5px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <button class="help-btn" onclick="toggleHelp()">?</button>
+    <h1>Gizemli Kasaba</h1>
+    <div style="text-align: center; font-weight: bold; margin-bottom: 15px;">💰 Cüzdanınız: <span id="global-money">0</span> Altın</div>
+
+    <!-- ANA MENÜ / AYARLAR -->
+    <div id="setup-screen">
+        <h2>Oyun Kurulumu</h2>
+        <p style="text-align:center; font-size:14px; color:#aaa;">Toplam oyuncu sayısı en az 3 olmalıdır. Herkes katil olamaz.</p>
+        <div class="setup-row"><span>Masum Sayısı:</span><input type="number" id="count-masum" value="2" min="0" onchange="generateNameInputs()"></div>
+        <div class="setup-row"><span>Katil Sayısı:</span><input type="number" id="count-katil" value="1" min="1" onchange="generateNameInputs()"></div>
+        <div class="setup-row"><span>Doktor Sayısı:</span><input type="number" id="count-doktor" value="1" min="0" onchange="generateNameInputs()"></div>
+        
+        <h3 style="margin-top:15px;">Özel Roller (Dükkandan Açılır)</h3>
+        <div class="setup-row" id="row-gozcu"><span>Gözcü Sayısı:</span><input type="number" id="count-gozcu" value="0" min="0" disabled onchange="generateNameInputs()"></div>
+        <div class="setup-row" id="row-oksijenci"><span>Oksijenci Sayısı:</span><input type="number" id="count-oksijenci" value="0" min="0" disabled onchange="generateNameInputs()"></div>
+        <div class="setup-row" id="row-soytari"><span>Soytarı Sayısı:</span><input type="number" id="count-soytari" value="0" min="0" disabled onchange="generateNameInputs()"></div>
+
+        <h3>Oyuncu İsimleri</h3>
+        <div id="player-names-container" class="names-list"></div>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="startGame()">Oyunu Başlat</button>
+            <button onclick="openShop()" style="background:#2ecc71;">Market / Dükkan</button>
+        </div>
+    </div>
+
+    <!-- ROL DAĞITIM EKRANI -->
+    <div id="role-screen" class="hidden">
+        <h2>Rol Dağıtımı</h2>
+        <p style="text-align:center;">Sırayla telefon/bilgisayarı oyuncuya verin ve butona basın.</p>
+        <div class="player-card">
+            <h3 id="role-player-name">Oyuncu 1</h3>
+            <button id="view-role-btn" onclick="revealRole()">Rolümü Göster</button>
+            <div id="role-display" class="hidden" style="font-size:20px; font-weight:bold; margin:15px 0;"></div>
+            <button id="next-player-btn" class="hidden" onclick="nextPlayerRole()">Sıradaki Oyuncu</button>
+        </div>
+    </div>
+
+    <!-- GECE EKRANI -->
+    <div id="night-screen" class="hidden">
+        <h2 style="color: #9b59b6;">🌃 Gece Oldu</h2>
+        <div id="oxygen-alert" class="hidden" style="background:#e74c3c; padding:10px; border-radius:8px; text-align:center; margin-bottom:10px;">
+            🚨 KATİL OKSİJENİ KİRLETTİ! Oksijenci bu tur boruyu tamir etmezse katiller kazanacak!
+        </div>
+        <div class="log-box" id="night-log">Gece olayları bekleniyor...</div>
+        <div id="night-action-zone"></div>
+    </div>
+
+    <!-- SABAH / OYLAMA EKRANI -->
+    <div id="day-screen" class="hidden">
+        <h2 style="color: #f1c40f;">☀️ Sabah Oldu</h2>
+        <div class="log-box" id="day-log"></div>
+        <h3 id="vote-title">Oylama Zamanı</h3>
+        <div id="vote-zone"></div>
+    </div>
+
+    <!-- OYUN BİTTİ EKRANI -->
+    <div id="gameover-screen" class="hidden">
+        <h2>Oyun Bitti!</h2>
+        <h1 id="winner-text" style="font-size: 32px;"></h1>
+        <p style="text-align:center;">Oynadığınız için <b>+50 Altın</b> kazandınız!</p>
+        <div style="text-align: center;">
+            <button onclick="backToMenu()">Ana Menüye Dön</button>
+        </div>
+    </div>
+</div>
+
+<!-- YARDIM / KURALLAR MODAL -->
+<div id="help-modal" class="hidden modal">
+    <h2>📜 Oyun Kuralları</h2>
+    <hr>
+    <ul>
+        <li><b>Oyun Amacı:</b> Katiller elenirse Masumlar ve Doktorlar kazanır. Katiller hariç herkes ölürse Katiller kazanır.</li>
+        <li><b>Gece Aşaması:</b> Katil birini öldürür, Doktor birini iyileştirir (kendini koruyabilir).</li>
+        <li><b>Gözcü (Paralı):</b> Gece seçtiği birinin rolünü gizlice görebilir.</li>
+        <li><b>Oksijenci (Paralı):</b> Katil gece oksijeni kirletebilir. Eğer Oksijenci o gece boruyu tamir etmezse sabah katiller anında kazanır!</li>
+        <li><b>Soytarı (Paralı):</b> Kendini sabah oylamasında astırmaya çalışır. Eğer oylamayla elenirse oyunu anında tek başına kazanır!</li>
+    </ul>
+    <button onclick="toggleHelp()" style="width:100%; margin-top:15px;">Kapat</button>
+</div>
+
+<!-- MARKET MODAL -->
+<div id="shop-modal" class="hidden modal">
+    <h2>🏪 Rol Market</h2>
+    <p style="text-align:center;">Kazandığınız altınlarla yeni rolleri kalıcı olarak açın!</p>
+    
+    <div class="shop-item">
+        <div><b>Gözcü Rolü</b><br><small>Birinin rolüne bakabilir.</small></div>
+        <button id="buy-gozcu" onclick="buyRole('gozcu', 100)">100 💰 Satın Al</button>
+    </div>
+    <div class="shop-item">
+        <div><b>Oksijenci Rolü</b><br><small>Katilin oksijen sabotajını engeller.</small></div>
+        <button id="buy-oksijenci" onclick="buyRole('oksijenci', 150)">150 💰 Satın Al</button>
+    </div>
+    <div class="shop-item">
+        <div><b>Soytarı Rolü</b><br><small>Kendini astırırsa kazanır.</small></div>
+        <button id="buy-soytari" onclick="buyRole('soytari', 200)">200 💰 Satın Al</button>
+    </div>
+    <button onclick="closeShop()" style="width:100%; margin-top:15px; background:#555;">Kapat</button>
+</div>
+
+<div id="overlay" class="hidden overlay" onclick="closeModals()"></div>
+
+<script>
+    let money = parseInt(localStorage.getItem('town_money')) || 0;
+    let unlockedRoles = JSON.parse(localStorage.getItem('town_roles')) || { gozcu: false, oksijenci: false, soytari: false };
+
+    let players = [];
+    let currentDistributeIndex = 0;
+    let phase = ""; 
+    let targetKiller = null;
+    let targetDoctor = null;
+    let oxygenSabotaged = false;
+    let oxygenRepaired = false;
+    let dynamicRolesPool = [];
+
+    updateMoneyDisplay();
+    updateShopButtons();
+    generateNameInputs();
+
+    function updateMoneyDisplay() {
+        document.getElementById('global-money').innerText = money;
+        localStorage.setItem('town_money', money);
+    }
+
+    function updateShopButtons() {
+        if(unlockedRoles.gozcu) {
+            document.getElementById('buy-gozcu').innerText = "Açıldı";
+            document.getElementById('buy-gozcu').disabled = true;
+            document.getElementById('count-gozcu').disabled = false;
+        }
+        if(unlockedRoles.oksijenci) {
+            document.getElementById('buy-oksijenci').innerText = "Açıldı";
+            document.getElementById('buy-oksijenci').disabled = true;
+            document.getElementById('count-oksijenci').disabled = false;
+        }
+        if(unlockedRoles.soytari) {
+            document.getElementById('buy-soytari').innerText = "Açıldı";
+            document.getElementById('buy-soytari').disabled = true;
+            document.getElementById('count-soytari').disabled = false;
+        }
+    }
+
+    function generateNameInputs() {
+        let counts = getRoleCounts();
+        let totalPlayers = Object.values(counts).reduce((a, b) => a + b, 0);
+        let container = document.getElementById('player-names-container');
+        container.innerHTML = "";
+        
+        for(let i = 0; i < totalPlayers; i++) {
+            let row = document.createElement('div');
+            row.className = "name-input-row";
+            row.innerHTML = `<span>${i+1}. Oyuncu:</span> <input type="text" id="pname-${i}" value="Oyuncu ${i+1}">`;
+            container.appendChild(row);
+        }
+    }
+
+    function getRoleCounts() {
+        return {
+            "Masum": parseInt(document.getElementById('count-masum').value) || 0,
+            "Katil": parseInt(document.getElementById('count-katil').value) || 0,
+            "Doktor": parseInt(document.getElementById('count-doktor').value) || 0,
+            "Gözcü": unlockedRoles.gozcu ? (parseInt(document.getElementById('count-gozcu').value) || 0) : 0,
+            "Oksijenci": unlockedRoles.oksijenci ? (parseInt(document.getElementById('count-oksijenci').value) || 0) : 0,
+            "Soytarı": unlockedRoles.soytari ? (parseInt(document.getElementById('count-soytari').value) || 0) : 0,
+        };
+    }
+
+    function openShop() {
+        document.getElementById('shop-modal').classList.remove('hidden');
+        document.getElementById('overlay').classList.remove('hidden');
+    }
+    function closeShop() { document.getElementById('shop-modal').classList.add('hidden'); document.getElementById('overlay').classList.add('hidden'); }
+    function toggleHelp() {
+        document.getElementById('help-modal').classList.toggle('hidden');
+        document.getElementById('overlay').classList.toggle('hidden');
+    }
+    function closeModals() {
+        document.getElementById('shop-modal').classList.add('hidden');
+        document.getElementById('help-modal').classList.add('hidden');
+        document.getElementById('overlay').classList.add('hidden');
+    }
+
+    function buyRole(role, cost) {
+        if(money >= cost) {
+            money -= cost;
+            unlockedRoles[role] = true;
+            localStorage.setItem('town_roles', JSON.stringify(unroles = unlockedRoles));
+            updateMoneyDisplay();
+            updateShopButtons();
+            generateNameInputs();
+            alert("Yeni rol başarıyla açıldı!");
+        } else {
+            alert("Yetersiz altın!");
+        }
+    }
+
+    function startGame() {
+        let counts = getRoleCounts();
+        let totalPlayers = Object.values(counts).reduce((a, b) => a + b, 0);
+
+        if(totalPlayers < 3) {
+            alert("Oyun en az 3 kişiyle başlamalıdır!");
+            return;
+        }
+        if(counts["Katil"] >= totalPlayers) {
+            alert("Herkes katil olamaz! Katil sayısı toplam oyuncu sayısından az olmalıdır.");
+            return;
+        }
+
+        dynamicRolesPool = [];
+        for(let role in counts) {
+            for(let i=0; i<counts[role]; i++) {
+                dynamicRolesPool.push(role);
+            }
+        }
+        dynamicRolesPool.sort(() => Math.random() - 0.5);
+
+        players = [];
+        for(let i=0; i<totalPlayers; i++) {
+            let inputName = document.getElementById(`pname-${i}`).value.trim();
+            players.push({
+                id: i,
+                name: inputName || ("Oyuncu " + (i + 1)),
+                role: dynamicRolesPool[i],
+                alive: true
+            });
+        }
+
+        document.getElementById('setup-screen').classList.add('hidden');
+        document.getElementById('role-screen').classList.remove('hidden');
+        currentDistributeIndex = 0;
+        showDistributionCard();
+    }
+
+    function showDistributionCard() {
+        document.getElementById('role-player-name').innerText = players[currentDistributeIndex].name;
+        document.getElementById('role-display').classList.add('hidden');
+        document.getElementById('view-role-btn').classList.remove('hidden');
+        document.getElementById('next-player-btn').classList.add('hidden');
+    }
+
+    function revealRole() {
+        let p = players[currentDistributeIndex];
+        let display = document.getElementById('role-display');
+        display.innerText = "Rolün: " + p.role;
+        
+        if(p.role === "Katil") display.style.color = "#e94560";
+        else if(p.role === "Doktor") display.style.color = "#2ecc71";
+        else display.style.color = "#3498db";
+
+        display.classList.remove('hidden');
+        document.getElementById('view-role-btn').classList.add('hidden');
+        document.getElementById('next-player-btn').classList.remove('hidden');
+    }
+
+    function nextPlayerRole() {
+        currentDistributeIndex++;
+        if(currentDistributeIndex < players.length) {
+            showDistributionCard();
+        } else {
+            document.getElementById('role-screen').classList.add('hidden');
+            startNight();
+        }
+    }
+
+    function startNight() {
+        document.getElementById('night-screen').classList.remove('hidden');
+        oxygenSabotaged = false;
+        oxygenRepaired = false;
+        targetKiller = null;
+        targetDoctor = null;
+
+        let hasOxy = players.some(p => p.role === "Oksijenci" && p.alive);
+        if(hasOxy && Math.random() < 0.5) { 
+            oxygenSabotaged = true;
+            document.getElementById('oxygen-alert').classList.remove('hidden');
+        } else {
+            document.getElementById('oxygen-alert').classList.add('hidden');
+        }
+
+        runNightPhase("Katil");
+    }
+
+    function runNightPhase(currentRole) {
+        let zone = document.getElementById('night-action-zone');
+        let log = document.getElementById('night-log');
+        zone.innerHTML = "";
+
+        let activePlayers = players.filter(p => p.role === currentRole && p.alive);
+        
+        if(activePlayers.length === 0) {
+            passToNextNightPhase(currentRole);
+            return;
+        }
+
+        log.innerText = `Sıra şu rolde: ${currentRole}. Cihazı bu role sahip oyuncuya verin.`;
+
+        if(currentRole === "Katil") {
+            let h3 = document.createElement('h3'); h3.innerText = "Öldürülecek Kişiyi Seç:"; zone.appendChild(h3);
+            players.forEach(p => {
+                if(p.alive && p.role !== "Katil") {
+                    let btn = document.createElement('button');
+                    btn.innerText = p.name;
+                    btn.onclick = () => { targetKiller = p.id; passToNextNightPhase("Katil"); };
+                    zone.appendChild(btn);
+                }
+            });
+        } 
+        else if(currentRole === "Doktor") {
+            let h3 = document.createElement('h3'); h3.innerText = "Kurtarılacak Kişiyi Seç:"; zone.appendChild(h3);
+            players.forEach(p => {
+                if(p.alive) {
+                    let btn = document.createElement('button');
+                    btn.innerText = p.name;
+                    btn.onclick = () => { targetDoctor = p.id; passToNextNightPhase("Doktor"); };
+                    zone.appendChild(btn);
+                }
+            });
+        }
+        else if(currentRole === "Gözcü") {
+            let h3 = document.createElement('h3'); h3.innerText = "Rolüne Bakılacak Kişiyi Seç:"; zone.appendChild(h3);
+            players.forEach(p => {
+                if(p.alive && p.role !== "Gözcü") {
+                    let btn = document.createElement('button');
+                    btn.innerText = p.name;
+                    btn.onclick = () => { 
+                        alert(`${p.name} kişisinin rolü: ${p.role}`);
+                        passToNextNightPhase("Gözcü"); 
+                    };
+                    zone.appendChild(btn);
+                }
+            });
+        }
+        else if(currentRole === "Oksijenci") {
+            let h3 = document.createElement('h3'); 
+            h3.innerText = oxygenSabotaged ? "Oksijen borusu hasarlı! Tamir etmek ister misin?" : "Oksijen güvende.";
+            zone.appendChild(h3);
+
+            if(oxygenSabotaged) {
+                let btn = document.createElement('button');
+                btn.innerText = "Boruyu Tamir Et";
+                btn.onclick = () => { oxygenRepaired = true; passToNextNightPhase("Oksijenci"); };
+                zone.appendChild(btn);
+            } else {
+                let btn = document.createElement('button');
+                btn.innerText = "Pas Geç";
+                btn.onclick = () => { passToNextNightPhase("Oksijenci"); };
+                zone.appendChild(btn);
+            }
+        }
+    }
+
+    function passToNextNightPhase(currentRole) {
+        if(currentRole === "Katil") runNightPhase("Doktor");
+        else if(currentRole === "Doktor") runNightPhase("Gözcü");
+        else if(currentRole === "Gözcü") runNightPhase("Oksijenci");
+        else if(currentRole === "Oksijenci") startDay();
+    }
+
+    function startDay() {
+        document.getElementById('night-screen').classList.add('hidden');
+        document.getElementById('day-screen').classList.remove('hidden');
+
+        let log = document.getElementById('day-log');
+        log.innerHTML = "";
+
+        if(oxygenSabotaged && !oxygenRepaired) {
+            log.innerHTML += "<p style='color:#e74c3c;'>🚨 Oksijen borusu tamir edilmedi! Herkes havasızlıktan öldü.</p>";
+            endGame("Katiller");
+            return;
+        }
+
+        let killedPlayer = null;
+        if(targetKiller !== null && targetKiller !== targetDoctor) {
+            players[targetKiller].alive = false;
+            killedPlayer = players[targetKiller];
+            log.innerHTML += `<p style='color:#e74c3c;'>💀 <b>${killedPlayer.name}</b> gece katil tarafından öldürüldü! (Rolü: ${killedPlayer.role})</p>`;
+        } else if(targetKiller !== null && targetKiller === targetDoctor) {
+            log.innerHTML += `<p style='color:#2ecc71;'>🛡️ Gece bir saldırı oldu ama Doktor hedefi kurtardı!</p>`;
+        } else {
+            log.innerHTML += `<p>🕊️ Sakin bir geceydi, kimse ölmedi.</p>`;
+        }
+
+        if (checkGameEnd()) return;
+
+        setupVoting();
+    }
+
+    function setupVoting() {
+        let zone = document.getElementById('vote-zone');
+        zone.innerHTML = "";
+
+        players.forEach(p => {
+            if(p.alive) {
+                let btn = document.createElement('button');
+                btn.innerText = `${p.name} Asılsın`;
+                btn.onclick = () => castVote(p.id);
+                zone.appendChild(btn);
+            }
+        });
+
+        let skipBtn = document.createElement('button');
+        skipBtn.innerText = "Kimseyi Asma (Pas)";
+        skipBtn.style.background = "#555";
+        skipBtn.onclick = () => castVote(null);
+        zone.appendChild(skipBtn);
+    }
+
+    function castVote(targetId) {
+        if(targetId !== null) {
+            let p = players[targetId];
+            p.alive = false;
+            alert(`${p.name} kasaba halkı tarafından asıldı! Rolü: ${p.role}`);
+
+            if(p.role === "Soytarı") {
+                endGame("Soytarı");
+                return;
+            }
+        } else {
+            alert("Kasaba halkı bu tur kimseyi asmamaya karar verdi.");
+        }
+
+        if (!checkGameEnd()) {
+            document.getElementById('day-screen').classList.add('hidden');
+            startNight();
+        }
+    }
+
+    function checkGameEnd() {
+        let katilSayisi = players.filter(p => p.role === "Katil" && p.alive).length;
+        let digerleriSayisi = players.filter(p => p.role !== "Katil" && p.alive).length;
+
+        if (katilSayisi === 0) {
+            endGame("Masumlar ve Doktorlar");
+            return true;
+        }
+        if (digerleriSayisi <= katilSayisi) {
+            endGame("Katiller");
+            return true;
+        }
+        return false;
+    }
+
+    function endGame(winner) {
+        document.getElementById('day-screen').classList.add('hidden');
+        document.getElementById('night-screen').classList.add('hidden');
+        document.getElementById('gameover-screen').classList.remove('hidden');
+
+        document.getElementById('winner-text').innerText = winner + " Kazandı!";
+        
+        money += 50;
+        updateMoneyDisplay();
+    }
+
+    function backToMenu() {
+        document.getElementById('gameover-screen').classList.add('hidden');
+        document.getElementById('setup-screen').classList.remove('hidden');
+        updateShopButtons();
+        generateNameInputs();
+    }
+</script>
+
+</body>
+</html>
