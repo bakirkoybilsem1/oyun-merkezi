@@ -1,0 +1,1016 @@
+<!DOCTYPE html><html lang="tr"><head>
+    <meta charset="UTF-8">
+    <title>Eymen ENGINE (Güncel)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght=700&family=Metamorphic&display=swap');
+        
+        body {
+            background-color: #050403; margin: 0; padding: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; font-family: 'Metamorphic', serif; color: #f1e4c3; overflow: hidden; user-select: none;
+        }
+
+        #game-container {
+            position: relative; width: 1100px; height: 700px;
+            border: 10px ridge #b8975a; box-shadow: 0 0 120px rgba(212, 175, 55, 0.25); background: #0c0806;
+        }
+
+        canvas { display: block; background: #130e0a; }
+
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: radial-gradient(circle, #2c1a10 0%, #080504 100%); z-index: 10; box-sizing: border-box; padding: 30px;
+        }
+        .hidden { display: none !important; }
+
+        h1 { font-family: 'Cinzel', serif; font-size: 3rem; color: #ffd700; text-shadow: 0 0 20px rgba(255,215,0,0.4); margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 4px; text-align: center; }
+        .subtitle { color: #b8975a; font-style: italic; margin-bottom: 25px; font-size: 1rem; text-align: center; }
+
+        .btn-gold {
+            background: linear-gradient(#5a3f28, #302013); border: 3px ridge #b8975a; color: #ffd700;
+            padding: 12px 28px; font-size: 0.95rem; font-weight: bold; cursor: pointer; text-transform: uppercase;
+            font-family: 'Cinzel', serif; transition: all 0.1s; box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+        }
+        .btn-gold:hover:not(:disabled) { border-color: #fff; color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.25); }
+        .btn-gold:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .creator-container { display: flex; gap: 30px; background: rgba(20, 14, 9, 0.9); border: 4px ridge #543f2b; padding: 25px; border-radius: 4px; align-items: center; }
+        .stat-box { display: flex; justify-content: space-between; align-items: center; width: 320px; background: #0a0705; padding: 6px 12px; margin-bottom: 8px; border: 1px solid #423022; }
+        .stat-btn { background: #b8975a; color: #000; border: none; font-weight: bold; width: 24px; height: 24px; cursor: pointer; font-size: 1.1rem; border-radius: 2px; }
+        .stat-val { font-size: 1.2rem; color: #ffd700; font-weight: bold; }
+        
+        .preview-panel {
+            width: 200px; height: 280px; background: #050403; border: 3px ridge #b8975a;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;
+        }
+
+        .town-map {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; width: 90%; max-width: 900px; margin-top: 10px;
+        }
+        .town-building {
+            background: linear-gradient(rgba(30,20,15,0.85), rgba(15,10,7,0.95));
+            border: 3px ridge #b8975a; border-radius: 6px; padding: 20px; text-align: center;
+            cursor: pointer; transition: transform 0.2s, border-color 0.2s;
+        }
+        .town-building:hover { transform: translateY(-5px); border-color: #fff; }
+        .town-building h3 { font-family: 'Cinzel', serif; color: #ffd700; margin: 0 0 10px 0; font-size: 1.2rem; }
+        .town-building p { color: #a68b6d; font-size: 0.85rem; margin: 0; line-height: 1.4; }
+
+        .shop-interface { width: 100%; display: flex; flex-direction: column; height: 420px; background: #110c09; border: 3px ridge #423022; padding: 15px; box-sizing: border-box; }
+        .shop-list { flex: 1; overflow-y: auto; padding-right: 5px; }
+        .shop-item { display: flex; justify-content: space-between; align-items: center; background: #1a120d; padding: 10px 15px; margin-bottom: 8px; border: 1px solid #312217; }
+
+        #game-hud {
+            position: absolute; top: 0; left: 0; width: 100%; height: 55px;
+            background: linear-gradient(#140f0b, #050403); border-bottom: 4px ridge #b8975a;
+            display: flex; justify-content: space-between; align-items: center; padding: 0 25px; box-sizing: border-box; z-index: 5;
+        }
+
+        #battle-console {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 180px;
+            background: #0b0806; border-top: 4px ridge #b8975a; display: flex; flex-direction: column; z-index: 5;
+        }
+        .console-row { display: flex; justify-content: center; gap: 12px; margin: auto 0; }
+        .action-btn {
+            font-family: 'Cinzel', serif; width: 145px; height: 55px; background: linear-gradient(#4a1511, #240705);
+            border: 2px solid #b8975a; color: #fff; cursor: pointer; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; box-shadow: 0 4px 6px #000;
+        }
+        .action-btn:hover:not(:disabled) { border-color: #fff; filter: brightness(1.15); }
+        .action-btn:disabled { opacity: 0.15; cursor: not-allowed; }
+        .action-btn span { font-size: 0.65rem; color: #00ffff; margin-top: 3px; font-family: sans-serif; }
+
+        .death-screen { background: radial-gradient(circle, #400505 0%, #000000 100%) !important; }
+        .death-title { font-family: 'Cinzel', serif; font-size: 4rem; color: #ff0000; text-shadow: 0 0 30px #000; margin: 0; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
+    </style></head><body><div id="game-container">
+
+    <!-- GENEL HUD -->
+    <div id="game-hud" class="hidden">
+        <div>👑 <span id="hud-name" style="color:#ffd700; font-weight:bold;">Gladyatör</span> [Seviye <span id="hud-level">1</span>]</div>
+        <div style="font-size:0.9rem; color:#b8975a;">🏆 Vakit: <span id="hud-time" style="color:#fff; font-weight:bold;">Sabah</span></div>
+        <div style="color: #ffd700; font-weight:bold; font-size:1.05rem;">🪙 Hazine: <span id="hud-gold">0</span> Altın</div>
+    </div>
+
+    <!-- EKRAN 1: KARAKTER EDİTÖRÜ -->
+    <div id="scr-creator" class="screen">
+        <h1>Swords & Sandals</h1>
+        <div class="subtitle">Kaderini Çiz: Kumlar Sıfırdan Başlayanları Selamlar</div>
+        
+        <div class="creator-container">
+            <div>
+                <label style="display:block; margin-bottom:8px; color:#b8975a; font-size:0.85rem; font-weight:bold;">SAVAŞÇI ADI:</label>
+                <input type="text" id="hero-name" value="Slayer_Of_Sandals" style="background:#0a0705; border:2px solid #b8975a; color:#fff; padding:8px; width:295px; font-size:1rem; font-weight:bold; margin-bottom:15px;">
+                
+                <div style="color:#ffd700; margin-bottom:10px; font-size:0.9rem; font-weight:bold;">Dağıtılabilir Yetenek Puanı: <span id="creator-pool" style="font-size:1.15rem;">10</span></div>
+
+                <div class="stat-box">
+                    <span>💪 GÜÇ (Hasar):</span>
+                    <div>
+                        <button class="stat-btn" onclick="tweakStat('str', -1)">-</button>
+                        <span class="stat-val" id="v-str">4</span>
+                        <button class="stat-btn" onclick="tweakStat('str', 1)">+</button>
+                    </div>
+                </div>
+                <div class="stat-box">
+                    <span>🎯 ÇEVİKLİK (Sıyrılma & İsabet):</span>
+                    <div>
+                        <button class="stat-btn" onclick="tweakStat('agi', -1)">-</button>
+                        <span class="stat-val" id="v-agi">4</span>
+                        <button class="stat-btn" onclick="tweakStat('agi', 1)">+</button>
+                    </div>
+                </div>
+                <div class="stat-box">
+                    <span>🔋 KONDİSYON (Stamina Kapasitesi):</span>
+                    <div>
+                        <button class="stat-btn" onclick="tweakStat('end', -1)">-</button>
+                        <span class="stat-val" id="v-end">4</span>
+                        <button class="stat-btn" onclick="tweakStat('end', 1)">+</button>
+                    </div>
+                </div>
+                <div class="stat-box">
+                    <span>🛡️ YAŞAM (Maksimum Can):</span>
+                    <div>
+                        <button class="stat-btn" onclick="tweakStat('vit', -1)">-</button>
+                        <span class="stat-val" id="v-vit">4</span>
+                        <button class="stat-btn" onclick="tweakStat('vit', 1)">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align:center;">
+                <div class="preview-panel">
+                    <canvas id="creatorPreviewCanvas" width="180" height="250" style="background:#070504; border:none;"></canvas>
+                </div>
+                <div style="margin-top:12px; display:flex; gap:10px; justify-content:center;">
+                    <button class="btn-gold" style="font-size:0.75rem; padding:6px 12px;" onclick="cycleCosmetic('skin')">Ten Rengi</button>
+                    <button class="btn-gold" style="font-size:0.75rem; padding:6px 12px;" onclick="cycleCosmetic('hair')">Saç Stili</button>
+                </div>
+            </div>
+        </div>
+        <button class="btn-gold" style="margin-top:20px; padding:12px 35px; font-size:1.05rem;" onclick="finalizeHero()">Kışlaya Adım At</button>
+    </div>
+
+    <!-- EKRAN 2: ANTİK KASABA MERKEZİ (TOWN) -->
+    <div id="scr-town" class="screen hidden">
+        <h1>Brandor Kasabası</h1>
+        <div class="subtitle">Kolezyumun eteklerinde ticaret ve hazırlık zamanı</div>
+
+        <div class="town-map">
+            <div class="town-building" id="bld-weaponsmith" onclick="enterBuilding('weaponsmith')">
+                <h3>⚔️ Demirci Kulübesi</h3>
+                <p>Menzilli sapanlar, baltalar ve efsanevi kılıçlar burada dövülür.</p>
+            </div>
+            <div class="town-building" id="bld-armorsmith" onclick="enterBuilding('armorsmith')">
+                <h3>🛡️ Zırh Loncası</h3>
+                <p>Deri yeleklerden şövalye plaka zırhlarına kadar tam koruma.</p>
+            </div>
+            <div class="town-building" id="bld-colosseum" onclick="enterBuilding('colosseum')" style="background: linear-gradient(rgba(74,21,17,0.85), rgba(36,7,5,0.95)); border-color:#ff4422;">
+                <h3 id="arena-btn-title" style="color:#ff4422;">🏟️ ARENA</h3>
+                <p id="arena-btn-desc" style="color:#f1e4c3; font-weight:bold;">Sıradaki gladyatörle teke tek antrenman veya turnuva maçı yap!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- EKRAN 3: SİLAH SEÇİM DÜKKANI -->
+    <div id="scr-shop-w" class="screen hidden">
+        <h1>Demirci Pazar Alanı</h1>
+        <div class="subtitle">Paran yettiği kadar hasar ve menzil satın al.</div>
+        <div class="shop-interface">
+            <div class="shop-list" id="list-weapons"></div>
+        </div>
+        <button class="btn-gold" style="margin-top:15px;" onclick="leaveBuilding()">Kasaba Merkezine Dön</button>
+    </div>
+
+    <!-- EKRAN 4: ZIRH SEÇİM DÜKKANI -->
+    <div id="scr-shop-a" class="screen hidden">
+        <h1>Zırh Ustası Pazar Alanı</h1>
+        <div class="subtitle">Her zırh katmanı gladyatörün üstünde farklı görünüme bürünür.</div>
+        <div class="shop-interface">
+            <div class="shop-list" id="list-armors"></div>
+        </div>
+        <button class="btn-gold" style="margin-top:15px;" onclick="leaveBuilding()">Kasaba Merkezine Dön</button>
+    </div>
+
+    <!-- EKRAN 5: ÖLÜM EKRANI -->
+    <div id="scr-death" class="screen death-screen hidden">
+        <h1 class="death-title">GLADYATÖR ÖLDÜ</h1>
+        <div class="subtitle" style="color:#ff8888; font-size:1.2rem; margin-top:10px;">Turnuva kuralları acımasızdır. Karakterin ve tüm birikimin kumların altında yok oldu!</div>
+        <div style="margin:25px 0; font-size:1.1rem; color:#b8975a;" id="death-report">Katleden Şampiyon: ...</div>
+        <button class="btn-gold" style="background:linear-gradient(#444, #111); border-color:#888; color:#fff;" onclick="resurrectNewGame()">YENİ KADER YAZ (SIFIRDAN BAŞLA)</button>
+    </div>
+
+    <!-- DÖVÜŞ ALANI CANVAS MOTORU -->
+    <canvas id="arenaCanvas" width="1100" height="700"></canvas>
+
+    <!-- ALT KOMUTA VE STRATEJİ PANELİ -->
+    <div id="battle-console" class="hidden">
+        <div id="log-ticker" style="text-align:center; background:#1b130e; color:#ffd700; padding:4px 0; font-size:0.9rem; font-weight:bold; border-bottom:1px solid #b8975a;">Meydan Okuma Başladı!</div>
+        
+        <div class="console-row" style="margin-top:10px;">
+            <button class="action-btn" id="b-move-f" style="background:linear-gradient(#1a2e3d, #0d1821);" onclick="executeHeroMove('move_f')">🏃 Yaklaş<span>⚡ 10 St</span></button>
+            <button class="action-btn" id="b-move-b" style="background:linear-gradient(#1a2e3d, #0d1821);" onclick="executeHeroMove('move_b')">🏃‍♂️ Uzaklaş<span>⚡ 10 St</span></button>
+            <button class="action-btn" id="b-taunt" style="background:linear-gradient(#4a4113, #242009);" onclick="executeHeroMove('taunt')">🗣️ Alay Et<span>⚡ 15 St</span></button>
+            <button class="action-btn" id="b-charge" style="background:linear-gradient(#522050, #260f25);" onclick="executeHeroMove('charge')">⚡ Omuz Darbesi<span>⚡ 25 St</span></button>
+            <button class="action-btn" id="b-rest" style="background:linear-gradient(#153615, #0a1a0a);" onclick="executeHeroMove('rest')">🛡️ Dinlen / Savun<span>⚡ +35 St</span></button>
+        </div>
+        <div class="console-row" style="margin-bottom:8px;">
+            <button class="action-btn" id="b-atk-q" onclick="executeHeroMove('atk_q')">🗡️ Hızlı Savurma<span>⚡ 15 St | %95 İsabet</span></button>
+            <button class="action-btn" id="b-atk-n" style="background:linear-gradient(#542b10, #2b1608);" onclick="executeHeroMove('atk_n')">⚔️ Dengeli Saldırı<span>⚡ 25 St | %80 İsabet</span></button>
+            <button class="action-btn" id="b-atk-h" style="background:linear-gradient(#6e1111, #3b0909);" onclick="executeHeroMove('atk_h')">💥 Güçlü Hamle<span>⚡ 45 St | %65 İsabet</span></button>
+        </div>
+    </div></div><script>
+    const canvas = document.getElementById('arenaCanvas');
+    const ctx = canvas.getContext('2d');
+    const pCanvas = document.getElementById('creatorPreviewCanvas');
+    const pCtx = pCanvas.getContext('2d');
+
+    const skinPalette = ["#e3a578", "#ebd5c5", "#7c4e2b", "#fad46b"];
+    const hairPalette = ["#1a1512", "#ebd25b", "#ba3222", "#7d7875"];
+
+    const weaponDatabase = [
+        { id: "w_fist", name: "Çıplak Yumruk", reqLvl: 1, price: 0, dmg: 2, range: 100, desc: "Sıfır maliyet, çok düşük hasar.", color: "transparent" },
+        { id: "w_sling", name: "Eski Deri Sapan", reqLvl: 1, price: 0, dmg: 9, range: 240, desc: "Menzil üstünlüğü sağlar.", color: "#543823" },
+        { id: "w_axe", name: "Paslı Balta", reqLvl: 1, price: 40, dmg: 14, range: 140, desc: "Ağır ve keskin metal parçası.", color: "#7a7774" },
+        { id: "w_gladius", name: "Kısa Çelik Gladius", reqLvl: 2, price: 150, dmg: 26, range: 170, desc: "Orijinal roma lejyoner kılıcı.", color: "#a19b95" },
+        { id: "w_broad", name: "Geniş Savaş Kılıcı", reqLvl: 3, price: 380, dmg: 48, range: 200, desc: "Çift elle kavranan yıkım gücü.", color: "#cbd6d5" },
+        { id: "w_halberd", name: "Muhafız Kargısı", reqLvl: 4, price: 800, dmg: 85, range: 250, desc: "Ulaşılamaz menzil ve ölümcül hasar.", color: "#e3e3e3" }
+    ];
+
+    const armorDatabase = [
+        { id: "a_none", name: "Kumaş Peştemal", reqLvl: 1, price: 0, hpB: 0, stB: 0, desc: "Hafif ama tamamen korumasız.", color: "transparent" },
+        { id: "a_leather", name: "Arenacı Deri Göğüslüğü", reqLvl: 1, price: 30, hpB: 35, stB: 15, desc: "Temel hareket kabiliyeti ve hafif deri.", color: "#824b20" },
+        { id: "a_chain", name: "Demir Örme Zırh", reqLvl: 2, price: 180, hpB: 95, stB: 5, desc: "Dengeli halka örgü koruması.", color: "#616b73" },
+        { id: "a_plate", name: "Gladyatör Ağır Plakası", reqLvl: 3, price: 450, hpB: 220, stB: -15, desc: "Maksimum dayanıklılık, hantal yapı.", color: "#a4b3bf" },
+        { id: "a_champion", name: "İmparatorluk Kutsal Zırhı", reqLvl: 4, price: 950, hpB: 450, stB: 30, desc: "Altın işlemeli, kusursuz efsanevi zırh.", color: "#ffd700" }
+    ];
+
+    const arenaChampions = [
+        { name: "Arena Champ 1: DOOMGAZE", color: "#6e1d13", hair: "#111", str: 2, agi: 2, end: 4, vit: 3, wDmg: 4, wRange: 100, hpB: -30, wColor: "transparent", aColor: "transparent", desc: "İlk turnuvanın zayıf ve tecrübesiz dövüşçüsü." },
+        { name: "Arena Champ 2: ARCANUS", color: "#1d4061", hair: "#ffffff", str: 14, agi: 15, end: 12, vit: 15, wDmg: 28, wRange: 240, hpB: 80, wColor: "#00ffff", aColor: "#1d4061", desc: "Zihinsel güçlerle menzilden saldıran büyücü." },
+        { name: "Arena Champ 3: BARON VON BRUTAL", color: "#302f2e", hair: "#bd3a24", str: 24, agi: 10, end: 18, vit: 28, wDmg: 58, wRange: 150, hpB: 210, wColor: "#cbd6d5", aColor: "#a4b3bf", desc: "Ağır plaka zırh kuşanmış yıkılmaz bir kale." },
+        { name: "Arena Champ 4: THE EMPEROR", color: "#521d59", hair: "#ebd25b", str: 45, agi: 22, end: 30, vit: 50, wDmg: 110, wRange: 240, hpB: 500, wColor: "#ffd700", aColor: "#ffd700", desc: "Brandor İmparatorluğunun Nihai Ölümsüz Hükümdarı." }
+    ];
+
+    let timeOfDay = 0; 
+    const timeNames = ["Sabah", "Öğlen", "Akşam"];
+
+    let pPool = 10;
+    let hero = {
+        name: "Gaius", level: 1, gold: 0,
+        str: 4, agi: 4, end: 4, vit: 4,
+        skinIdx: 0, hairIdx: 0,
+        weaponId: "w_fist", armorId: "a_none"
+    };
+
+    let boughtWeapons = ["w_fist"];
+    let boughtArmors = ["a_none"];
+    
+    let activePlayerUnit = null;
+    let activeEnemyUnit = null;
+    let bloodSparks = [];
+    let isRenderLoopRunning = false;
+    let turnOwner = "player";
+    let matchInProgress = false;
+    let isTournamentMatch = false;
+
+    function tweakStat(stat, delta) {
+        if (delta > 0 && pPool <= 0) return;
+        if (delta < 0 && hero[stat] <= 1) return;
+        hero[stat] += delta;
+        pPool -= delta;
+        document.getElementById('creator-pool').innerText = pPool;
+        document.getElementById('v-' + stat).innerText = hero[stat];
+        redrawCreatorPreview();
+    }
+
+    function cycleCosmetic(type) {
+        if(type === 'skin') hero.skinIdx = (hero.skinIdx + 1) % skinPalette.length;
+        if(type === 'hair') hero.hairIdx = (hero.hairIdx + 1) % hairPalette.length;
+        redrawCreatorPreview();
+    }
+
+    function drawGladiatorGraphics(ctxRef, skinColor, hairColor, armorColor, isPreview) {
+        ctxRef.fillStyle = "rgba(0,0,0,0.4)";
+        ctxRef.beginPath(); ctxRef.ellipse(90, 220, 35, 8, 0, 0, Math.PI*2); ctxRef.fill();
+
+        ctxRef.fillStyle = skinColor;
+        ctxRef.fillRect(78, 160, 10, 50);
+        ctxRef.fillRect(102, 160, 10, 50);
+
+        ctxRef.fillStyle = "#543310";
+        ctxRef.fillRect(74, 205, 16, 7); 
+        ctxRef.fillRect(100, 205, 16, 7);
+        ctxRef.fillRect(81, 180, 4, 25);
+        ctxRef.fillRect(105, 180, 4, 25);
+
+        if (armorColor === "transparent") {
+            ctxRef.fillStyle = skinColor;
+            ctxRef.fillRect(72, 95, 46, 70);
+            
+            ctxRef.strokeStyle = "rgba(0,0,0,0.18)";
+            ctxRef.lineWidth = 2;
+            ctxRef.beginPath();
+            ctxRef.moveTo(76, 120); ctxRef.lineTo(114, 120);
+            ctxRef.moveTo(95, 120); ctxRef.lineTo(95, 160);
+            ctxRef.moveTo(83, 135); ctxRef.lineTo(107, 135);
+            ctxRef.moveTo(83, 148); ctxRef.lineTo(107, 148);
+            ctxRef.stroke();
+        } else {
+            ctxRef.fillStyle = armorColor;
+            ctxRef.fillRect(72, 95, 46, 70);
+            ctxRef.fillStyle = "rgba(255,255,255,0.15)";
+            ctxRef.fillRect(75, 95, 12, 70);
+        }
+
+        ctxRef.fillStyle = "#3d271d";
+        ctxRef.fillRect(70, 155, 50, 12);
+
+        ctxRef.fillStyle = skinColor;
+        ctxRef.beginPath(); ctxRef.arc(95, 70, 18, 0, Math.PI*2); ctxRef.fill();
+
+        ctxRef.fillStyle = hairColor;
+        ctxRef.beginPath(); ctxRef.arc(95, 60, 16, Math.PI, 0); ctxRef.fill();
+    }
+
+    function redrawCreatorPreview() {
+        pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+        pCtx.save();
+        pCtx.translate(-5, 5);
+        drawGladiatorGraphics(pCtx, skinPalette[hero.skinIdx], hairPalette[hero.hairIdx], armorDatabase.find(a => a.id === hero.armorId).color, true);
+        pCtx.restore();
+    }
+
+    function finalizeHero() {
+        hero.name = document.getElementById('hero-name').value.trim() || "Gladyatör";
+        document.getElementById('scr-creator').classList.add('hidden');
+        document.getElementById('game-hud').classList.remove('hidden');
+        document.getElementById('scr-town').classList.remove('hidden');
+        updateTownArenaButton();
+        refreshHudDisplay();
+    }
+
+    function updateTownArenaButton() {
+        const titleEl = document.getElementById('arena-btn-title');
+        const descEl = document.getElementById('arena-btn-desc');
+        const wpBld = document.getElementById('bld-weaponsmith');
+        const amBld = document.getElementById('bld-armorsmith');
+
+        // TURNUVADA DÜKKANLAR KAPANMASIN: Opacity ve pointerEvents engellerini kaldırdık, dükkanlar hep açık!
+        wpBld.style.opacity = "1"; wpBld.style.pointerEvents = "auto";
+        amBld.style.opacity = "1"; amBld.style.pointerEvents = "auto";
+
+        if (timeOfDay === 2) {
+            titleEl.innerText = "🏟️ ZORUNLU TURNUVA";
+            titleEl.style.color = "#ff2200";
+            descEl.innerText = "Akşam oldu! Turnuva şampiyonu seni bekliyor, ama savaşa girmeden önce dükkanlardan hazırlık yapabilirsin!";
+        } else {
+            titleEl.innerText = "🏟️ ARENA (Teke Tek Sıradan Savaş)";
+            titleEl.style.color = "#ff4422";
+            descEl.innerText = "Sıradaki gladyatörle teke tek antrenman/para maçı yap ve vakti ilerlet!";
+        }
+    }
+
+    function enterBuilding(dest) {
+        document.getElementById('scr-town').classList.add('hidden');
+        if (dest === 'weaponsmith') {
+            document.getElementById('scr-shop-w').classList.remove('hidden');
+            rebuildWeaponsShopList();
+        } else if (dest === 'armorsmith') {
+            document.getElementById('scr-shop-a').classList.remove('hidden');
+            rebuildArmorsShopList();
+        } else if (dest === 'colosseum') {
+            triggerColosseumMatch();
+        }
+    }
+
+    function leaveBuilding() {
+        document.getElementById('scr-shop-w').classList.add('hidden');
+        document.getElementById('scr-shop-a').classList.add('hidden');
+        document.getElementById('scr-town').classList.remove('hidden');
+        refreshHudDisplay();
+    }
+
+    function rebuildWeaponsShopList() {
+        const container = document.getElementById('list-weapons');
+        container.innerHTML = "";
+
+        weaponDatabase.forEach(item => {
+            const hasIt = boughtWeapons.includes(item.id);
+            const isEquipped = hero.weaponId === item.id;
+            const lvlLocked = hero.level < item.reqLvl;
+
+            let btnTxt = `${item.price} Altın`;
+            let disabled = hero.gold < item.price || lvlLocked;
+
+            if (lvlLocked) { btnTxt = `Seviye ${item.reqLvl} Kilitli`; }
+            else if (isEquipped) { btnTxt = "KUŞANILDI"; disabled = true; }
+            else if (hasIt) { btnTxt = "KUŞAN"; disabled = false; }
+
+            const row = document.createElement('div');
+            row.className = "shop-item";
+            row.innerHTML = `
+                <div style="text-align:left;">
+                    <strong style="color:#ffd700; font-size:1.05rem;">${item.name}</strong>
+                    <div style="font-size:0.8rem; color:#a68b6d; margin-top:2px;">Menzil: ${item.range}px | Temel Hasar: +${item.dmg} <br><em>${item.desc}</em></div>
+                </div>
+                <button class="btn-gold" style="font-size:0.8rem; padding:6px 12px;" ${disabled ? 'disabled' : ''} onclick="handleWeaponPurchase('${item.id}')">${btnTxt}</button>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function handleWeaponPurchase(id) {
+        const item = weaponDatabase.find(i => i.id === id);
+        if (!item) return;
+
+        if (boughtWeapons.includes(id)) {
+            hero.weaponId = id;
+        } else if (hero.gold >= item.price) {
+            hero.gold -= item.price;
+            boughtWeapons.push(id);
+            hero.weaponId = id;
+        }
+        refreshHudDisplay(); rebuildWeaponsShopList();
+    }
+
+    function rebuildArmorsShopList() {
+        const container = document.getElementById('list-armors');
+        container.innerHTML = "";
+
+        armorDatabase.forEach(item => {
+            const hasIt = boughtArmors.includes(item.id);
+            const isEquipped = hero.armorId === item.id;
+            const lvlLocked = hero.level < item.reqLvl;
+
+            let btnTxt = `${item.price} Altın`;
+            let disabled = hero.gold < item.price || lvlLocked;
+
+            if (lvlLocked) { btnTxt = `Seviye ${item.reqLvl} Kilitli`; }
+            else if (isEquipped) { btnTxt = "KUŞANILDI"; disabled = true; }
+            else if (hasIt) { btnTxt = "KUŞAN"; disabled = false; }
+
+            const row = document.createElement('div');
+            row.className = "shop-item";
+            row.innerHTML = `
+                <div style="text-align:left;">
+                    <strong style="color:#fff; font-size:1.05rem;">${item.name}</strong>
+                    <div style="font-size:0.8rem; color:#a68b6d; margin-top:2px;">Bonus Can: +${item.hpB} | Enerji Değişimi: ${item.stB} <br><em>${item.desc}</em></div>
+                </div>
+                <button class="btn-gold" style="font-size:0.8rem; padding:6px 12px;" ${disabled ? 'disabled' : ''} onclick="handleArmorPurchase('${item.id}')">${btnTxt}</button>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function handleArmorPurchase(id) {
+        const item = armorDatabase.find(i => i.id === id);
+        if (!item) return;
+
+        if (boughtArmors.includes(id)) {
+            hero.armorId = id;
+        } else if (hero.gold >= item.price) {
+            hero.gold -= item.price;
+            boughtArmors.push(id);
+            hero.armorId = id;
+        }
+        refreshHudDisplay(); rebuildArmorsShopList();
+    }
+
+    function refreshHudDisplay() {
+        document.getElementById('hud-name').innerText = hero.name;
+        document.getElementById('hud-level').innerText = hero.level;
+        document.getElementById('hud-gold').innerText = hero.gold;
+        document.getElementById('hud-time').innerText = timeNames[timeOfDay];
+    }
+
+    class Spark {
+        constructor(x, y, color) {
+            this.x = x; this.y = y;
+            this.vx = (Math.random() - 0.5) * 14;
+            this.vy = (Math.random() - 0.5) * 14 - 5;
+            this.grav = 0.3; this.rad = Math.random() * 4 + 2;
+            this.color = color; this.alpha = 1;
+        }
+        process() { this.x += this.vx; this.y += this.vy; this.vy += this.grav; this.alpha -= 0.025; }
+        paint() {
+            ctx.save(); ctx.globalAlpha = this.alpha; ctx.fillStyle = this.color;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.rad, 0, Math.PI*2); ctx.fill(); ctx.restore();
+        }
+    }
+
+    class GladiatorActor {
+        constructor(x, name, skin, hair, isPlayer, stats, wDmg, wRange, hpB, stB, wColor, aColor) {
+            this.x = x; this.y = 500; this.name = name; this.skin = skin; this.hair = hair; this.isPlayer = isPlayer;
+            
+            this.maxHp = 100 + (stats.vit * 15) + hpB; this.hp = this.maxHp;
+            this.maxSt = 60 + (stats.end * 15) + stB; this.st = this.maxSt;
+            
+            this.str = stats.str; this.agi = stats.agi; this.end = stats.end;
+            this.wDmg = wDmg; this.wRange = wRange;
+            this.wColor = wColor; this.aColor = aColor;
+
+            this.state = "idle"; this.armAngle = 0; this.speech = ""; this.speechTimer = 0;
+            this.floatingTexts = []; this.deathRotation = 0; 
+        }
+
+        process() {
+            if (this.state === "lunging") {
+                this.armAngle += this.isPlayer ? 0.35 : -0.35;
+                if (Math.abs(this.armAngle) >= 1.5) this.state = "withdrawing";
+            } else if (this.state === "withdrawing") {
+                this.armAngle += this.isPlayer ? -0.2 : 0.2;
+                if ((this.isPlayer && this.armAngle <= 0) || (!this.isPlayer && this.armAngle >= 0)) {
+                    this.armAngle = 0; this.state = "idle";
+                }
+            } else if (this.state === "dying") {
+                if(this.isPlayer) {
+                    this.deathRotation -= 0.05; if(this.deathRotation <= -Math.PI/2) this.deathRotation = -Math.PI/2;
+                    this.x -= 1.5;
+                } else {
+                    this.deathRotation += 0.05; if(this.deathRotation >= Math.PI/2) this.deathRotation = Math.PI/2;
+                    this.x += 1.5;
+                }
+            }
+
+            if (this.speechTimer > 0) this.speechTimer--;
+
+            for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+                this.floatingTexts[i].y -= 1.2; this.floatingTexts[i].dur--;
+                if (this.floatingTexts[i].dur <= 0) this.floatingTexts.splice(i, 1);
+            }
+        }
+
+        paint() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.deathRotation);
+            ctx.scale(this.isPlayer ? 1 : -1, 1);
+
+            ctx.translate(-95, -220);
+            drawGladiatorGraphics(ctx, this.skin, this.hair, this.aColor, false);
+
+            ctx.save();
+            ctx.translate(110, 120);
+            ctx.rotate(this.armAngle);
+            ctx.fillStyle = this.skin;
+            ctx.fillRect(0, -6, 28, 12);
+
+            if (this.wColor !== "transparent") {
+                ctx.fillStyle = this.wColor;
+                ctx.fillRect(24, -25, 6, 32);
+                ctx.fillStyle = "#4a2a16";
+                ctx.fillRect(22, 6, 10, 5);
+            } else {
+                ctx.fillStyle = this.skin;
+                ctx.fillRect(24, -5, 8, 10);
+            }
+            ctx.restore();
+
+            ctx.fillStyle = this.skin;
+            ctx.fillRect(60, 110, 14, 30);
+
+            ctx.restore();
+
+            this.paintStatusBars();
+            this.paintOverlays();
+        }
+
+        paintStatusBars() {
+            if (this.state === "dying" && this.deathRotation === (this.isPlayer ? -Math.PI/2 : Math.PI/2)) return;
+            
+            const bX = this.x - 70;
+            const bY = this.y - 260;
+
+            ctx.fillStyle = "rgba(0,0,0,0.6)";
+            ctx.fillRect(bX, bY, 140, 14);
+            ctx.fillRect(bX, bY + 16, 140, 9);
+
+            const hW = Math.max(0, (this.hp / this.maxHp) * 136);
+            ctx.fillStyle = "#cc1111";
+            ctx.fillRect(bX + 2, bY + 2, hW, 10);
+
+            const sW = Math.max(0, (this.st / this.maxSt) * 136);
+            ctx.fillStyle = "#00bbcc";
+            ctx.fillRect(bX + 2, bY + 18, sW, 5);
+
+            ctx.fillStyle = "#fff";
+            ctx.font = "bold 11px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(this.name, this.x, bY - 8);
+        }
+
+        paintOverlays() {
+            if (this.speechTimer > 0 && this.speech) {
+                ctx.save();
+                ctx.fillStyle = "rgba(255,255,255,0.9)";
+                ctx.strokeStyle = "#b8975a";
+                ctx.lineWidth = 2;
+                
+                const sX = this.x;
+                const sY = this.y - 310;
+                
+                ctx.beginPath();
+                ctx.roundRect(sX - 90, sY, 180, 32, 6);
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = "#000";
+                ctx.font = "italic bold 12px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(this.speech, sX, sY + 20);
+                ctx.restore();
+            }
+
+            this.floatingTexts.forEach(t => {
+                ctx.save();
+                ctx.fillStyle = t.color;
+                ctx.font = "bold 24px 'Cinzel', serif";
+                ctx.shadowColor = "#000"; ctx.shadowBlur = 4;
+                ctx.textAlign = "center";
+                ctx.fillText(t.txt, this.x, t.y);
+                ctx.restore();
+            });
+        }
+
+        addPopText(msg, color) {
+            this.floatingTexts.push({ txt: msg, y: this.y - 270, color: color, dur: 55 });
+        }
+
+        shout(msg) {
+            this.speech = msg;
+            this.speechTimer = 70;
+        }
+    }
+
+    function triggerColosseumMatch() {
+        document.getElementById('scr-town').classList.add('hidden');
+        document.getElementById('scr-shop-w').classList.add('hidden');
+        document.getElementById('scr-shop-a').classList.add('hidden');
+        document.getElementById('battle-console').classList.remove('hidden');
+
+        const myW = weaponDatabase.find(w => w.id === hero.weaponId) || weaponDatabase[0];
+        const myA = armorDatabase.find(a => a.id === hero.armorId) || armorDatabase[0];
+
+        activePlayerUnit = new GladiatorActor(
+            350, hero.name, skinPalette[hero.skinIdx], hairPalette[hero.hairIdx], true,
+            { str: hero.str, agi: hero.agi, end: hero.end, vit: hero.vit },
+            myW.dmg, myW.range, myA.hpB, myA.stB, myW.color, myA.color
+        );
+
+        if (timeOfDay === 2) {
+            isTournamentMatch = true;
+            const currentOpponent = arenaChampions[Math.min(hero.level - 1, arenaChampions.length - 1)];
+            activeEnemyUnit = new GladiatorActor(
+                750, currentOpponent.name, currentOpponent.color, currentOpponent.hair, false,
+                { str: currentOpponent.str, agi: currentOpponent.agi, end: currentOpponent.end, vit: currentOpponent.vit },
+                currentOpponent.wDmg, currentOpponent.wRange, currentOpponent.hpB, 0, currentOpponent.wColor, currentOpponent.aColor
+            );
+            updateTickerMessage(`AKŞAM TURNUVASI BAŞLADI! Hayatın Pahasına Savaş: ${currentOpponent.name}`);
+        } else {
+            isTournamentMatch = false;
+            const lvlMultiplier = hero.level;
+            activeEnemyUnit = new GladiatorActor(
+                750, `Kum Savaşçısı [Teke Tek]`, "#4d5236", "#bd3a24", false,
+                { str: 2 * lvlMultiplier, agi: 2 * lvlMultiplier, end: 3 * lvlMultiplier, vit: 2 * lvlMultiplier },
+                2 * lvlMultiplier, 120, -10, 0, "#7a7774", "transparent"
+            );
+            updateTickerMessage(`${timeNames[timeOfDay]} Maçı: Teke tek mücadele başladı!`);
+        }
+
+        bloodSparks = [];
+        turnOwner = "player";
+        matchInProgress = true;
+        
+        evaluateConsoleButtons();
+
+        if (!isRenderLoopRunning) {
+            isRenderLoopRunning = true;
+            requestAnimationFrame(renderLoop);
+        }
+    }
+
+    function executeHeroMove(action) {
+        if (!matchInProgress || turnOwner !== "player") return;
+
+        let cost = 0;
+        if (action === "move_f" || action === "move_b") cost = 10;
+        if (action === "taunt") cost = 15;
+        if (action === "charge") cost = 25;
+        if (action === "atk_q") cost = 15;
+        if (action === "atk_n") cost = 25;
+        if (action === "atk_h") cost = 45;
+
+        if (action !== "rest" && activePlayerUnit.st < cost) {
+            updateTickerMessage("Yetersiz Kondisyon! Dinlenmeniz gerekiyor.");
+            return;
+        }
+
+        const dist = Math.abs(activePlayerUnit.x - activeEnemyUnit.x);
+
+        if (action.startsWith("atk_") && dist > activePlayerUnit.wRange) {
+            updateTickerMessage("Menzil Çok Uzak! Vurabilmek için rakibe daha fazla yaklaşmalısın.");
+            return;
+        }
+
+        if (action === "rest") {
+            activePlayerUnit.st = Math.min(activePlayerUnit.maxSt, activePlayerUnit.st + 35);
+            activePlayerUnit.addPopText("+35 Enerji", "#00ffff");
+            updateTickerMessage(`${activePlayerUnit.name} savunma pozisyonuna geçerek kondisyon topladı.`);
+        } else {
+            activePlayerUnit.st -= cost;
+        }
+
+        if (action === "move_f") {
+            activePlayerUnit.x = Math.min(activeEnemyUnit.x - 70, activePlayerUnit.x + 120);
+            updateTickerMessage(`${activePlayerUnit.name} ileri atılarak aradaki mesafeyi kapattı.`);
+        }
+        if (action === "move_b") {
+            activePlayerUnit.x = Math.max(150, activePlayerUnit.x - 120);
+            updateTickerMessage(`${activePlayerUnit.name} geri çekilerek güvenli menzile ulaştı.`);
+        }
+        if (action === "taunt") {
+            activePlayerUnit.shout("Sadece bu kadar mısın?!?");
+            activeEnemyUnit.st = Math.max(0, activeEnemyUnit.st - 20);
+            activeEnemyUnit.addPopText("-20 St", "#ffaa00");
+            updateTickerMessage(`${activePlayerUnit.name} rakibinin moralini bozarak enerjisini tüketti.`);
+        }
+        if (action === "charge") {
+            activePlayerUnit.state = "lunging";
+            activePlayerUnit.x = Math.min(activeEnemyUnit.x - 65, activePlayerUnit.x + 160);
+            if (Math.abs(activePlayerUnit.x - activeEnemyUnit.x) <= 100) {
+                activeEnemyUnit.hp = Math.max(0, activeEnemyUnit.hp - 10);
+                activeEnemyUnit.addPopText("-10 HP", "#ff3333");
+                createBloodBurst(activeEnemyUnit.x, activeEnemyUnit.y - 130);
+                updateTickerMessage(`${activePlayerUnit.name} sert bir omuz darbesiyle rakibini sarstı!`);
+            } else {
+                updateTickerMessage(`${activePlayerUnit.name} omuz darbesi hamlesini boşa savurdu.`);
+            }
+        }
+
+        if (action.startsWith("atk_")) {
+            let hitChance = 0.8;
+            let dmgMult = 1.0;
+            if (action === "atk_q") { hitChance = 0.95; dmgMult = 0.6; }
+            if (action === "atk_n") { hitChance = 0.80; dmgMult = 1.0; }
+            if (action === "atk_h") { hitChance = 0.65; dmgMult = 1.7; }
+
+            activePlayerUnit.state = "lunging";
+            
+            const finalAgiDiff = activePlayerUnit.agi - activeEnemyUnit.agi;
+            hitChance = Math.min(0.98, Math.max(0.3, hitChance + (finalAgiDiff * 0.02)));
+
+            if (Math.random() <= hitChance) {
+                const rawDmg = (activePlayerUnit.str * 2) + activePlayerUnit.wDmg;
+                const finalDmg = Math.max(3, Math.floor(rawDmg * dmgMult * (0.85 + Math.random() * 0.3)));
+                
+                activeEnemyUnit.hp = Math.max(0, activeEnemyUnit.hp - finalDmg);
+                activeEnemyUnit.addPopText(`-${finalDmg}`, "#ff0000");
+                createBloodBurst(activeEnemyUnit.x, activeEnemyUnit.y - 140);
+                updateTickerMessage(`${activePlayerUnit.name} silahıyla kritik bir isabet kaydetti! Hasar: ${finalDmg}`);
+            } else {
+                activeEnemyUnit.addPopText("Sıyrıldı!", "#ffff00");
+                updateTickerMessage(`${activeEnemyUnit.name} çevik bir hamleyle gladyatörün atağından sıyrıldı.`);
+            }
+        }
+
+        evaluateConsoleButtons();
+        if (checkMatchEndState()) return;
+
+        turnOwner = "enemy";
+        disableAllConsoleButtons();
+        setTimeout(executeEnemyAiTurn, 1200);
+    }
+
+    function executeEnemyAiTurn() {
+        if (!matchInProgress || turnOwner !== "enemy") return;
+
+        const dist = Math.abs(activePlayerUnit.x - activeEnemyUnit.x);
+
+        if (activeEnemyUnit.st < 15) {
+            activeEnemyUnit.st = Math.min(activeEnemyUnit.maxSt, activeEnemyUnit.st + 35);
+            activeEnemyUnit.addPopText("+35 Enerji", "#00ffff");
+            updateTickerMessage(`${activeEnemyUnit.name} gerileyerek nefes tazelemeyi seçti.`);
+        }
+        else if (dist > activeEnemyUnit.wRange) {
+            if (Math.random() < 0.35 && activeEnemyUnit.st >= 15) {
+                activeEnemyUnit.shout("Kumların gücü adına!");
+                activePlayerUnit.st = Math.max(0, activePlayerUnit.st - 15);
+                activePlayerUnit.addPopText("-15 St", "#ffaa00");
+                activeEnemyUnit.st -= 15;
+                updateTickerMessage(`${activeEnemyUnit.name} korkutucu çığlığıyla enerjinizi baltaladı.`);
+            } else {
+                activeEnemyUnit.x = Math.max(activePlayerUnit.x + 70, activeEnemyUnit.x - 120);
+                activeEnemyUnit.st -= 10;
+                updateTickerMessage(`${activeEnemyUnit.name} menzil kazanmak için üzerinize yürüdü.`);
+            }
+        }
+        else {
+            let choice = "atk_n";
+            let rand = Math.random();
+            if (rand < 0.3) choice = "atk_q";
+            else if (rand < 0.7) choice = "atk_n";
+            else choice = "atk_h";
+
+            let cost = (choice === "atk_q") ? 15 : (choice === "atk_n" ? 25 : 45);
+            if (activeEnemyUnit.st < cost) { choice = "atk_q"; cost = 15; }
+
+            activeEnemyUnit.st -= cost;
+            activeEnemyUnit.state = "lunging";
+
+            let hitChance = (choice === "atk_q") ? 0.90 : (choice === "atk_n" ? 0.75 : 0.55);
+            const finalAgiDiff = activeEnemyUnit.agi - activePlayerUnit.agi;
+            hitChance = Math.min(0.95, Math.max(0.25, hitChance + (finalAgiDiff * 0.02)));
+
+            if (Math.random() <= hitChance) {
+                let dmgMult = (choice === "atk_q") ? 0.6 : (choice === "atk_n" ? 1.0 : 1.6);
+                const rawDmg = (activeEnemyUnit.str * 2) + activeEnemyUnit.wDmg;
+                const finalDmg = Math.max(2, Math.floor(rawDmg * dmgMult * (0.85 + Math.random() * 0.3)));
+
+                activePlayerUnit.hp = Math.max(0, activePlayerUnit.hp - finalDmg);
+                activePlayerUnit.addPopText(`-${finalDmg}`, "#ff0000");
+                createBloodBurst(activePlayerUnit.x, activePlayerUnit.y - 140);
+                updateTickerMessage(`${activeEnemyUnit.name} acımasızca saldırdı ve darbe indirdi! Hasar: ${finalDmg}`);
+            } else {
+                activePlayerUnit.addPopText("Sıyrıldı!", "#ffff00");
+                updateTickerMessage(`${activePlayerUnit.name} mükemmel bir refleksle gelen darbeden kurtuldu.`);
+            }
+        }
+
+        if (checkMatchEndState()) return;
+
+        turnOwner = "player";
+        evaluateConsoleButtons();
+    }
+
+    function checkMatchEndState() {
+        if (activeEnemyUnit.hp <= 0) {
+            matchInProgress = false;
+            activeEnemyUnit.state = "dying";
+            updateTickerMessage(`ZAFER! ${activeEnemyUnit.name} kumların üzerine serildi.`);
+            disableAllConsoleButtons();
+            setTimeout(processMatchVictoryRewards, 2000);
+            return true;
+        }
+        if (activePlayerUnit.hp <= 0) {
+            matchInProgress = false;
+            activePlayerUnit.state = "dying";
+            updateTickerMessage(`MAĞLUBİYET... Şampiyon ${activeEnemyUnit.name} sizi arenanın tozuna gömdü.`);
+            disableAllConsoleButtons();
+            setTimeout(processMatchDefeatState, 2000);
+            return true;
+        }
+        return false;
+    }
+
+    function processMatchVictoryRewards() {
+        document.getElementById('battle-console').classList.add('hidden');
+
+        let rewardGold = 0;
+
+        if (isTournamentMatch) {
+            hero.level += 1;
+            rewardGold = 300 + (hero.level * 100);
+            hero.gold += rewardGold;
+            timeOfDay = 0; 
+            
+            pPool += 6; 
+            
+            document.getElementById('creator-pool').innerText = pPool;
+            document.getElementById('v-str').innerText = hero.str;
+            document.getElementById('v-agi').innerText = hero.agi;
+            document.getElementById('v-end').innerText = hero.end;
+            document.getElementById('v-vit').innerText = hero.vit;
+            
+            redrawCreatorPreview();
+            
+            document.getElementById('scr-town').classList.add('hidden');
+            document.getElementById('scr-creator').classList.remove('hidden');
+            
+            updateTickerMessage(`TURNUVA KAZANILDI! Seviye ${hero.level} Oldun. +6 Yetenek Puanı Kazandın! Önce Puanlarını Dağıt.`);
+            
+            if (hero.level > 4) {
+                alert("TEBRİKLER! TÜM TURNUVA ŞAMPİYONLARINI DEVİREREK KLANIN EN BÜYÜK HÜKÜMDARI OLDUNUZ!");
+                resurrectNewGame();
+                return;
+            }
+        } else {
+            rewardGold = 50 + (hero.level * 25);
+            hero.gold += rewardGold;
+            timeOfDay += 1; 
+            
+            document.getElementById('scr-town').classList.remove('hidden');
+            updateTickerMessage(`Teke Tek Maç Kazanıldı! Hazineye +${rewardGold} Altın Eklendi. Vakit ilerledi: ${timeNames[timeOfDay]}!`);
+        }
+
+        updateTownArenaButton();
+        refreshHudDisplay();
+    }
+
+    function processMatchDefeatState() {
+        document.getElementById('battle-console').classList.add('hidden');
+        document.getElementById('game-hud').classList.add('hidden');
+        document.getElementById('death-report').innerText = `Seni Katleden: ${activeEnemyUnit.name}`;
+        document.getElementById('scr-death').classList.remove('hidden');
+    }
+
+    function resurrectNewGame() {
+        pPool = 10; timeOfDay = 0;
+        hero = {
+            name: "Slayer_Of_Sandals", level: 1, gold: 0,
+            str: 4, agi: 4, end: 4, vit: 4, skinIdx: 0, hairIdx: 0,
+            weaponId: "w_fist", armorId: "a_none"
+        };
+        boughtWeapons = ["w_fist"];
+        boughtArmors = ["a_none"];
+
+        document.getElementById('scr-death').classList.add('hidden');
+        document.getElementById('scr-town').classList.add('hidden');
+        document.getElementById('game-hud').classList.add('hidden');
+        document.getElementById('scr-creator').classList.remove('hidden');
+
+        document.getElementById('creator-pool').innerText = pPool;
+        document.getElementById('v-str').innerText = 4;
+        document.getElementById('v-agi').innerText = 4;
+        document.getElementById('v-end').innerText = 4;
+        document.getElementById('v-vit').innerText = 4;
+        
+        redrawCreatorPreview();
+    }
+
+    function createBloodBurst(x, y) {
+        for(let i=0; i<25; i++) {
+            bloodSparks.push(new Spark(x, y, "#aa0000"));
+        }
+    }
+
+    function updateTickerMessage(msg) {
+        document.getElementById('log-ticker').innerText = msg;
+    }
+
+    function disableAllConsoleButtons() {
+        const btns = document.querySelectorAll('.action-btn');
+        btns.forEach(b => b.disabled = true);
+    }
+
+    function evaluateConsoleButtons() {
+        if (!matchInProgress || turnOwner !== "player") {
+            disableAllConsoleButtons();
+            return;
+        }
+
+        const dist = Math.abs(activePlayerUnit.x - activeEnemyUnit.x);
+
+        document.getElementById('b-move-f').disabled = (activePlayerUnit.st < 10);
+        document.getElementById('b-move-b').disabled = (activePlayerUnit.st < 10);
+        document.getElementById('b-taunt').disabled = (activePlayerUnit.st < 15);
+        document.getElementById('b-charge').disabled = (activePlayerUnit.st < 25);
+        document.getElementById('b-rest').disabled = false;
+
+        const outOfRange = (dist > activePlayerUnit.wRange);
+        document.getElementById('b-atk-q').disabled = (activePlayerUnit.st < 15 || outOfRange);
+        document.getElementById('b-atk-n').disabled = (activePlayerUnit.st < 25 || outOfRange);
+        document.getElementById('b-atk-h').disabled = (activePlayerUnit.st < 45 || outOfRange);
+    }
+
+    function renderLoop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (timeOfDay === 0) ctx.fillStyle = "#1c140e"; 
+        else if (timeOfDay === 1) ctx.fillStyle = "#2b1f14"; 
+        else ctx.fillStyle = "#0f0a07"; 
+        
+        ctx.fillRect(0, 0, canvas.width, 480);
+        
+        ctx.fillStyle = "#362419";
+        ctx.fillRect(0, 480, canvas.width, 220);
+        ctx.fillStyle = "#b8975a";
+        ctx.fillRect(0, 480, canvas.width, 6);
+
+        ctx.strokeStyle = "rgba(255,215,0,0.06)";
+        ctx.lineWidth = 4;
+        for (let i = 0; i < canvas.width; i += 80) {
+            ctx.beginPath(); ctx.moveTo(i, 485); ctx.lineTo(i - 40, canvas.height); ctx.stroke();
+        }
+
+        if (activePlayerUnit && activeEnemyUnit) {
+            activePlayerUnit.process();
+            activeEnemyUnit.process();
+
+            activePlayerUnit.paint();
+            activeEnemyUnit.paint();
+        }
+
+        for (let i = bloodSparks.length - 1; i >= 0; i--) {
+            bloodSparks[i].process();
+            bloodSparks[i].paint();
+            if (bloodSparks[i].alpha <= 0) bloodSparks.splice(i, 1);
+        }
+
+        requestAnimationFrame(renderLoop);
+    }
+
+    window.onload = () => {
+        redrawCreatorPreview();
+    };
+</script></body></html>
