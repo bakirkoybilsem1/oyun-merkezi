@@ -592,5 +592,14 @@
       "#FDDB92",
       "#D1FDFF"
     ]
+  },
+  {
+    "slug": "eymen-arena-guncel",
+    "name": "Eymen Arena (Güncel)",
+    "emoji": "🏙️",
+    "colors": [
+      "#E0C3FC",
+      "#8EC5FC"
+    ]
   }
 ]
