@@ -574,5 +574,14 @@
       "#96FBC4",
       "#F9F586"
     ]
+  },
+  {
+    "slug": "eymen-engine",
+    "name": "Eymen ENGINE",
+    "emoji": "🚁",
+    "colors": [
+      "#FBC2EB",
+      "#A6C1EE"
+    ]
   }
 ]
