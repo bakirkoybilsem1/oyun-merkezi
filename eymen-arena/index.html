@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Voxel War: Arena Mayhem</title>
+    <title>Eymen Arena</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Arial Black', sans-serif; user-select: none; }
@@ -69,10 +69,10 @@
         6: { name: "POMPALI", price: 1200, damage: 150, speed: 3, color: 0xaaaaaa, effect: "bullet", rate: 800 },
         7: { name: "LAZER", price: 4000, damage: 45, speed: 8, color: 0xff0000, effect: "laser", rate: 150 },
         8: { name: "ELEKTRİK", price: 4500, damage: 120, speed: 5, color: 0x0088ff, effect: "bullet", rate: 200 },
-        9: { name: "VOLKAN", price: 5000, damage: 200, speed: 1, color: 0xff0000, effect: "rocket", rate: 1500 },
+        9: { name: "VOLKAN", price: 7000, damage: 200, speed: 1, color: 0xff0000, effect: "rocket", rate: 1500 },
         0: { name: "HANÇER", price: 500, damage: 80, speed: 0.8, color: 0xcccccc, effect: "melee", rate: 300 },
         11: { name: "PORTAL", price: 3000, damage: 0, speed: 4, color: 0x800080, effect: "portal", rate: 1000 },
-        12: { name: "KARA DELİK", price: 7000, damage: 5, speed: 2, color: 0x000000, effect: "blackhole", rate: 5000 },
+        12: { name: "KARA DELİK", price: 5000, damage: 5, speed: 2, color: 0x000000, effect: "blackhole", rate: 5000 },
         13: { name: "YAY", price: 2000, damage: 120, speed: 6, color: 0x8b4513, effect: "bow", rate: 500 },
         "bomb": { name: "BOMBA", price: 2500, damage: 300 }
     };
@@ -316,9 +316,8 @@
             if(b.position.y <= 0) { b.position.y = 0; hitTrigger = true; }
             houses.forEach(h => { if(b.position.distanceTo(h.mesh.position) < 15) hitTrigger = true; });
             
-            // ROKET VE VOLKAN YERE DEĞİNCE PATLASIN
             if(hitTrigger && b.userData.effect === "rocket") {
-                let pSize = (b.userData.weaponId === 9) ? 60 : 15; // Volkan (9) ise çok büyük patlasın
+                let pSize = (b.userData.weaponId === 9) ? 40 : 15; // Volkan patlaması azcık küçültüldü
                 explode(b.position, b.userData.damage, b.material.color, pSize);
                 scene.remove(b); bullets.splice(i, 1); continue;
             }
@@ -345,7 +344,7 @@
                 let n = npcs[j];
                 if(!n.userData.dead && b.position.distanceTo(n.position) < 4) {
                     if(b.userData.effect === "rocket") {
-                        let pSize = (b.userData.weaponId === 9) ? 60 : 15;
+                        let pSize = (b.userData.weaponId === 9) ? 40 : 15;
                         explode(b.position, b.userData.damage, b.material.color, pSize);
                     }
                     else { n.userData.health -= b.userData.damage; if(n.userData.health <= 0) dieNPC(n); }
